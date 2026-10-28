@@ -9,7 +9,7 @@ En selvhostet familietavle til iPad Air 2, nyere tablets og telefoner.
 - Dag- og ugevisning, frem/tilbage, swipe på touchskærm og "I dag".
 - Opret, redigér og slet lokale aftaler, inkl. legeaftaler og afhentningsansvar.
 - Familiemedlemmer med farvekoder; filtrering efter person.
-- Opret pligter til én dag, én hel uge, hver uge eller hver anden uge. Pligter som gælder en hel uge afkrydses én gang for hele ugen (mandag–søndag).
+- Opret opgaver til én dag, én hel uge, hver uge eller hver anden uge. Opgaver som gælder en hel uge afkrydses én gang for hele ugen (mandag–søndag).
 - Home Assistant REST-integration til læsning af konfigurerede kalender-entities.
 - Push-notifikationstest via HA `notify`-service og automatiske afhentningspåmindelser 30 min. før en lokal legeaftale slutter.
 - Adgangskode, sessionscookies, CSRF-beskyttelse, rate limit på login, sikkerhedsheaders.
@@ -19,15 +19,15 @@ En selvhostet familietavle til iPad Air 2, nyere tablets og telefoner.
 **Begrænsninger:**
 
 - Google Kalender/iCloud skal i denne version være tilknyttet **Home Assistant** som `calendar.*`-entities. De vises kun i læsetilstand. Lokale FamilieHub-aftaler synkroniseres **ikke** tilbage til Google/iCloud.
-- Pligter ligger foreløbig i FamilieHubs SQLite, ikke i ChoreOps. ChoreOps-adapteren er næste fase.
+- Opgaver ligger foreløbig i FamilieHubs SQLite, ikke i ChoreOps. ChoreOps-adapteren er næste fase.
 - Der er ét delt FamilieHub-login for husstanden (ikke individuelle adgangsroller endnu).
 - Ingen komplet Google Nest Hub-oplevelse; kompakt castskærm er planlagt.
 - Ingen PWA-offline-cache: appen kræver online forbindelse til backend.
 - Browserlayout er implementeret, men bør afprøves fysisk på den gamle iPad inden permanent opsætning.
 
-## Pligter for hele uger og hver anden uge
+## Opgaver for hele uger og hver anden uge
 
-I **Pligter → + Opgave → Gentagelse** kan du nu vælge:
+I **Opgaver → + Opgave → Gentagelse** kan du nu vælge:
 
 - **Én hel uge**: vis opgaven fra mandag til søndag i den uge, du vælger under startdato, og afkryds kun én gang.
 - **Hver uge (hele ugen)**: en ny opgave hver mandag, som kan løses én gang inden søndag.
@@ -42,12 +42,12 @@ Ved afkrydsning af en hel uge vises opgaven som udført på alle syv dage. Næst
 
 ## Opgavearkiv og overblik (ny)
 
-- Brug tandhjulet **Indstillinger** øverst til højre for en separat indstillingsside med fanerne **Opgavearkiv** og **Alle pligter**.
-- **Opgavearkiv**: opret, redigér og slet skabeloner med pligtnavn, standardansvarlig og gentagelse. En skabelon er ikke en aktiv pligt. Skabeloner lagres i SQLite under `/data`.
-- **Alle pligter**: samlet søgbar liste over aktive/oprettede pligter, også dem der ikke gælder den valgte kalenderdag. Redigér eller slet herfra.
-- På forsiden: vælg **+ Opgave → Fra opgavearkivet**, og en skabelon udfylder navn, ansvarlig og gentagelse. Du vælger stadig selv startdatoen. Knappen **Gem i arkiv** kan gemme en ny skabelon direkte fra en pligt.
+- Brug tandhjulet **Indstillinger** øverst til højre for en separat indstillingsside med fanerne **Opgavearkiv** og **Alle opgaver**.
+- **Opgavearkiv**: opret, redigér og slet skabeloner med opgavenavn, standardansvarlig og gentagelse. En skabelon er ikke en aktiv opgave. Skabeloner lagres i SQLite under `/data`.
+- **Alle opgaver**: samlet søgbar liste over aktive/oprettede opgaver, også dem der ikke gælder den valgte kalenderdag. Redigér eller slet herfra.
+- På forsiden: vælg **+ Opgave → Fra opgavearkivet**, og en skabelon udfylder navn, ansvarlig og gentagelse. Du vælger stadig selv startdatoen. Knappen **Gem i arkiv** kan gemme en ny skabelon direkte fra en opgave.
 - Kalenderens kort er gjort lavere; pilen for eksterne kalenderaftaler vises ved siden af tidspunktet.
-- Migrering er additiv (`CREATE TABLE IF NOT EXISTS task_templates`), så eksisterende pligter, afkrydsninger og aftaler bevares.
+- Migrering er additiv (`CREATE TABLE IF NOT EXISTS task_templates`), så eksisterende opgaver, afkrydsninger og aftaler bevares.
 - Runen og GHCR-tagget `0.1.1` er uændrede; efter et **grønt build** kræves kun genstart af Yggdrasil-serveren. Kontroller build-nummeret nederst på forsiden.
 
 ## 1. Byg lokalt (Linux)
@@ -136,7 +136,7 @@ For personlige notifikationer:
 2. Find telefonens notify-service i HA, f.eks. `notify.mobile_app_mors_iphone`.
 3. I FamilieHub: **Familiemedlemmer → Redigér**. Skriv **kun** service-delen, f.eks. `mobile_app_mors_iphone`.
 4. Brug **Test push**.
-5. Lokale legeaftaler med valgt `Hvem henter?` udløser notifikation **30 minutter før aftalens sluttid**. Appen sender desuden en samlet påmindelse om uafsluttede pligter kl. 16:00. Scheduleren forsøger afsendelse i et 10-minutters vindue efter påmindelsestidspunktet.
+5. Lokale legeaftaler med valgt `Hvem henter?` udløser notifikation **30 minutter før aftalens sluttid**. Appen sender desuden en samlet påmindelse om uafsluttede opgaver kl. 16:00. Scheduleren forsøger afsendelse i et 10-minutters vindue efter påmindelsestidspunktet.
 
 **Sikkerhed:** Hvis Yggdrasil er en ekstern VPS, brug en privat VPN-forbindelse til HA. Udsæt ikke HA's port 8123 direkte mod internettet. APP_PASSWORD er fælles for husstanden, så del den kun med familien. Den offentlige FamilieHub skal altid have HTTPS.
 
@@ -190,3 +190,7 @@ så det kan verificeres, at Yggdrasil startede det nyeste Docker-image.
 Ved genstart henter Yggdrasil normalt imaget igen. Hvis hash ikke ændres: kontrollér
 Yggdrasils serverlog og hvilken Docker-image-tag der er knyttet til serverens Rune.
 Runen er ikke ændret; GHCR-tagget `0.1.1` bliver genudgivet ved push til `main`.
+
+## iPad Air 2 (portraet)
+
+Header og kalendernavigation har mindre lodret padding. Kalenderkortene bruger igen 12 px for titler og 11 px for klokkeslet, saa skriften ikke skaleres ned for at rumme alle syv dage. I 701-900 px bredde viser ugevisningen hoejst to linjer af hvert aftalenavn; tryk paa aftalen for at se hele titlen. Alle syv ugedage beholdes i samme overblik, og brugerskabte opgaver bevares uforandret.

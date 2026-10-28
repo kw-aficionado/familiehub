@@ -87,7 +87,7 @@
     })(addDays(start,i))}
   }
   function repeatLabel(rule){return ({daily:'Hver dag',weekly:'Hver uge (én dag)',biweekly:'Hver anden uge (én dag)',once_week:'Én hel uge',weekly_window:'Hver uge (hele ugen)',biweekly_window:'Hver anden uge (hele ugen)'})[rule]||''}
-  function renderTasks(){var root=$('taskList');root.replaceChildren();var tasks=S.tasks.filter(function(t){return !S.filter||t.assigned_to===S.filter});if(!tasks.length){root.appendChild(el('p',{'class':'empty-state'},'Ingen pligter på denne dag. Tryk “+ Opgave” for at oprette en.'));return}
+  function renderTasks(){var root=$('taskList');root.replaceChildren();var tasks=S.tasks.filter(function(t){return !S.filter||t.assigned_to===S.filter});if(!tasks.length){root.appendChild(el('p',{'class':'empty-state'},'Ingen opgaver på denne dag. Tryk “+ Opgave” for at oprette en.'));return}
     tasks.forEach(function(t){var row=el('div',{'class':'task-row'});var check=el('input',{type:'checkbox','aria-label':'Fuldfør '+t.title});check.checked=t.done;check.addEventListener('change',async function(){try{await api('/api/tasks/'+t.id+'/toggle','POST',{day:dayString(S.focus),done:check.checked});load()}catch(e){check.checked=!check.checked;alert(e.message)}});row.appendChild(check);
       var text=el('div',{'class':'task-text'});var title=el('strong',{'class':t.done?'strike':''},t.title);text.appendChild(title);text.appendChild(el('small',null,nameOf(t.assigned_to)+(repeatLabel(t.repeat_rule)?' · '+repeatLabel(t.repeat_rule):'')));row.appendChild(text);
       var edit=el('button',{'class':'text-button','type':'button'},'Redigér');edit.addEventListener('click',function(){openTask(t)});row.appendChild(edit);root.appendChild(row)
@@ -128,16 +128,16 @@
       field('Ansvarlig','<select name="assigned_to">'+personOptions(t?t.assigned_to:'','Fælles')+'</select>')+
       field('Startdato / forfalder','<input name="due_date" type="date" required value="'+esc(t?t.due_date:dayString(S.focus))+'">')+
       field('Gentagelse',repeatSelectHTML())+
-      '<p class="muted field-wide">En pligt for hele ugen krydses kun af én gang. Vælg startdatoen for at bestemme, hvilke uger den skal gælde.</p>'+
+      '<p class="muted field-wide">En opgave for hele ugen krydses kun af én gang. Vælg startdatoen for at bestemme, hvilke uger den skal gælde.</p>'+
       '<div class="form-actions">'+(editing?'<button type="button" id="deleteBtn" class="danger">Slet</button>':'')+
       '<button type="button" id="saveTemplateBtn" class="minor">Gem i arkiv</button><button type="submit" class="primary">Gem opgave</button></div></form>';
-    openModal(editing?'Redigér pligt':'Ny pligt',html);
+    openModal(editing?'Redigér opgave':'Ny opgave',html);
     var form=$('entryForm').elements;form.repeat_rule.value=t?t.repeat_rule:'none';
     if(!editing)$('templatePicker').addEventListener('change',function(){var selected=S.templates.find(function(x){return x.id===$('templatePicker').value});if(!selected)return;form.title.value=selected.title;form.assigned_to.value=selected.assigned_to;form.repeat_rule.value=selected.repeat_rule});
     function fromForm(){return {id:'',title:form.title.value,assigned_to:form.assigned_to.value,due_date:form.due_date.value,repeat_rule:form.repeat_rule.value,done:false}}
     $('entryForm').addEventListener('submit',function(evt){evt.preventDefault();saveOrError(async function(){await api(editing?'/api/tasks/'+t.id:'/api/tasks',editing?'PUT':'POST',fromForm());if(S.settingsOpen)await refreshSettingsData()})});
-    $('saveTemplateBtn').addEventListener('click',async function(){var values=fromForm();try{await api('/api/templates','POST',{id:'',title:values.title,assigned_to:values.assigned_to,repeat_rule:values.repeat_rule});S.templates=await api('/api/templates');$('formError').textContent='Gemt i opgavearkivet. Du kan stadig gemme selve pligten.';if(!editing){var old=$('templatePicker').value;$('templatePicker').innerHTML=templateOptions();$('templatePicker').value=old}}catch(err){$('formError').textContent=err.message}});
-    if(editing)$('deleteBtn').addEventListener('click',function(){if(confirm('Slet denne pligt og dens afkrydsninger?'))saveOrError(async function(){await api('/api/tasks/'+t.id,'DELETE');if(S.settingsOpen)await refreshSettingsData()})});
+    $('saveTemplateBtn').addEventListener('click',async function(){var values=fromForm();try{await api('/api/templates','POST',{id:'',title:values.title,assigned_to:values.assigned_to,repeat_rule:values.repeat_rule});S.templates=await api('/api/templates');$('formError').textContent='Gemt i opgavearkivet. Du kan stadig gemme selve opgaven.';if(!editing){var old=$('templatePicker').value;$('templatePicker').innerHTML=templateOptions();$('templatePicker').value=old}}catch(err){$('formError').textContent=err.message}});
+    if(editing)$('deleteBtn').addEventListener('click',function(){if(confirm('Slet denne opgave og dens afkrydsninger?'))saveOrError(async function(){await api('/api/tasks/'+t.id,'DELETE');if(S.settingsOpen)await refreshSettingsData()})});
   }
   function repeatSelectHTML(){return '<select name="repeat_rule"><option value="none">En gang (valgt dag)</option><option value="daily">Hver dag</option><option value="weekly">Hver uge (én dag)</option><option value="biweekly">Hver anden uge (én dag)</option><option value="once_week">Én hel uge</option><option value="weekly_window">Hver uge (hele ugen)</option><option value="biweekly_window">Hver anden uge (hele ugen)</option></select>'}
   async function refreshSettingsData(){
@@ -159,12 +159,12 @@
     var isArchive=S.settingsTab==='templates',items=isArchive?S.templates:S.allTasks;
     $('templatesTab').classList.toggle('active',isArchive);$('allTasksTab').classList.toggle('active',!isArchive);
     $('templatesTab').setAttribute('aria-selected',isArchive?'true':'false');$('allTasksTab').setAttribute('aria-selected',!isArchive?'true':'false');
-    $('settingsSectionTitle').textContent=isArchive?'Opgavearkiv ('+items.length+')':'Alle pligter ('+items.length+')';
-    $('settingsDescription').textContent=isArchive?'Genbrug en skabelon fra + Opgave. Arkivet er ikke aktive pligter.':'Samlet oversigt over alle gemte pligter – også dem, der ikke gælder i dag.';
-    $('settingsAddBtn').textContent=isArchive?'+ Ny skabelon':'+ Ny pligt';
+    $('settingsSectionTitle').textContent=isArchive?'Opgavearkiv ('+items.length+')':'Alle opgaver ('+items.length+')';
+    $('settingsDescription').textContent=isArchive?'Genbrug en skabelon fra + Opgave. Arkivet er ikke aktive opgaver.':'Samlet oversigt over alle gemte opgaver – også dem, der ikke gælder i dag.';
+    $('settingsAddBtn').textContent=isArchive?'+ Ny skabelon':'+ Ny opgave';
     var term=$('settingsSearch').value.toLocaleLowerCase('da-DK').trim(),filtered=items.filter(function(t){return (t.title+' '+nameOf(t.assigned_to)+' '+repeatLabel(t.repeat_rule)).toLocaleLowerCase('da-DK').indexOf(term)!==-1});
     var root=$('settingsList');root.replaceChildren();
-    if(!filtered.length){root.appendChild(el('p',{'class':'empty-state'},term?'Ingen pligter matcher din søgning.':isArchive?'Arkivet er tomt. Tilføj din første skabelon.':'Ingen pligter oprettet endnu.'));return}
+    if(!filtered.length){root.appendChild(el('p',{'class':'empty-state'},term?'Ingen opgaver matcher din søgning.':isArchive?'Arkivet er tomt. Tilføj din første skabelon.':'Ingen opgaver oprettet endnu.'));return}
     filtered.forEach(function(t){
       var row=el('div',{'class':'settings-item'});
       var dot=el('i',{'class':'dot'});dot.style.background=colorOf(t.assigned_to);
@@ -173,7 +173,7 @@
       txt.appendChild(el('small',null,(t.assigned_to?nameOf(t.assigned_to):'Fælles')+' · '+(repeatLabel(t.repeat_rule)||'En gang')+(!isArchive?' · Fra '+t.due_date.split('-').reverse().join('.'):'')));
       var actions=el('div',{'class':'settings-item-actions'});
       var edit=el('button',{'class':'text-button','type':'button'},'Redigér');edit.addEventListener('click',function(){if(isArchive)openTemplate(t);else openTask(t)});actions.appendChild(edit);
-      var del=el('button',{'class':'text-button settings-delete','type':'button'},'Slet');del.addEventListener('click',async function(){if(!confirm('Slet '+(isArchive?'skabelonen':'pligten')+' "'+t.title+'"?'+(isArchive?' Eksisterende pligter påvirkes ikke.':' Tilhørende afkrydsninger slettes også.')))return;try{await api(isArchive?'/api/templates/'+t.id:'/api/tasks/'+t.id,'DELETE');await refreshSettingsData();await load()}catch(e){alert(e.message)}});actions.appendChild(del);
+      var del=el('button',{'class':'text-button settings-delete','type':'button'},'Slet');del.addEventListener('click',async function(){if(!confirm('Slet '+(isArchive?'skabelonen':'opgaven')+' "'+t.title+'"?'+(isArchive?' Eksisterende opgaver påvirkes ikke.':' Tilhørende afkrydsninger slettes også.')))return;try{await api(isArchive?'/api/templates/'+t.id:'/api/tasks/'+t.id,'DELETE');await refreshSettingsData();await load()}catch(e){alert(e.message)}});actions.appendChild(del);
       row.appendChild(dot);row.appendChild(txt);row.appendChild(actions);root.appendChild(row);
     });
   }
@@ -182,7 +182,7 @@
     var html='<form id="entryForm" class="form-grid">'+field('Opgave','<input name="title" maxlength="150" required value="'+esc(t?t.title:'')+'">')+
       field('Foreslået ansvarlig','<select name="assigned_to">'+personOptions(t?t.assigned_to:'','Fælles / vælg senere')+'</select>')+
       field('Gentagelse',repeatSelectHTML())+
-      '<p class="muted field-wide">Skabeloner opretter ikke automatisk pligter. Vælg dem under + Opgave og angiv startdato.</p>'+
+      '<p class="muted field-wide">Skabeloner opretter ikke automatisk opgaver. Vælg dem under + Opgave og angiv startdato.</p>'+
       '<div class="form-actions"><button type="submit" class="primary">Gem skabelon</button></div></form>';
     openModal(editing?'Redigér skabelon':'Ny skabelon',html);$('entryForm').elements.repeat_rule.value=t?t.repeat_rule:'none';
     $('entryForm').addEventListener('submit',function(evt){evt.preventDefault();var f=evt.currentTarget.elements;saveOrError(async function(){await api(editing?'/api/templates/'+t.id:'/api/templates',editing?'PUT':'POST',{id:'',title:f.title.value,assigned_to:f.assigned_to.value,repeat_rule:f.repeat_rule.value});await refreshSettingsData()})});

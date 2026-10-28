@@ -26,7 +26,7 @@ func validRepeatRule(rule string) bool {
 func (a *App) allTasks(w http.ResponseWriter, r *http.Request) {
 	rows, err := a.db.Query("SELECT id,title,assigned_to,due_date,repeat_rule FROM tasks ORDER BY title COLLATE NOCASE, due_date, id")
 	if err != nil {
-		apiError(w, 500, "Alle pligter kunne ikke hentes")
+		apiError(w, 500, "Alle opgaver kunne ikke hentes")
 		return
 	}
 	tasks := []Task{}

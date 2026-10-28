@@ -40,3 +40,48 @@
 .field-wide{grid-column:1/-1}
 .sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap}
 @media(max-width:700px){.settings-heading{flex-wrap:wrap}.settings-panel{padding:14px}.settings-panel-head{flex-wrap:wrap}.settings-item{gap:8px;flex-wrap:wrap}.settings-item-actions{margin-left:auto}.field-wide{grid-column:auto}}
+
+
+/* iPad Air 2: keep the original readable calendar font, save space in the
+   header and navigation instead of shrinking event text. */
+.topbar{padding:10px 0}
+.intro{margin:15px 0 12px}
+.eyebrow{margin-bottom:5px}
+.navigation{margin-bottom:10px}
+.filters{padding-bottom:10px}
+.below{margin-top:12px}
+.day-heading{padding:6px 2px 8px;margin-bottom:2px}
+.day-column{gap:5px}
+.event-card{min-height:44px;padding:6px 7px 6px 10px}
+.event-name{font-size:12px;line-height:1.3}
+.event-time{font-size:11px}
+.event-category{font-size:10px}
+.day-view .event-name{font-size:15px}
+@media (min-width:701px) and (max-width:900px){
+  .app{padding-left:11px;padding-right:11px}
+  .topbar{padding:8px 0}
+  .brand-icon{width:39px;height:39px;font-size:29px}
+  .top-actions{gap:7px}
+  .intro{margin:12px 0 10px}
+  .navigation{margin-bottom:8px}
+  .filters{padding-bottom:8px;gap:6px}
+  .calendar.week-view{gap:4px}
+  .day-column{padding:4px;gap:4px}
+  .day-column.is-today{padding:3px}
+  .day-heading{padding:4px 2px 7px;margin-bottom:1px}
+  .day-heading strong{font-size:23px}
+  .is-today .day-heading strong{min-width:34px;height:34px}
+  .calendar.week-view .event-card{padding:5px 4px 5px 9px;gap:2px;min-height:44px}
+  .calendar.week-view .event-name{
+    display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;
+    overflow:hidden;max-height:2.6em
+  }
+  .calendar.week-view .event-category{display:none}
+  .below{gap:10px;margin-top:12px}
+  .panel{padding:12px;min-height:0}
+}
+@media (max-width:700px){
+  .topbar{padding:8px 0}
+  .intro{margin:12px 0 10px}
+  .filters{padding-bottom:9px}
+}
