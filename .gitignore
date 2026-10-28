@@ -1,0 +1,9 @@
+.env
+.env.*
+!sample.env
+/data/
+/familiehub
+*.sqlite
+*.sqlite-journal
+*.zip
+.DS_Store

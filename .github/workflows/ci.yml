@@ -1,0 +1,23 @@
+name: Verify FamilieHub
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  go-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: false
+      - name: Run unit and race tests
+        run: |
+          go test ./...
+          go test -race ./...
+      - name: Check browser JavaScript syntax
+        run: node --check web/app.js

@@ -1,0 +1,13 @@
+.git
+.github
+*.zip
+familiehub
+/data
+/data/
+*.sqlite
+*.sqlite-journal
+*.key
+.env
+.env.*
+README.md
+rune/

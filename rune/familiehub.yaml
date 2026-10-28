@@ -1,0 +1,48 @@
+gameskill:
+  id: familiehub
+  name: "FamilieHub"
+  category: "Apps"
+  description: "Familiekalender, legeaftaler og pligter med Home Assistant"
+  author: "familiehub"
+  version: 1
+  icon: "app"
+
+  docker:
+    # Publicér først dette image i GHCR; opdatér owner/tag ved behov.
+    image: "ghcr.io/kw-aficionado/familiehub:0.1.0"
+    data_path: /data
+
+  variables:
+    - key: APP_URL
+      name: "Offentlig HTTPS-adresse"
+      type: string
+      default: "{{PUBLIC_URL}}"
+    - key: APP_PASSWORD
+      name: "FamilieHub login-adgangskode (mindst 12 tegn)"
+      type: string
+      secret: true
+      required: true
+      default: ""
+    - key: HA_URL
+      name: "Home Assistant URL (LAN/VPN)"
+      type: string
+      default: ""
+    - key: HA_TOKEN
+      name: "Home Assistant long-lived access token"
+      type: string
+      secret: true
+      default: ""
+    - key: HA_CALENDARS
+      name: "HA kalender-entity-id'er (kommasepareret)"
+      type: string
+      default: ""
+
+  startup:
+    exec: ["/app/familiehub", "-listen", "0.0.0.0:8080"]
+    stop_timeout: 30
+
+  ports:
+    - { name: web, default: 8080, protocol: tcp }
+
+  backup:
+    include: ["."]
