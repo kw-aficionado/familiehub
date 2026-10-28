@@ -150,3 +150,6 @@ a.text-button,a.minor{display:inline-flex;align-items:center;justify-content:cen
   .task-page-card{padding:10px}
 }
 @media(min-width:701px) and (max-width:950px){.tasks-page-list{grid-template-columns:1fr 1fr}}
+
+/* Assign the same person colour to the short home-page task preview. */
+.task-person-label{display:inline-flex;border-radius:5px;padding:2px 7px;font-size:12px;font-weight:750}
