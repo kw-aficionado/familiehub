@@ -1,10 +1,10 @@
-# FamilieHub v0.1.0 – familiekalender som Yggdrasil Rune
+# FamilieHub v0.1.1 – familiekalender som Yggdrasil Rune
 
 En selvhostet familietavle til iPad Air 2, nyere tablets og telefoner.
 
 **Status:** Kørbar MVP. Go + SQLite + indlejret HTML/CSS/JavaScript (ingen npm-afhængigheder). Designet med browserkompatibilitet til iPadOS 15. Docker-imaget bygges automatisk via GitHub Actions ved push til `main`. Runen kræver, at dette workflow er gennemført, og at GHCR-pakken er offentligt tilgængelig (eller Yggdrasil har registry-adgang).
 
-## Funktioner i v0.1.0
+## Funktioner i v0.1.1
 
 - Dag- og ugevisning, frem/tilbage, swipe på touchskærm og "I dag".
 - Opret, redigér og slet lokale aftaler, inkl. legeaftaler og afhentningsansvar.
@@ -45,12 +45,12 @@ APP_PASSWORD='VAELG-ET-SIKKERT-PASSWORD-PA-MINDST-12-TEGN' \
 Denne app er en enkelt Docker-container, ikke en Docker Compose stack.
 
 ```bash
-docker build -t ghcr.io/kw-aficionado/familiehub:0.1.0 .
+docker build -t ghcr.io/kw-aficionado/familiehub:0.1.1 .
 docker run --rm -p 8080:8080 \
   -e APP_PASSWORD='VAELG-ET-SIKKERT-PASSWORD-PA-MINDST-12-TEGN' \
   -e APP_URL='http://localhost:8080' \
   -v familiehub-data:/data \
-  ghcr.io/kw-aficionado/familiehub:0.1.0
+  ghcr.io/kw-aficionado/familiehub:0.1.1
 ```
 
 Bygningen er opsat til både AMD64 og ARM64; buildx/GitHub Actions kan bygge begge.
@@ -61,7 +61,7 @@ Repository: https://github.com/kw-aficionado/familiehub
 
 1. GitHub Actions-workflowet `.github/workflows/release.yml` bygges automatisk ved push til `main` og på semver-tags.
 2. Kontrollér bygningen under **Actions** i repositoryet. Et grønt workflow er nødvendigt, før Yggdrasil kan hente imaget.
-3. Image-adressen for første version er `ghcr.io/kw-aficionado/familiehub:0.1.0`.
+3. Image-adressen for første version er `ghcr.io/kw-aficionado/familiehub:0.1.1`.
 4. Gør GHCR-pakken **public**, eller tilføj registry-credentials under Yggdrasils **Settings → Container registries**. Et offentligt repository gør ikke automatisk alle GHCR-pakker offentlige.
 5. I Yggdrasil: **Runes → Browse GitHub** og angiv repository `kw-aficionado/familiehub`, folder `rune`, branch `main`. Du kan også uploade Rune-YAML direkte.
 
@@ -82,6 +82,15 @@ Rune: `rune/familiehub.yaml`
 9. Åbn subdomænet, log ind, og opret familiemedlemmer, opgaver og aftaler.
 
 Runens `docker.data_path` er `/data`. Yggdrasil monterer her serverens persistente dataområde. På Yggdrasil overstyrer panelen typisk image-USER til sin servicekonto; dette passer, fordi den også ejer serverens dataområde.
+
+## Opgradering fra 0.1.0
+
+1. Kontrollér at GitHub Actions har publiceret GHCR `0.1.1` med status success, og at container-imaget kan hentes fra Yggdrasil.
+2. Under Yggdrasil → Runes: vælg `kw-aficionado/familiehub`, `rune`, `main` og importér Runen igen (`version: 2`).
+3. Genstart den **eksisterende FamilieHub-server** i Yggdrasil, så den benytter det nye Docker-image. Opret ikke en ny server og brug ikke Wipe; behold `/data`.
+4. Åbn FamilieHub → Integrationer (ikonet med sky) for at se API-status og kalendertest separat.
+
+**Fejlretninger i 0.1.1:** Home Assistant kalendere returnerer start/slut som objekter med `dateTime` eller `date` (heldag). Begge understøttes nu, og det tidligere strengformat accepteres fortsat. Integrationer viser specifikke og sanitiserede fejl (401, 403, DNS, timeout, TLS og ugyldig kalender). Personformularen forklarer forskellen mellem en `device_tracker` og et HA `notify.mobile_app_*`-kald.
 
 ## 5. Forbind eksisterende Home Assistant
 

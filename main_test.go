@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"github.com/kw-aficionado/familiehub/internal/store"
 	"io"
@@ -168,6 +169,94 @@ func TestHomeAssistantCalendarAndNotification(t *testing.T) {
 		t.Fatalf("notify: %v %d calls", v, calls)
 	}
 }
+func TestHomeAssistantCalendarOfficialPayload(t *testing.T) {
+	ha := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Header.Get("Authorization") != "Bearer test-token" {
+			http.Error(w, "unauthorized", 401)
+			return
+		}
+		if r.URL.Path == "/api/" {
+			io.WriteString(w, `{"message":"API running."}`)
+			return
+		}
+		if r.URL.Path == "/api/calendars/calendar.familie" {
+			w.Header().Set("Content-Type", "application/json")
+			io.WriteString(w, `[
+                {"summary":"Legeaftale", "start":{"dateTime":"2026-10-28T15:00:00+01:00"},"end":{"dateTime":"2026-10-28T17:00:00+01:00"}},
+                {"summary":"Fri", "start":{"date":"2026-10-29"},"end":{"date":"2026-10-30"}}
+            ]`)
+			return
+		}
+		http.NotFound(w, r)
+	}))
+	defer ha.Close()
+	a, _ := testApp(t)
+	a.cfg.HAURL = ha.URL
+	a.cfg.HAToken = "test-token"
+	a.cfg.HACalendars = []string{"calendar.familie"}
+	start, _ := time.Parse(time.RFC3339, "2026-10-28T00:00:00Z")
+	end := start.Add(72 * time.Hour)
+	events, err := a.haEvents(context.Background(), start, end)
+	if err != nil || len(events) != 2 {
+		t.Fatalf("official REST events missing: %+v, err %v", events, err)
+	}
+	if events[0].Start != "2026-10-28T15:00:00+01:00" || events[1].Start != "2026-10-29T00:00:00+01:00" {
+		t.Fatalf("HA times parsed incorrectly: %+v", events)
+	}
+	s := httptest.NewServer(a.mux)
+	defer s.Close()
+	cookie, _ := authenticated(t, s)
+	code, diagnostics, _ := req(t, s, "GET", "/api/integrations", "", cookie, "")
+	if code != 200 || diagnostics["ha_online"] != true || diagnostics["calendar_ok"] != true {
+		t.Fatalf("diagnostics: %v", diagnostics)
+	}
+}
+
+func TestHomeAssistantDiagnosticsUnauthorizedAndInvalidCalendar(t *testing.T) {
+	ha := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/api/" {
+			http.Error(w, "unauthorized", http.StatusUnauthorized)
+			return
+		}
+		http.NotFound(w, r)
+	}))
+	defer ha.Close()
+	a, _ := testApp(t)
+	a.cfg.HAURL = ha.URL
+	a.cfg.HAToken = "bad"
+	a.cfg.HACalendars = []string{"calendar.familie"}
+	s := httptest.NewServer(a.mux)
+	defer s.Close()
+	cookie, _ := authenticated(t, s)
+	_, v, _ := req(t, s, "GET", "/api/integrations", "", cookie, "")
+	if v["ha_online"] != false || !strings.Contains(v["ha_error"].(string), "401") {
+		t.Fatalf("unauthorized should show 401: %v", v)
+	}
+	if strings.Contains(v["ha_error"].(string), "bad") {
+		t.Fatalf("token leaked in error: %v", v)
+	}
+	a.cfg.HACalendars = []string{"sensor.not_a_calendar"}
+	_, err := a.haEvents(context.Background(), time.Now(), time.Now().Add(time.Hour))
+	if err == nil || !strings.Contains(haFriendlyError(err), "calendar.*") {
+		t.Fatalf("invalid calendar: %v", err)
+	}
+}
+
+func TestPersonNotifyFieldGuidance(t *testing.T) {
+	a, _ := testApp(t)
+	server := httptest.NewServer(a.mux)
+	defer server.Close()
+	cookie, csrf := authenticated(t, server)
+	code, v, _ := req(t, server, "POST", "/api/people", `{"name":"Anton","color":"#ff8800","notify_service":"device_tracker.anton_iphone_12","position":0}`, cookie, csrf)
+	if code != 400 || !strings.Contains(v["error"].(string), "device_tracker") {
+		t.Fatalf("should explain notify field: %d %v", code, v)
+	}
+	code, v, _ = req(t, server, "POST", "/api/people", `{"name":"Anton","color":"#ff8800","notify_service":"","position":0}`, cookie, csrf)
+	if code != 200 {
+		t.Fatalf("notify empty should be accepted: %d %v", code, v)
+	}
+}
+
 func TestStorePersistence(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "db.sqlite")

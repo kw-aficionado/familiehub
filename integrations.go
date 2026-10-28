@@ -2,13 +2,16 @@ package main
 
 import (
 	"context"
+	"crypto/x509"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"net/url"
 	"strings"
+	"syscall"
 	"time"
 )
 
@@ -34,29 +37,135 @@ func (a *App) haEvents(ctx context.Context, start, end time.Time) ([]Event, erro
 			return out, err
 		}
 		if resp.StatusCode != 200 {
-			return out, fmt.Errorf("HA calendar %s returned HTTP %d", entity, resp.StatusCode)
+			return out, &haHTTPError{Code: resp.StatusCode, Entity: entity}
 		}
 		var payload []struct {
-			Start       string `json:"start"`
-			End         string `json:"end"`
-			Summary     string `json:"summary"`
-			Location    string `json:"location"`
-			Description string `json:"description"`
+			Start       json.RawMessage `json:"start"`
+			End         json.RawMessage `json:"end"`
+			Summary     string          `json:"summary"`
+			Location    string          `json:"location"`
+			Description string          `json:"description"`
 		}
 		if err := json.Unmarshal(raw, &payload); err != nil {
 			return out, err
 		}
 		for _, e := range payload {
-			st := toISO(e.Start, a.loc)
-			en := toISO(e.End, a.loc)
+			st := toISO(haTimeValue(e.Start), a.loc)
+			en := toISO(haTimeValue(e.End), a.loc)
 			if st == "" || en == "" {
 				continue
 			}
-			out = append(out, Event{ID: "ha:" + entity + ":" + sha(e.Summary + e.Start + e.End)[:16], Title: e.Summary, Start: st, End: en, Kind: "kalender", Location: e.Location, Notes: e.Description, External: true})
+			out = append(out, Event{ID: "ha:" + entity + ":" + sha(e.Summary + st + en)[:16], Title: e.Summary, Start: st, End: en, Kind: "kalender", Location: e.Location, Notes: e.Description, External: true})
 		}
 	}
 	return out, nil
 }
+
+// Home Assistant's REST calendar API uses {"dateTime": "..."} or {"date": "..."}.
+// Older test fixtures and third-party adapters sometimes return a string.
+func haTimeValue(raw json.RawMessage) string {
+	var value string
+	if json.Unmarshal(raw, &value) == nil {
+		return value
+	}
+	var fields struct {
+		DateTime string `json:"dateTime"`
+		Date     string `json:"date"`
+	}
+	if json.Unmarshal(raw, &fields) != nil {
+		return ""
+	}
+	if fields.DateTime != "" {
+		return fields.DateTime
+	}
+	return fields.Date
+}
+
+type haHTTPError struct {
+	Code   int
+	Entity string
+}
+
+func (e *haHTTPError) Error() string {
+	if e.Entity == "" {
+		return fmt.Sprintf("HA API HTTP %d", e.Code)
+	}
+	return fmt.Sprintf("HA calendar %s HTTP %d", e.Entity, e.Code)
+}
+
+// Only return safe, actionable diagnostics to an authenticated household user.
+// Do not leak tokens or echo potentially sensitive network error strings.
+func haFriendlyError(err error) string {
+	if err == nil {
+		return ""
+	}
+	var httpErr *haHTTPError
+	if errors.As(err, &httpErr) {
+		prefix := "Home Assistant API"
+		if httpErr.Entity != "" {
+			prefix = httpErr.Entity
+		}
+		switch httpErr.Code {
+		case 301, 302, 303, 307, 308:
+			return prefix + ": omdirigering – kontrollér HA_URL (skal pege på HA API og ikke et login)"
+		case 400, 404:
+			if httpErr.Entity != "" {
+				return prefix + ": ikke fundet eller ugyldigt kalender-entity-id; kontrollér HA_CALENDARS"
+			}
+			return prefix + ": API-endpoint ikke fundet; kontrollér HA_URL"
+		case 401:
+			return prefix + ": HTTP 401 – token er ugyldigt eller udløbet"
+		case 403:
+			return prefix + ": HTTP 403 – kontoen har ikke adgang til ressourcen"
+		default:
+			return fmt.Sprintf("%s: HTTP %d – se Home Assistant-loggen", prefix, httpErr.Code)
+		}
+	}
+	var dns *net.DNSError
+	if errors.As(err, &dns) {
+		return "DNS-fejl – Yggdrasil-serveren kan ikke slå HA-værtsnavnet op"
+	}
+	var x509err x509.UnknownAuthorityError
+	if errors.As(err, &x509err) {
+		return "TLS-certifikat kan ikke verificeres – brug gyldigt certifikat eller intern HTTP via privat net"
+	}
+	if errors.Is(err, syscall.ECONNREFUSED) {
+		return "Forbindelse afvist – kontrollér HA-port, firewall og HA_URL fra Yggdrasil-serveren"
+	}
+	var netErr net.Error
+	if errors.As(err, &netErr) && netErr.Timeout() || errors.Is(err, context.DeadlineExceeded) {
+		return "Timeout – Yggdrasil-serveren kan ikke få svar fra Home Assistant"
+	}
+	if strings.Contains(err.Error(), "certificate") || strings.Contains(err.Error(), "tls:") {
+		return "TLS/HTTPS-fejl – kontrollér HA-certifikatet og URL"
+	}
+	if strings.Contains(err.Error(), "invalid HA calendar entity") {
+		return "HA_CALENDARS skal indeholde calendar.* entity-id'er (kommasepareret)"
+	}
+	if strings.Contains(err.Error(), "unmarshal") || strings.Contains(err.Error(), "JSON") {
+		return "Home Assistant returnerede uventede kalenderdata – kontrollér API-adressen og logs"
+	}
+	return "Netværks- eller API-fejl – se Yggdrasil-containerloggen for detaljer"
+}
+
+// A read-only probe. Authentication and calendar permissions are checked separately.
+func (a *App) haProbe(ctx context.Context) (bool, string) {
+	req, err := http.NewRequestWithContext(ctx, "GET", a.cfg.HAURL+"/api/", nil)
+	if err != nil {
+		return false, haFriendlyError(err)
+	}
+	req.Header.Set("Authorization", "Bearer "+a.cfg.HAToken)
+	resp, err := a.client.Do(req)
+	if err != nil {
+		return false, haFriendlyError(err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return false, haFriendlyError(&haHTTPError{Code: resp.StatusCode})
+	}
+	return true, ""
+}
+
 func toISO(s string, loc *time.Location) string {
 	if t, e := time.Parse(time.RFC3339, s); e == nil {
 		return t.Format(time.RFC3339)

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"crypto/hmac"
 	"crypto/rand"
 	"crypto/sha256"
@@ -364,7 +365,7 @@ func (a *App) state(w http.ResponseWriter, r *http.Request) {
 	if a.cfg.HAURL != "" && a.cfg.HAToken != "" && len(a.cfg.HACalendars) > 0 {
 		external, e := a.haEvents(r.Context(), st, en)
 		if e != nil {
-			warning = "Home Assistant-kalendere kunne ikke opdateres"
+			warning = "Home Assistant-kalendere: " + haFriendlyError(e)
 			log.Printf("calendar integration error: %v", e)
 		} else {
 			ev = append(ev, external...)
@@ -430,7 +431,11 @@ func (a *App) personSave(w http.ResponseWriter, r *http.Request) {
 	}
 	p.Name = strings.TrimSpace(p.Name)
 	if !bounded(p.Name, 60) || !color.MatchString(p.Color) || (p.NotifyService != "" && !ident.MatchString(p.NotifyService)) {
-		apiError(w, 400, "Kontrollér navn, farve og notify-service")
+		if !bounded(p.Name, 60) || !color.MatchString(p.Color) {
+			apiError(w, 400, "Udfyld et navn og vælg en gyldig farve")
+		} else {
+			apiError(w, 400, "Notify-service skal være f.eks. mobile_app_anton_iphone (uden notify. eller device_tracker.). Lad feltet stå tomt, hvis du ikke ved det endnu.")
+		}
 		return
 	}
 	if r.Method == "POST" {
@@ -626,15 +631,34 @@ func (a *App) stream(w http.ResponseWriter, r *http.Request) {
 	}
 }
 func (a *App) integrations(w http.ResponseWriter, r *http.Request) {
-	active := a.cfg.HAURL != "" && a.cfg.HAToken != ""
-	healthy := false
-	if active {
-		req, _ := http.NewRequestWithContext(r.Context(), "GET", a.cfg.HAURL+"/api/", nil)
-		req.Header.Set("Authorization", "Bearer "+a.cfg.HAToken)
-		if resp, e := a.client.Do(req); e == nil {
-			healthy = resp.StatusCode == 200
-			resp.Body.Close()
+	configured := a.cfg.HAURL != "" && a.cfg.HAToken != ""
+	result := map[string]any{
+		"ha_configured":     configured,
+		"ha_online":         false,
+		"calendar_entities": a.cfg.HACalendars,
+		"ha_error":          "",
+		"calendar_error":    "",
+		"calendar_ok":       false,
+	}
+	if a.cfg.HAURL == "" {
+		result["ha_error"] = "HA_URL mangler i Yggdrasil-serverens indstillinger"
+	} else if a.cfg.HAToken == "" {
+		result["ha_error"] = "HA_TOKEN mangler i Yggdrasil-serverens indstillinger"
+	} else {
+		ctx, cancel := context.WithTimeout(r.Context(), 9*time.Second)
+		defer cancel()
+		connected, diagnosis := a.haProbe(ctx)
+		result["ha_online"] = connected
+		result["ha_error"] = diagnosis
+		if connected && len(a.cfg.HACalendars) != 0 {
+			start := time.Now().In(a.loc)
+			_, err := a.haEvents(ctx, start, start.Add(7*24*time.Hour))
+			if err != nil {
+				result["calendar_error"] = haFriendlyError(err)
+			} else {
+				result["calendar_ok"] = true
+			}
 		}
 	}
-	writeJSON(w, 200, map[string]any{"ha_configured": active, "ha_online": healthy, "calendar_entities": a.cfg.HACalendars})
+	writeJSON(w, 200, result)
 }

@@ -4,12 +4,12 @@ gameskill:
   category: "Apps"
   description: "Familiekalender, legeaftaler og pligter med Home Assistant"
   author: "familiehub"
-  version: 1
+  version: 2
   icon: "app"
 
   docker:
-    # Publicér først dette image i GHCR; opdatér owner/tag ved behov.
-    image: "ghcr.io/kw-aficionado/familiehub:0.1.0"
+    # App-image bygges af GitHub Actions. Opdatér runen og genstart serveren ved versionsskift.
+    image: "ghcr.io/kw-aficionado/familiehub:0.1.1"
     data_path: /data
 
   variables:
