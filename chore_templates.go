@@ -3,6 +3,7 @@ package main
 import (
 	"net/http"
 	"strings"
+	"time"
 )
 
 // TaskTemplate is a reusable chore definition. Its start date is deliberately
@@ -130,4 +131,38 @@ func (a *App) templateDelete(w http.ResponseWriter, r *http.Request) {
 	}
 	a.broadcast()
 	writeJSON(w, 200, map[string]bool{"ok": true})
+}
+
+ 
+// TaskOccurrence exposes scheduled tasks for a single day; all data is read from
+// the existing tasks and completions tables (no new persistence required).
+type TaskOccurrence struct {
+ Task
+ Day string `json:"day"`
+}
+
+func (a *App) tasksWeek(w http.ResponseWriter, r *http.Request) {
+ startDate := r.URL.Query().Get("start")
+ if !validDay(startDate) {
+  apiError(w, http.StatusBadRequest, "Ugyldig startdato for uge")
+  return
+ }
+ start, _ := time.Parse("2006-01-02", startDate)
+ weekday := (int(start.Weekday()) + 6) % 7
+ start = start.AddDate(0, 0, -weekday)
+ entries := []TaskOccurrence{}
+ for dayIndex := 0; dayIndex < 7; dayIndex++ {
+  day := start.AddDate(0, 0, dayIndex).Format("2006-01-02")
+  tasks, err := a.tasks(day)
+  if err != nil {
+   apiError(w, http.StatusInternalServerError, "Opgaverne for ugen kunne ikke hentes")
+   return
+  }
+  for _, task := range tasks {
+   entries = append(entries, TaskOccurrence{Task: task, Day: day})
+  }
+ }
+ writeJSON(w, http.StatusOK, map[string]any{
+  "start": start.Format("2006-01-02"), "entries": entries,
+ })
 }

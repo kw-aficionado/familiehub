@@ -142,3 +142,41 @@ func TestTemplatesSchemaUpgradePreservesExistingData(t *testing.T) {
 		t.Fatalf("template lost on reinit: %v, %v", templates, err)
 	}
 }
+
+ 
+func TestWeekTaskOverviewRequiresLoginAndRespectsCompletion(t *testing.T) {
+ a, _ := testApp(t)
+ s := httptest.NewServer(securityHeaders(a.mux))
+ defer s.Close()
+ code, _, _ := req(t, s, "GET", "/api/tasks/week?start=2026-10-28", "", "", "")
+ if code != http.StatusUnauthorized {t.Fatalf("week endpoint should require login: %d",code)}
+ cookie, _ := authenticated(t, s)
+ for _, x := range []struct{ id,title,due,rule string }{
+   {"whole","Hele ugen","2026-10-28","weekly_window"},
+   {"daily","Daglig","2026-10-28","daily"},
+   {"later","Senere","2026-11-09","once_week"},
+ }{
+   if err := a.db.Exec("INSERT INTO tasks(id,title,assigned_to,due_date,repeat_rule) VALUES(?,?,?,?,?)",x.id,x.title,"",x.due,x.rule);err!=nil{t.Fatal(err)}
+ }
+ if err := a.db.Exec("INSERT INTO completions(task_id,day) VALUES(?,?)","whole","2026-10-26");err!=nil{t.Fatal(err)}
+ request, err := http.NewRequest("GET",s.URL+"/api/tasks/week?start=2026-10-28",nil)
+ if err!=nil {t.Fatal(err)}
+ request.Header.Set("Cookie",cookie)
+ response,err:=http.DefaultClient.Do(request)
+ if err!=nil{t.Fatal(err)}
+ defer response.Body.Close()
+ if response.StatusCode!=200{t.Fatalf("week status %d",response.StatusCode)}
+ var payload struct{
+  Start string `json:"start"`
+  Entries []TaskOccurrence `json:"entries"`
+ }
+ if err:=json.NewDecoder(response.Body).Decode(&payload);err!=nil {t.Fatal(err)}
+ if payload.Start!="2026-10-26"{t.Fatalf("expected Monday got %q",payload.Start)}
+ count:=map[string]int{}
+ for _,x:=range payload.Entries {
+  count[x.ID]++
+  if x.ID=="whole"&&!x.Done{t.Fatal("completed week task should remain completed each day")}
+  if x.ID=="later"{t.Fatal("future one-time task returned")}
+ }
+ if count["whole"]!=7||count["daily"]!=5{t.Fatalf("wrong weekly occurrences %+v",count)}
+}

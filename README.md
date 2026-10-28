@@ -194,3 +194,13 @@ Runen er ikke ændret; GHCR-tagget `0.1.1` bliver genudgivet ved push til `main`
 ## iPad Air 2 (portraet)
 
 Header og kalendernavigation har mindre lodret padding. Kalenderkortene bruger igen 12 px for titler og 11 px for klokkeslet, saa skriften ikke skaleres ned for at rumme alle syv dage. I 701-900 px bredde viser ugevisningen hoejst to linjer af hvert aftalenavn; tryk paa aftalen for at se hele titlen. Alle syv ugedage beholdes i samme overblik, og brugerskabte opgaver bevares uforandret.
+
+## Navigation og opgaver (ny hovedside)
+
+- Tryk på FamilieHub-logoet eller titlen for at komme til #kalender. Tre hovedfaner: #kalender, #opgaver og #indstillinger; browserens tilbageknap fungerer.
+- Kalenderforsiden viser højst fire opgaver, med udestående først. **Se alle →** åbner den fulde opgaveside.
+- Opgavesiden har visningerne I dag, Denne uge og Alle opgaver, personfilter samt statusfilter. Ugevisningen bruger det autentificerede API `GET /api/tasks/week?start=YYYY-MM-DD` til at vise korrekt gentagelse og afkrydsning.
+- Hele-uge-opgaver vises som ét kort pr. aktiv uge, mens daglige opgaver vises pr. dag. Opgaver kan afkrydses direkte.
+- Samme farver som i kalenderen bruges på opgavekortene og personnavnene. Fællesopgaver får neutral farve.
+- Opgavearkivet, familiemedlemmer og HA-integration er samlet under Indstillinger.
+- Ingen databasemigrering eller ændring af Rune-filen er nødvendig.

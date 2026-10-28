@@ -8,8 +8,8 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <title>FamilieHub</title>
 <link rel="icon" href="/icon.svg" type="image/svg+xml">
-<link rel="stylesheet" href="/style.css?v=ipad-air2-1">
-<script src="/app.js?v=ipad-air2-1" defer></script>
+<link rel="stylesheet" href="/style.css?v=tasks-nav-1">
+<script src="/app.js?v=tasks-nav-1" defer></script>
 </head>
 <body>
 <section id="login" class="login-screen hidden">
@@ -22,8 +22,8 @@
 </section>
 <main id="app" class="app hidden">
  <header class="topbar">
-  <div class="brand"><span class="brand-icon">⌂</span><div><strong>FamilieHub</strong><small>Familiens overblik</small></div></div>
-  <div class="top-actions"><span id="connection" class="connection">● Online</span><button id="settingsPageBtn" class="icon-button" aria-label="Åbn indstillinger" title="Indstillinger">⚙</button><button id="peopleBtn" class="icon-button" aria-label="Administrer familien" title="Familiemedlemmer">♧</button><button id="logoutBtn" class="icon-button" title="Log ud" aria-label="Log ud">⇥</button></div>
+  <a class="brand brand-link" href="#kalender" aria-label="FamilieHub – gå til kalender"><span class="brand-icon">⌂</span><span class="brand-name"><strong>FamilieHub</strong><small>Familiens overblik</small></span></a>
+  <nav class="main-tabs" aria-label="Hovednavigation"><a class="main-tab" data-page="kalender" href="#kalender">Kalender</a><a class="main-tab" data-page="opgaver" href="#opgaver">Opgaver</a><a class="main-tab" data-page="indstillinger" href="#indstillinger">Indstillinger</a></nav><div class="top-actions"><span id="connection" class="connection">● Online</span><button id="logoutBtn" class="icon-button" title="Log ud" aria-label="Log ud">⇥</button></div>
  </header>
  <div id="warning" class="warning hidden"></div>
  <div id="dashboardView">
@@ -35,14 +35,22 @@
  <section id="peopleFilters" class="filters" aria-label="Filtrer efter familiemedlem"></section>
  <section id="calendar" class="calendar" aria-label="Kalender"></section>
  <section class="below">
-  <article class="panel tasks-panel"><div class="panel-title"><div><h2>Opgaver</h2><p id="taskDate"></p></div><button id="addTaskBtn" class="minor">+ Opgave</button></div><div id="taskList"></div></article>
+  <article class="panel tasks-panel"><div class="panel-title"><div><h2>Opgaver</h2><p id="taskDate"></p></div><div class="panel-title-actions"><a class="text-button" href="#opgaver">Se alle →</a><button id="addTaskBtn" class="minor">+ Opgave</button></div></div><div id="taskList"></div></article>
   <article class="panel status-panel"><div class="panel-title"><h2>Familien i dag</h2><button id="settingsBtn" class="minor">HA-status</button></div><div id="todayList"></div><p class="muted footnote">Personlige påmindelser sendes via Home Assistant, når det er konfigureret.</p></article>
  </section>
  <footer>FamilieHub · Europa/København · <span id="updated">Ikke opdateret</span><span id="buildVersion"></span></footer>
  </div>
+ <section id="tasksPage" class="tasks-page hidden" aria-label="Opgaver">
+   <div class="tasks-heading"><div><p class="eyebrow">FAMILIEHUB</p><h1>Opgaver</h1><p class="muted">Hvem gør hvad – i dag, denne uge og fremover.</p></div><button type="button" class="primary" id="tasksAddBtn">+ Opgave</button></div>
+   <div class="task-toolbar"><div class="task-periods" role="group" aria-label="Tidsperiode"><button type="button" class="task-period" data-period="today">I dag</button><button type="button" class="task-period active" data-period="week">Denne uge</button><button type="button" class="task-period" data-period="all">Alle opgaver</button></div>
+   <div id="tasksDateNavigation" class="date-navigation"><button type="button" id="tasksPrevBtn" class="icon-button" aria-label="Forrige periode">‹</button><button type="button" id="tasksCurrentBtn" class="minor">I dag</button><button type="button" id="tasksNextBtn" class="icon-button" aria-label="Næste periode">›</button></div></div>
+   <div class="tasks-filters"><div id="taskPeopleFilters" class="filters" aria-label="Filtrer efter ansvarlig"></div><div id="taskStatusFilters" class="task-status-filters" role="group" aria-label="Opgavestatus"><button type="button" data-status="open">Udestående</button><button type="button" data-status="all">Alle</button><button type="button" data-status="done">Udførte</button></div></div>
+   <div class="tasks-summary"><h2 id="tasksPeriodTitle">Denne uge</h2><span class="muted" id="tasksCount"></span></div>
+   <section id="tasksPageList" class="tasks-page-list" aria-live="polite"></section>
+ </section>
  <section id="settingsPage" class="settings-page hidden" aria-label="Indstillinger">
-   <div class="settings-heading"><div><p class="eyebrow">FAMILIEHUB</p><h1>Indstillinger</h1><p class="muted">Administrér opgavearkiv og familiens opgaver.</p></div><button type="button" class="minor" id="backToCalendar">‹ Tilbage til kalender</button></div>
-   <nav class="settings-tabs" aria-label="Opgaveindstillinger"><button id="templatesTab" type="button" class="settings-tab active" aria-selected="true">Opgavearkiv</button><button id="allTasksTab" type="button" class="settings-tab" aria-selected="false">Alle opgaver</button></nav>
+   <div class="settings-heading"><div><p class="eyebrow">FAMILIEHUB</p><h1>Indstillinger</h1><p class="muted">Administrér opgavearkiv, familiemedlemmer og integrationer.</p></div><a class="minor" href="#kalender" id="backToCalendar">‹ Tilbage til kalender</a></div>
+   <div class="settings-shortcuts"><button type="button" id="settingsPeopleBtn" class="minor">♧ Familiemedlemmer</button><button type="button" id="settingsHABtn" class="minor">⌂ Home Assistant</button><a class="minor" href="#opgaver">Alle opgaver →</a></div><nav class="settings-tabs" aria-label="Opgaveindstillinger"><span class="settings-tab active">Opgavearkiv</span></nav>
    <div class="settings-panel">
      <div class="settings-panel-head"><div><h2 id="settingsSectionTitle">Opgavearkiv</h2><p id="settingsDescription" class="muted">Lav genbrugelige skabeloner til opgaver.</p></div><button id="settingsAddBtn" type="button" class="primary">+ Ny skabelon</button></div>
      <label class="settings-search"><span class="sr-only">Søg i opgaver</span><input id="settingsSearch" type="search" autocomplete="off" placeholder="Søg efter en opgave…"></label>

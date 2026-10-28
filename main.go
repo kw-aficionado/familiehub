@@ -185,6 +185,7 @@ func (a *App) routes() {
 	a.mux.HandleFunc("PUT /api/events/{id}", a.withAuth(a.eventSave))
 	a.mux.HandleFunc("DELETE /api/events/{id}", a.withAuth(a.eventDelete))
 	a.mux.HandleFunc("GET /api/tasks/all", a.withAuth(a.allTasks))
+	a.mux.HandleFunc("GET /api/tasks/week", a.withAuth(a.tasksWeek))
 	a.mux.HandleFunc("GET /api/templates", a.withAuth(a.templates))
 	a.mux.HandleFunc("POST /api/templates", a.withAuth(a.templateSave))
 	a.mux.HandleFunc("PUT /api/templates/{id}", a.withAuth(a.templateSave))

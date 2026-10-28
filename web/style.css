@@ -85,3 +85,68 @@
   .intro{margin:12px 0 10px}
   .filters{padding-bottom:9px}
 }
+
+
+/* Three-section navigation. Fits iPad Air 2 without enlarging the header. */
+.brand-link{color:inherit;text-decoration:none;flex:none}
+.brand-link:focus-visible{outline:3px solid #66a6ae;outline-offset:4px;border-radius:8px}
+.brand-name{display:block}
+.topbar{gap:12px}
+.main-tabs{display:flex;align-items:center;gap:4px;margin-left:auto}
+.main-tab{display:flex;align-items:center;justify-content:center;min-height:44px;padding:8px 12px;border-radius:10px;color:#4b6a70;font-size:14px;font-weight:650;text-decoration:none;white-space:nowrap}
+.main-tab.active{background:#e3eeeb;color:#164d55}
+.main-tab:focus-visible,.minor:focus-visible{outline:3px solid #66a6ae;outline-offset:2px}
+.top-actions{gap:8px}
+.panel-title-actions{display:flex;align-items:center;gap:7px;flex-wrap:wrap}
+a.text-button,a.minor{display:inline-flex;align-items:center;justify-content:center;text-decoration:none;min-height:44px}
+.tasks-page{padding:20px 0 24px}
+.tasks-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:0 0 20px}
+.tasks-heading .muted{margin-top:5px}
+.task-toolbar{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:16px}
+.task-periods{display:flex;flex-wrap:wrap;gap:4px;padding:4px;background:#e3eeeb;border-radius:12px}
+.task-period,.task-status-filters button{border:0;border-radius:9px;background:transparent;padding:8px 12px;min-height:42px;font-size:14px;font-weight:650;color:#47636b}
+.task-period.active{background:#fff;color:#204d55;box-shadow:0 1px 5px #baccc650}
+.task-status-filters{display:flex;flex-wrap:wrap;gap:4px}
+.task-status-filters button{border:1px solid #d6e4df;background:#fff}
+.task-status-filters button.active{background:#214b54;color:#fff;border-color:#214b54}
+.tasks-filters{display:flex;align-items:start;justify-content:space-between;flex-wrap:wrap;gap:10px}
+.tasks-filters .filters{max-width:100%;padding-bottom:4px}
+.tasks-summary{display:flex;justify-content:space-between;align-items:center;gap:12px;margin:6px 0 12px}
+.tasks-summary .muted{font-size:12px}
+.tasks-page-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.task-page-card{display:flex;align-items:center;gap:10px;min-width:0;padding:12px;background:#fff;border:1px solid #e1eae6;border-radius:12px;min-height:73px}
+.task-page-stripe{align-self:stretch;width:5px;border-radius:5px;flex:none}
+.task-page-content{min-width:0;flex:1}
+.task-page-content strong{display:block;font-size:15px;line-height:1.4;overflow-wrap:anywhere}
+.task-page-meta{display:flex;align-items:center;flex-wrap:wrap;gap:5px 9px;margin-top:5px}
+.task-owner{display:inline-flex;border-radius:6px;padding:3px 8px;font-size:12px;font-weight:750}
+.task-repetition,.task-date{font-size:12px;color:#6a8588}
+.task-edit{flex:none}
+.settings-shortcuts{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:15px}
+.settings-shortcuts button,.settings-shortcuts a{font-size:13px}
+@media(max-width:1050px){
+  .main-tab{padding:7px 9px;font-size:13px}
+  .topbar{gap:8px}
+  .brand{gap:8px}
+  .brand strong{font-size:18px}
+}
+@media(min-width:701px) and (max-width:900px){
+  .brand small{display:none}
+  .main-tabs{gap:2px}
+  .main-tab{padding:7px 8px;font-size:13px}
+  .top-actions{gap:5px}
+  .task-page-card{padding:9px 10px}
+}
+@media(max-width:700px){
+  .topbar{flex-wrap:wrap}
+  .brand{order:0}
+  .top-actions{order:1;margin-left:auto}
+  .main-tabs{order:2;flex-basis:100%;justify-content:space-around;margin-left:0}
+  .main-tab{flex:1}
+  .tasks-heading{margin-bottom:12px}
+  .task-toolbar{align-items:flex-start;flex-wrap:wrap}
+  .tasks-page-list{grid-template-columns:1fr}
+  .tasks-filters{display:block}
+  .task-page-card{padding:10px}
+}
+@media(min-width:701px) and (max-width:950px){.tasks-page-list{grid-template-columns:1fr 1fr}}
