@@ -39,6 +39,17 @@ Ved afkrydsning af en hel uge vises opgaven som udført på alle syv dage. Næst
 
 **Opdatering uden ny Rune:** Dette udviklingsspor genbruger bevidst Docker-tagget `0.1.1` fra den eksisterende Rune. Yggdrasil trækker den senest publicerede version af dette tag på **Restart**, når GitHub Actions er grønt. Det er et bevidst mutable tag til løbende opdateringer; for reproducerbare udgivelser anbefales et fast versions-tag senere.
 
+
+## Opgavearkiv og overblik (ny)
+
+- Brug tandhjulet **Indstillinger** øverst til højre for en separat indstillingsside med fanerne **Opgavearkiv** og **Alle pligter**.
+- **Opgavearkiv**: opret, redigér og slet skabeloner med pligtnavn, standardansvarlig og gentagelse. En skabelon er ikke en aktiv pligt. Skabeloner lagres i SQLite under `/data`.
+- **Alle pligter**: samlet søgbar liste over aktive/oprettede pligter, også dem der ikke gælder den valgte kalenderdag. Redigér eller slet herfra.
+- På forsiden: vælg **+ Opgave → Fra opgavearkivet**, og en skabelon udfylder navn, ansvarlig og gentagelse. Du vælger stadig selv startdatoen. Knappen **Gem i arkiv** kan gemme en ny skabelon direkte fra en pligt.
+- Kalenderens kort er gjort lavere; pilen for eksterne kalenderaftaler vises ved siden af tidspunktet.
+- Migrering er additiv (`CREATE TABLE IF NOT EXISTS task_templates`), så eksisterende pligter, afkrydsninger og aftaler bevares.
+- Runen og GHCR-tagget `0.1.1` er uændrede; efter et **grønt build** kræves kun genstart af Yggdrasil-serveren. Kontroller build-nummeret nederst på forsiden.
+
 ## 1. Byg lokalt (Linux)
 
 Forudsætninger: Go 1.23+, gcc og SQLite3 development headers.

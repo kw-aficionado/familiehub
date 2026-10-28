@@ -184,6 +184,11 @@ func (a *App) routes() {
 	a.mux.HandleFunc("POST /api/events", a.withAuth(a.eventSave))
 	a.mux.HandleFunc("PUT /api/events/{id}", a.withAuth(a.eventSave))
 	a.mux.HandleFunc("DELETE /api/events/{id}", a.withAuth(a.eventDelete))
+	a.mux.HandleFunc("GET /api/tasks/all", a.withAuth(a.allTasks))
+	a.mux.HandleFunc("GET /api/templates", a.withAuth(a.templates))
+	a.mux.HandleFunc("POST /api/templates", a.withAuth(a.templateSave))
+	a.mux.HandleFunc("PUT /api/templates/{id}", a.withAuth(a.templateSave))
+	a.mux.HandleFunc("DELETE /api/templates/{id}", a.withAuth(a.templateDelete))
 	a.mux.HandleFunc("POST /api/tasks", a.withAuth(a.taskSave))
 	a.mux.HandleFunc("PUT /api/tasks/{id}", a.withAuth(a.taskSave))
 	a.mux.HandleFunc("DELETE /api/tasks/{id}", a.withAuth(a.taskDelete))
@@ -586,7 +591,7 @@ func (a *App) taskSave(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	t.Title = strings.TrimSpace(t.Title)
-	if !bounded(t.Title, 150) || !validDay(t.DueDate) || (t.RepeatRule != "none" && t.RepeatRule != "daily" && t.RepeatRule != "weekly" && t.RepeatRule != "biweekly" && t.RepeatRule != "once_week" && t.RepeatRule != "weekly_window" && t.RepeatRule != "biweekly_window") {
+	if !bounded(t.Title, 150) || !validDay(t.DueDate) || !validRepeatRule(t.RepeatRule) {
 		apiError(w, 400, "Kontrollér titel, dato og gentagelse")
 		return
 	}

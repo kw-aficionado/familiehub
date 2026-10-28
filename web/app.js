@@ -1,7 +1,7 @@
 /* FamilieHub: zero-dependency, iPadOS 15-compatible frontend. */
 (function () {
   'use strict';
-  var S = {csrf:'', view:'week', focus:new Date(), filter:'', people:[], events:[], tasks:[], loading:0, socket:null};
+  var S = {csrf:'', view:'week', focus:new Date(), filter:'', people:[], events:[], tasks:[], templates:[], allTasks:[], settingsOpen:false, settingsTab:'templates', settingsQuery:'', loading:0, socket:null};
   var $ = function(id){return document.getElementById(id)};
   function el(tag,props,text){var x=document.createElement(tag);if(props)Object.keys(props).forEach(function(k){x.setAttribute(k,props[k])});if(text!==undefined)x.textContent=text;return x}
   function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})}
@@ -51,7 +51,7 @@
       $('warning').textContent=data.warning||'';data.warning?show('warning'):hide('warning');$('updated').textContent='Opdateret '+formatDate(new Date(),{hour:'2-digit',minute:'2-digit'});
     }catch(e){setOnline(false);$('warning').textContent='Kunne ikke hente data: '+e.message;show('warning')}
   }
-  function listen(){if(S.socket)S.socket.close();S.socket=new EventSource('/api/stream');S.socket.addEventListener('changed',function(){load()});S.socket.onerror=function(){setOnline(false)};S.socket.addEventListener('connected',function(){setOnline(true)})}
+  function listen(){if(S.socket)S.socket.close();S.socket=new EventSource('/api/stream');S.socket.addEventListener('changed',function(){load();if(S.settingsOpen)refreshSettingsData().catch(function(){})});S.socket.onerror=function(){setOnline(false)};S.socket.addEventListener('connected',function(){setOnline(true)})}
   function navigate(n){S.focus=addDays(S.view==='week'?startWeek(S.focus):S.focus,(S.view==='week'?7:1)*n);load()}
   function setView(v){S.view=v;$('dayBtn').classList.toggle('active',v==='day');$('weekBtn').classList.toggle('active',v==='week');load()}
   function render(){
@@ -71,10 +71,12 @@
     var colors=colorsOf(ev);
     node.style.setProperty('--event-stripe',stripeOf(colors));
     node.style.backgroundColor=tint(colors[0],0.09);
-    node.appendChild(el('span',{'class':'event-time'},clock(ev.start_at)));
+    var meta=el('span',{'class':'event-meta'});
+    meta.appendChild(el('span',{'class':'event-time'},clock(ev.start_at)));
+    if(ev.external)meta.appendChild(el('span',{'class':'external-symbol','aria-label':'Ekstern kalender'},'↗'));
+    if(ev.category)meta.appendChild(el('span',{'class':'event-category'},'#'+ev.category));
+    node.appendChild(meta);
     node.appendChild(el('span',{'class':'event-name'},ev.title));
-    if(ev.category)node.appendChild(el('span',{'class':'event-category'},'#'+ev.category));
-    if(ev.external)node.appendChild(el('span',{'class':'external-symbol'},'↗'));
     node.addEventListener('click',function(){openEvent(ev)});return node;
   }
   function renderCalendar(){var root=$('calendar');root.replaceChildren();root.className='calendar '+(S.view==='week'?'week-view':'day-view');var days=S.view==='week'?7:1;var start=range().start,events=filteredEvents();
@@ -116,16 +118,74 @@
       saveOrError(function(){return api(editing?'/api/events/'+e.id:'/api/events',editing?'PUT':'POST',{title:form.title.value,start_at:s,end_at:en,kind:form.kind.value,person_id:form.person_id.value,pickup_by:form.pickup_by.value,location:form.location.value,notes:form.notes.value,id:'',external:false})})
     });if(editing)$('deleteBtn').addEventListener('click',function(){if(confirm('Slet denne aftale?'))saveOrError(function(){return api('/api/events/'+e.id,'DELETE')})})
   }
-  function openTask(t){var editing=!!t;var html='<form id="entryForm" class="form-grid">'+
-    field('Opgave','<input name="title" maxlength="150" required value="'+esc(t?t.title:'')+'">')+
-    field('Ansvarlig','<select name="assigned_to">'+personOptions(t?t.assigned_to:'','Fælles')+'</select>')+
-    field('Startdato / forfalder','<input name="due_date" type="date" required value="'+esc(t?t.due_date:dayString(S.focus))+'">')+
-    field('Gentagelse','<select name="repeat_rule"><option value="none">En gang (valgt dag)</option><option value="daily">Hver dag</option><option value="weekly">Hver uge (én dag)</option><option value="biweekly">Hver anden uge (én dag)</option><option value="once_week">Én hel uge</option><option value="weekly_window">Hver uge (hele ugen)</option><option value="biweekly_window">Hver anden uge (hele ugen)</option></select>')+
-    '<p class="muted">Hele ugen betyder mandag–søndag. Pligten ses hver dag i ugen, men afkrydses kun én gang pr. uge. Hver anden uge beregnes fra ugen med startdatoen.</p>'+
-    '<div class="form-actions">'+(editing?'<button type="button" id="deleteBtn" class="danger">Slet</button>':'')+'<button type="submit" class="primary">Gem opgave</button></div></form>';
-    openModal(editing?'Redigér pligt':'Ny pligt',html);$('entryForm').elements.repeat_rule.value=t?t.repeat_rule:'none';
-    $('entryForm').addEventListener('submit',function(evt){evt.preventDefault();var form=evt.currentTarget.elements;saveOrError(function(){return api(editing?'/api/tasks/'+t.id:'/api/tasks',editing?'PUT':'POST',{id:'',title:form.title.value,assigned_to:form.assigned_to.value,due_date:form.due_date.value,repeat_rule:form.repeat_rule.value,done:false})})});
-    if(editing)$('deleteBtn').addEventListener('click',function(){if(confirm('Slet denne pligt og dens fuldførelser?'))saveOrError(function(){return api('/api/tasks/'+t.id,'DELETE')})})
+  function templateOptions(){return '<option value="">Vælg en skabelon fra arkivet…</option>'+S.templates.map(function(t){return '<option value="'+esc(t.id)+'">'+esc(t.title)+' · '+esc(repeatLabel(t.repeat_rule)||'En gang')+'</option>'}).join('')}
+  async function openTask(t){
+    var editing=!!t;
+    try{S.templates=await api('/api/templates')}catch(err){S.templates=[]}
+    var html='<form id="entryForm" class="form-grid">'+
+      (!editing?'<label class="field field-wide">Fra opgavearkivet<select id="templatePicker" name="template_id">'+templateOptions()+'</select></label>':'')+
+      field('Opgave','<input name="title" maxlength="150" required value="'+esc(t?t.title:'')+'">')+
+      field('Ansvarlig','<select name="assigned_to">'+personOptions(t?t.assigned_to:'','Fælles')+'</select>')+
+      field('Startdato / forfalder','<input name="due_date" type="date" required value="'+esc(t?t.due_date:dayString(S.focus))+'">')+
+      field('Gentagelse',repeatSelectHTML())+
+      '<p class="muted field-wide">En pligt for hele ugen krydses kun af én gang. Vælg startdatoen for at bestemme, hvilke uger den skal gælde.</p>'+
+      '<div class="form-actions">'+(editing?'<button type="button" id="deleteBtn" class="danger">Slet</button>':'')+
+      '<button type="button" id="saveTemplateBtn" class="minor">Gem i arkiv</button><button type="submit" class="primary">Gem opgave</button></div></form>';
+    openModal(editing?'Redigér pligt':'Ny pligt',html);
+    var form=$('entryForm').elements;form.repeat_rule.value=t?t.repeat_rule:'none';
+    if(!editing)$('templatePicker').addEventListener('change',function(){var selected=S.templates.find(function(x){return x.id===$('templatePicker').value});if(!selected)return;form.title.value=selected.title;form.assigned_to.value=selected.assigned_to;form.repeat_rule.value=selected.repeat_rule});
+    function fromForm(){return {id:'',title:form.title.value,assigned_to:form.assigned_to.value,due_date:form.due_date.value,repeat_rule:form.repeat_rule.value,done:false}}
+    $('entryForm').addEventListener('submit',function(evt){evt.preventDefault();saveOrError(async function(){await api(editing?'/api/tasks/'+t.id:'/api/tasks',editing?'PUT':'POST',fromForm());if(S.settingsOpen)await refreshSettingsData()})});
+    $('saveTemplateBtn').addEventListener('click',async function(){var values=fromForm();try{await api('/api/templates','POST',{id:'',title:values.title,assigned_to:values.assigned_to,repeat_rule:values.repeat_rule});S.templates=await api('/api/templates');$('formError').textContent='Gemt i opgavearkivet. Du kan stadig gemme selve pligten.';if(!editing){var old=$('templatePicker').value;$('templatePicker').innerHTML=templateOptions();$('templatePicker').value=old}}catch(err){$('formError').textContent=err.message}});
+    if(editing)$('deleteBtn').addEventListener('click',function(){if(confirm('Slet denne pligt og dens afkrydsninger?'))saveOrError(async function(){await api('/api/tasks/'+t.id,'DELETE');if(S.settingsOpen)await refreshSettingsData()})});
+  }
+  function repeatSelectHTML(){return '<select name="repeat_rule"><option value="none">En gang (valgt dag)</option><option value="daily">Hver dag</option><option value="weekly">Hver uge (én dag)</option><option value="biweekly">Hver anden uge (én dag)</option><option value="once_week">Én hel uge</option><option value="weekly_window">Hver uge (hele ugen)</option><option value="biweekly_window">Hver anden uge (hele ugen)</option></select>'}
+  async function refreshSettingsData(){
+    var data=await Promise.all([api('/api/templates'),api('/api/tasks/all')]);
+    S.templates=data[0]||[];S.allTasks=data[1]||[];
+    if(S.settingsOpen)renderSettings();
+  }
+  async function openSettingsPage(tab){
+    S.settingsOpen=true;
+    S.settingsTab=tab||'templates';
+    S.settingsQuery='';$('settingsSearch').value='';
+    hide('dashboardView');show('settingsPage');
+    renderSettings();
+    try{await refreshSettingsData()}catch(e){$('settingsList').replaceChildren(el('p',{'class':'error'},'Kunne ikke indlæse indstillinger: '+e.message))}
+  }
+  function closeSettingsPage(){S.settingsOpen=false;hide('settingsPage');show('dashboardView');load()}
+  function selectSettingsTab(tab){S.settingsTab=tab;renderSettings()}
+  function renderSettings(){
+    var isArchive=S.settingsTab==='templates',items=isArchive?S.templates:S.allTasks;
+    $('templatesTab').classList.toggle('active',isArchive);$('allTasksTab').classList.toggle('active',!isArchive);
+    $('templatesTab').setAttribute('aria-selected',isArchive?'true':'false');$('allTasksTab').setAttribute('aria-selected',!isArchive?'true':'false');
+    $('settingsSectionTitle').textContent=isArchive?'Opgavearkiv ('+items.length+')':'Alle pligter ('+items.length+')';
+    $('settingsDescription').textContent=isArchive?'Genbrug en skabelon fra + Opgave. Arkivet er ikke aktive pligter.':'Samlet oversigt over alle gemte pligter – også dem, der ikke gælder i dag.';
+    $('settingsAddBtn').textContent=isArchive?'+ Ny skabelon':'+ Ny pligt';
+    var term=$('settingsSearch').value.toLocaleLowerCase('da-DK').trim(),filtered=items.filter(function(t){return (t.title+' '+nameOf(t.assigned_to)+' '+repeatLabel(t.repeat_rule)).toLocaleLowerCase('da-DK').indexOf(term)!==-1});
+    var root=$('settingsList');root.replaceChildren();
+    if(!filtered.length){root.appendChild(el('p',{'class':'empty-state'},term?'Ingen pligter matcher din søgning.':isArchive?'Arkivet er tomt. Tilføj din første skabelon.':'Ingen pligter oprettet endnu.'));return}
+    filtered.forEach(function(t){
+      var row=el('div',{'class':'settings-item'});
+      var dot=el('i',{'class':'dot'});dot.style.background=colorOf(t.assigned_to);
+      var txt=el('div',{'class':'settings-item-info'});
+      txt.appendChild(el('strong',null,t.title));
+      txt.appendChild(el('small',null,(t.assigned_to?nameOf(t.assigned_to):'Fælles')+' · '+(repeatLabel(t.repeat_rule)||'En gang')+(!isArchive?' · Fra '+t.due_date.split('-').reverse().join('.'):'')));
+      var actions=el('div',{'class':'settings-item-actions'});
+      var edit=el('button',{'class':'text-button','type':'button'},'Redigér');edit.addEventListener('click',function(){if(isArchive)openTemplate(t);else openTask(t)});actions.appendChild(edit);
+      var del=el('button',{'class':'text-button settings-delete','type':'button'},'Slet');del.addEventListener('click',async function(){if(!confirm('Slet '+(isArchive?'skabelonen':'pligten')+' "'+t.title+'"?'+(isArchive?' Eksisterende pligter påvirkes ikke.':' Tilhørende afkrydsninger slettes også.')))return;try{await api(isArchive?'/api/templates/'+t.id:'/api/tasks/'+t.id,'DELETE');await refreshSettingsData();await load()}catch(e){alert(e.message)}});actions.appendChild(del);
+      row.appendChild(dot);row.appendChild(txt);row.appendChild(actions);root.appendChild(row);
+    });
+  }
+  function openTemplate(t){
+    var editing=!!t;
+    var html='<form id="entryForm" class="form-grid">'+field('Opgave','<input name="title" maxlength="150" required value="'+esc(t?t.title:'')+'">')+
+      field('Foreslået ansvarlig','<select name="assigned_to">'+personOptions(t?t.assigned_to:'','Fælles / vælg senere')+'</select>')+
+      field('Gentagelse',repeatSelectHTML())+
+      '<p class="muted field-wide">Skabeloner opretter ikke automatisk pligter. Vælg dem under + Opgave og angiv startdato.</p>'+
+      '<div class="form-actions"><button type="submit" class="primary">Gem skabelon</button></div></form>';
+    openModal(editing?'Redigér skabelon':'Ny skabelon',html);$('entryForm').elements.repeat_rule.value=t?t.repeat_rule:'none';
+    $('entryForm').addEventListener('submit',function(evt){evt.preventDefault();var f=evt.currentTarget.elements;saveOrError(async function(){await api(editing?'/api/templates/'+t.id:'/api/templates',editing?'PUT':'POST',{id:'',title:f.title.value,assigned_to:f.assigned_to.value,repeat_rule:f.repeat_rule.value});await refreshSettingsData()})});
   }
   function openPeople(){var html='<p class="muted">Tilføj familiemedlemmer. Push er valgfri: find telefonens <code>notify.mobile_app_...</code> under HA → Udviklerværktøjer → Handlinger. Indtast kun <code>mobile_app_...</code>. En <code>device_tracker.*</code> kan ikke sende push.</p><div id="personRows"></div><button id="newPersonBtn" class="primary wide">+ Familiemedlem</button>';openModal('Familiemedlemmer',html);var root=$('personRows');S.people.forEach(function(p){var row=el('div',{'class':'person-row'});var dot=el('i',{'class':'dot'});dot.style.background=p.color;row.appendChild(dot);row.appendChild(el('strong',null,p.name));var b=el('button',{'class':'text-button'},'Redigér');b.addEventListener('click',function(){openPerson(p)});row.appendChild(b);root.appendChild(row)});$('newPersonBtn').addEventListener('click',function(){openPerson()})}
   function openPerson(p){var editing=!!p;var html='<form id="entryForm" class="form-grid">'+field('Navn','<input name="name" maxlength="60" required value="'+esc(p?p.name:'')+'">')+field('Farve','<input name="color" type="color" value="'+esc(p?p.color:'#2a8390')+'">')+field('HA notify-service (valgfri)','<input name="notify_service" placeholder="mobile_app_xxx" value="'+esc(p?p.notify_service:'')+'">')+
@@ -139,6 +199,12 @@
   $('dayBtn').addEventListener('click',function(){setView('day')});$('weekBtn').addEventListener('click',function(){setView('week')});
   $('prevBtn').addEventListener('click',function(){navigate(-1)});$('nextBtn').addEventListener('click',function(){navigate(1)});$('todayBtn').addEventListener('click',function(){S.focus=new Date();load()});
   $('addEventBtn').addEventListener('click',function(){openEvent()});$('addTaskBtn').addEventListener('click',function(){openTask()});$('peopleBtn').addEventListener('click',openPeople);$('settingsBtn').addEventListener('click',settings);
+  $('settingsPageBtn').addEventListener('click',function(){if(S.settingsOpen)closeSettingsPage();else openSettingsPage('templates')});
+  $('backToCalendar').addEventListener('click',closeSettingsPage);
+  $('templatesTab').addEventListener('click',function(){selectSettingsTab('templates')});
+  $('allTasksTab').addEventListener('click',function(){selectSettingsTab('tasks')});
+  $('settingsAddBtn').addEventListener('click',function(){if(S.settingsTab==='templates')openTemplate();else openTask()});
+  $('settingsSearch').addEventListener('input',renderSettings);
   $('closeModal').addEventListener('click',closeModal);$('modal').addEventListener('click',function(e){if(e.target.hasAttribute('data-close'))closeModal()});
   document.addEventListener('keydown',function(e){if(e.key==='Escape')closeModal()});
   var touchX=0,touchY=0;$('calendar').addEventListener('touchstart',function(e){if(e.touches.length===1){touchX=e.touches[0].clientX;touchY=e.touches[0].clientY}},{passive:true});

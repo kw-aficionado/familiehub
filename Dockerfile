@@ -4,7 +4,7 @@ ARG TARGETARCH
 ARG SOURCE_COMMIT=dev
 WORKDIR /src
 COPY go.mod ./
-COPY main.go integrations.go ./
+COPY main.go integrations.go chore_templates.go ./
 COPY internal ./internal
 COPY web ./web
 # CGO + SQLite: build runs under the target architecture via buildx/QEMU for multiarch.
