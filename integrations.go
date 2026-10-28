@@ -304,6 +304,10 @@ func (a *App) taskReminders(now time.Time, people map[string]Person) {
 	}
 	grouped := map[string][]string{}
 	for _, t := range all {
+		// A whole-week chore has a single deadline per week. Remind on Sunday.
+		if (t.RepeatRule == "once_week" || t.RepeatRule == "weekly_window" || t.RepeatRule == "biweekly_window") && now.Weekday() != time.Sunday {
+			continue
+		}
 		if !t.Done && t.AssignedTo != "" {
 			if p, ok := people[t.AssignedTo]; ok && p.NotifyService != "" {
 				grouped[p.ID] = append(grouped[p.ID], t.Title)

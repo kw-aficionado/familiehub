@@ -397,30 +397,67 @@ func (a *App) events(start, end time.Time) ([]Event, error) {
 	}
 	return out, nil
 }
-func (a *App) tasks(day string) ([]Task, error) {
-	rows, e := a.db.Query("SELECT t.id,t.title,t.assigned_to,t.due_date,t.repeat_rule,c.day AS completed FROM tasks t LEFT JOIN completions c ON c.task_id=t.id AND c.day=? ORDER BY t.title", day)
-	if e != nil {
-		return nil, e
+
+// weekStart returns Monday of the ISO week, using UTC calendar dates.
+// This avoids daylight-saving changes when calculating week intervals.
+func weekStart(t time.Time) time.Time {
+	return t.AddDate(0, 0, -((int(t.Weekday()) + 6) % 7))
+}
+
+// taskOccurrence reports visibility and the completion key for a selected date.
+// Whole-week tasks share one completion key (the Monday of that week), so
+// checking a task on Tuesday also marks it complete on Sunday of that week.
+func taskOccurrence(due, target time.Time, rule string) (bool, string) {
+	dayKey := target.Format("2006-01-02")
+	switch rule {
+	case "once_week", "weekly_window", "biweekly_window":
+		anchorWeek, targetWeek := weekStart(due), weekStart(target)
+		weeks := int(targetWeek.Sub(anchorWeek).Hours()) / (7 * 24)
+		if weeks < 0 || (rule == "once_week" && weeks != 0) || (rule == "biweekly_window" && weeks%2 != 0) {
+			return false, ""
+		}
+		return true, targetWeek.Format("2006-01-02")
 	}
-	target, _ := time.Parse("2006-01-02", day)
+	if target.Before(due) {
+		return false, ""
+	}
+	days := int(target.Sub(due).Hours()) / 24
+	switch rule {
+	case "daily":
+		return true, dayKey
+	case "weekly":
+		return days%7 == 0, dayKey
+	case "biweekly":
+		return days%14 == 0, dayKey
+	default:
+		return days == 0, dayKey
+	}
+}
+
+func (a *App) tasks(day string) ([]Task, error) {
+	rows, err := a.db.Query("SELECT id,title,assigned_to,due_date,repeat_rule FROM tasks ORDER BY title")
+	if err != nil {
+		return nil, err
+	}
+	target, err := time.Parse("2006-01-02", day)
+	if err != nil {
+		return nil, err
+	}
 	out := []Task{}
 	for _, r := range rows {
-		due, e := time.Parse("2006-01-02", r["due_date"])
-		if e != nil {
+		due, err := time.Parse("2006-01-02", r["due_date"])
+		if err != nil {
 			continue
 		}
-		isDue := false
-		switch r["repeat_rule"] {
-		case "daily":
-			isDue = !target.Before(due)
-		case "weekly":
-			isDue = !target.Before(due) && target.Weekday() == due.Weekday()
-		default:
-			isDue = day == r["due_date"]
+		visible, completionKey := taskOccurrence(due, target, r["repeat_rule"])
+		if !visible {
+			continue
 		}
-		if isDue {
-			out = append(out, Task{ID: r["id"], Title: r["title"], AssignedTo: r["assigned_to"], DueDate: r["due_date"], RepeatRule: r["repeat_rule"], Done: r["completed"] != ""})
+		completed, err := a.db.Query("SELECT day FROM completions WHERE task_id=? AND day=?", r["id"], completionKey)
+		if err != nil {
+			return nil, err
 		}
+		out = append(out, Task{ID: r["id"], Title: r["title"], AssignedTo: r["assigned_to"], DueDate: r["due_date"], RepeatRule: r["repeat_rule"], Done: len(completed) > 0})
 	}
 	return out, nil
 }
@@ -534,7 +571,7 @@ func (a *App) taskSave(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	t.Title = strings.TrimSpace(t.Title)
-	if !bounded(t.Title, 150) || !validDay(t.DueDate) || (t.RepeatRule != "none" && t.RepeatRule != "daily" && t.RepeatRule != "weekly") {
+	if !bounded(t.Title, 150) || !validDay(t.DueDate) || (t.RepeatRule != "none" && t.RepeatRule != "daily" && t.RepeatRule != "weekly" && t.RepeatRule != "biweekly" && t.RepeatRule != "once_week" && t.RepeatRule != "weekly_window" && t.RepeatRule != "biweekly_window") {
 		apiError(w, 400, "Kontrollér titel, dato og gentagelse")
 		return
 	}
@@ -587,14 +624,36 @@ func (a *App) toggle(w http.ResponseWriter, r *http.Request) {
 		apiError(w, 400, "Ugyldig dato")
 		return
 	}
+	rows, err := a.db.Query("SELECT due_date,repeat_rule FROM tasks WHERE id=?", id)
+	if err != nil {
+		apiError(w, 500, "Kunne ikke læse opgaven")
+		return
+	}
+	if len(rows) == 0 {
+		apiError(w, 404, "Opgaven findes ikke")
+		return
+	}
+	due, err := time.Parse("2006-01-02", rows[0]["due_date"])
+	if err != nil {
+		apiError(w, 500, "Ugyldig startdato for opgaven")
+		return
+	}
+	selected, _ := time.Parse("2006-01-02", v.Day)
+	visible, completionKey := taskOccurrence(due, selected, rows[0]["repeat_rule"])
+	if !visible {
+		apiError(w, 400, "Opgaven er ikke aktiv på den valgte dag")
+		return
+	}
 	if v.Done {
-		e := a.db.Exec("INSERT OR IGNORE INTO completions(task_id,day) VALUES(?,?)", id, v.Day)
-		if e != nil {
-			apiError(w, 400, "Opgaven kunne ikke afsluttes")
+		if err := a.db.Exec("INSERT OR IGNORE INTO completions(task_id,day) VALUES(?,?)", id, completionKey); err != nil {
+			apiError(w, 500, "Opgaven kunne ikke afsluttes")
 			return
 		}
 	} else {
-		_ = a.db.Exec("DELETE FROM completions WHERE task_id=? AND day=?", id, v.Day)
+		if err := a.db.Exec("DELETE FROM completions WHERE task_id=? AND day=?", id, completionKey); err != nil {
+			apiError(w, 500, "Opgaven kunne ikke genåbnes")
+			return
+		}
 	}
 	a.broadcast()
 	writeJSON(w, 200, map[string]bool{"ok": true})

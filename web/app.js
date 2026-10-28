@@ -63,9 +63,10 @@
       items.forEach(function(e){column.appendChild(eventCard(e))});root.appendChild(column)
     })(addDays(start,i))}
   }
+  function repeatLabel(rule){return ({daily:'Hver dag',weekly:'Hver uge (én dag)',biweekly:'Hver anden uge (én dag)',once_week:'Én hel uge',weekly_window:'Hver uge (hele ugen)',biweekly_window:'Hver anden uge (hele ugen)'})[rule]||''}
   function renderTasks(){var root=$('taskList');root.replaceChildren();var tasks=S.tasks.filter(function(t){return !S.filter||t.assigned_to===S.filter});if(!tasks.length){root.appendChild(el('p',{'class':'empty-state'},'Ingen pligter på denne dag. Tryk “+ Opgave” for at oprette en.'));return}
     tasks.forEach(function(t){var row=el('div',{'class':'task-row'});var check=el('input',{type:'checkbox','aria-label':'Fuldfør '+t.title});check.checked=t.done;check.addEventListener('change',async function(){try{await api('/api/tasks/'+t.id+'/toggle','POST',{day:dayString(S.focus),done:check.checked});load()}catch(e){check.checked=!check.checked;alert(e.message)}});row.appendChild(check);
-      var text=el('div',{'class':'task-text'});var title=el('strong',{'class':t.done?'strike':''},t.title);text.appendChild(title);text.appendChild(el('small',null,nameOf(t.assigned_to)+(t.repeat_rule==='daily'?' · Hver dag':t.repeat_rule==='weekly'?' · Hver uge':'')));row.appendChild(text);
+      var text=el('div',{'class':'task-text'});var title=el('strong',{'class':t.done?'strike':''},t.title);text.appendChild(title);text.appendChild(el('small',null,nameOf(t.assigned_to)+(repeatLabel(t.repeat_rule)?' · '+repeatLabel(t.repeat_rule):'')));row.appendChild(text);
       var edit=el('button',{'class':'text-button','type':'button'},'Redigér');edit.addEventListener('click',function(){openTask(t)});row.appendChild(edit);root.appendChild(row)
     })
   }
@@ -97,8 +98,9 @@
   function openTask(t){var editing=!!t;var html='<form id="entryForm" class="form-grid">'+
     field('Opgave','<input name="title" maxlength="150" required value="'+esc(t?t.title:'')+'">')+
     field('Ansvarlig','<select name="assigned_to">'+personOptions(t?t.assigned_to:'','Fælles')+'</select>')+
-    field('Starter / forfalder','<input name="due_date" type="date" required value="'+esc(t?t.due_date:dayString(S.focus))+'">')+
-    field('Gentagelse','<select name="repeat_rule"><option value="none">En gang</option><option value="daily">Hver dag</option><option value="weekly">Hver uge</option></select>')+
+    field('Startdato / forfalder','<input name="due_date" type="date" required value="'+esc(t?t.due_date:dayString(S.focus))+'">')+
+    field('Gentagelse','<select name="repeat_rule"><option value="none">En gang (valgt dag)</option><option value="daily">Hver dag</option><option value="weekly">Hver uge (én dag)</option><option value="biweekly">Hver anden uge (én dag)</option><option value="once_week">Én hel uge</option><option value="weekly_window">Hver uge (hele ugen)</option><option value="biweekly_window">Hver anden uge (hele ugen)</option></select>')+
+    '<p class="muted">Hele ugen betyder mandag–søndag. Pligten ses hver dag i ugen, men afkrydses kun én gang pr. uge. Hver anden uge beregnes fra ugen med startdatoen.</p>'+
     '<div class="form-actions">'+(editing?'<button type="button" id="deleteBtn" class="danger">Slet</button>':'')+'<button type="submit" class="primary">Gem opgave</button></div></form>';
     openModal(editing?'Redigér pligt':'Ny pligt',html);$('entryForm').elements.repeat_rule.value=t?t.repeat_rule:'none';
     $('entryForm').addEventListener('submit',function(evt){evt.preventDefault();var form=evt.currentTarget.elements;saveOrError(function(){return api(editing?'/api/tasks/'+t.id:'/api/tasks',editing?'PUT':'POST',{id:'',title:form.title.value,assigned_to:form.assigned_to.value,due_date:form.due_date.value,repeat_rule:form.repeat_rule.value,done:false})})});

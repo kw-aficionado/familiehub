@@ -9,7 +9,7 @@ En selvhostet familietavle til iPad Air 2, nyere tablets og telefoner.
 - Dag- og ugevisning, frem/tilbage, swipe på touchskærm og "I dag".
 - Opret, redigér og slet lokale aftaler, inkl. legeaftaler og afhentningsansvar.
 - Familiemedlemmer med farvekoder; filtrering efter person.
-- Opret pligter, daglig/ugentlig gentagelse, afkrydsning per dato.
+- Opret pligter til én dag, én hel uge, hver uge eller hver anden uge. Pligter som gælder en hel uge afkrydses én gang for hele ugen (mandag–søndag).
 - Home Assistant REST-integration til læsning af konfigurerede kalender-entities.
 - Push-notifikationstest via HA `notify`-service og automatiske afhentningspåmindelser 30 min. før en lokal legeaftale slutter.
 - Adgangskode, sessionscookies, CSRF-beskyttelse, rate limit på login, sikkerhedsheaders.
@@ -24,6 +24,20 @@ En selvhostet familietavle til iPad Air 2, nyere tablets og telefoner.
 - Ingen komplet Google Nest Hub-oplevelse; kompakt castskærm er planlagt.
 - Ingen PWA-offline-cache: appen kræver online forbindelse til backend.
 - Browserlayout er implementeret, men bør afprøves fysisk på den gamle iPad inden permanent opsætning.
+
+## Pligter for hele uger og hver anden uge
+
+I **Pligter → + Opgave → Gentagelse** kan du nu vælge:
+
+- **Én hel uge**: vis opgaven fra mandag til søndag i den uge, du vælger under startdato, og afkryds kun én gang.
+- **Hver uge (hele ugen)**: en ny opgave hver mandag, som kan løses én gang inden søndag.
+- **Hver anden uge (hele ugen)**: samme som ovenfor, men kun hver anden uge. Første aktive uge er ugen med den valgte startdato.
+- **Hver anden uge (én dag)**: gentages hver 14. dag på samme ugedag som startdatoen.
+- Tidligere **Hver uge (én dag)** og **Hver dag** er uændrede.
+
+Ved afkrydsning af en hel uge vises opgaven som udført på alle syv dage. Næste aktive uge starter med en frisk afkrydsning. Ugeopgaver giver en samlet påmindelse kl. 16 om søndagen, hvis de ikke er færdige. Eksisterende data bevares; SQLite-skemaet skal ikke migreres.
+
+**Opdatering uden ny Rune:** Dette udviklingsspor genbruger bevidst Docker-tagget `0.1.1` fra den eksisterende Rune. Yggdrasil trækker den senest publicerede version af dette tag på **Restart**, når GitHub Actions er grønt. Det er et bevidst mutable tag til løbende opdateringer; for reproducerbare udgivelser anbefales et fast versions-tag senere.
 
 ## 1. Byg lokalt (Linux)
 

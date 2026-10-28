@@ -310,3 +310,111 @@ func TestTaskReminderDedupe(t *testing.T) {
 		t.Fatalf("expected a single reminder, got %d", calls)
 	}
 }
+
+func TestWeeklyAndBiweeklyChores(t *testing.T) {
+	app, _ := testApp(t)
+	ids := map[string]string{}
+	for _, tc := range []struct{ title, rule string }{
+		{"Kun denne uge", "once_week"},
+		{"Hel uge hver uge", "weekly_window"},
+		{"Hel uge hver anden uge", "biweekly_window"},
+		{"Én dag hver anden uge", "biweekly"},
+	} {
+		id := newID()
+		ids[tc.title] = id
+		if err := app.db.Exec("INSERT INTO tasks(id,title,assigned_to,due_date,repeat_rule) VALUES(?,?,?,?,?)", id, tc.title, "", "2026-10-28", tc.rule); err != nil {
+			t.Fatal(err)
+		}
+	}
+	items := func(date string) map[string]Task {
+		tasks, err := app.tasks(date)
+		if err != nil {
+			t.Fatal(err)
+		}
+		m := map[string]Task{}
+		for _, task := range tasks {
+			m[task.Title] = task
+		}
+		return m
+	}
+	inFirstWeek := items("2026-10-26")
+	if len(inFirstWeek) != 3 {
+		t.Fatalf("expected 3 whole-week tasks on Monday, got %+v", inFirstWeek)
+	}
+	if len(items("2026-10-27")) != 3 {
+		t.Fatal("whole-week task not visible before selected Wednesday")
+	}
+	if len(items("2026-10-28")) != 4 {
+		t.Fatal("all tasks should be visible on anchor Wednesday")
+	}
+	nextWeek := items("2026-11-02")
+	if len(nextWeek) != 1 || nextWeek["Hel uge hver uge"].Title == "" {
+		t.Fatalf("wrong weekly tasks for next week: %+v", nextWeek)
+	}
+	weekAfter := items("2026-11-09")
+	if len(weekAfter) != 2 || weekAfter["Hel uge hver anden uge"].Title == "" {
+		t.Fatalf("biweekly window should repeat after two weeks: %+v", weekAfter)
+	}
+	if _, ok := items("2026-11-04")["Én dag hver anden uge"]; ok {
+		t.Fatal("biweekly single-day task must skip following Wednesday")
+	}
+	if _, ok := items("2026-11-11")["Én dag hver anden uge"]; !ok {
+		t.Fatal("biweekly single-day task must repeat after 14 days")
+	}
+
+	srv := httptest.NewServer(app.mux)
+	defer srv.Close()
+	cookie, csrf := authenticated(t, srv)
+	id := ids["Hel uge hver anden uge"]
+	code, _, _ := req(t, srv, "POST", "/api/tasks/"+id+"/toggle", `{"day":"2026-10-28","done":true}`, cookie, csrf)
+	if code != 200 {
+		t.Fatalf("toggle week task: %d", code)
+	}
+	for _, d := range []string{"2026-10-26", "2026-10-29", "2026-11-01"} {
+		if !items(d)["Hel uge hver anden uge"].Done {
+			t.Fatalf("completion not shared in week for %s", d)
+		}
+	}
+	if items("2026-11-09")["Hel uge hver anden uge"].Done {
+		t.Fatal("completion leaked into next biweekly occurrence")
+	}
+	code, _, _ = req(t, srv, "POST", "/api/tasks/"+id+"/toggle", `{"day":"2026-11-02","done":true}`, cookie, csrf)
+	if code != 400 {
+		t.Fatalf("inactive week should reject completion, got %d", code)
+	}
+	code, _, _ = req(t, srv, "POST", "/api/tasks/"+id+"/toggle", `{"day":"2026-10-31","done":false}`, cookie, csrf)
+	if code != 200 || items("2026-10-28")["Hel uge hver anden uge"].Done {
+		t.Fatal("unchecking must reset completion for the whole week")
+	}
+	// Validate new choices through the public API, not just an internal database insert.
+	code, _, _ = req(t, srv, "POST", "/api/tasks", `{"title":"Ny ugepligt","assigned_to":"","due_date":"2026-10-28","repeat_rule":"weekly_window","done":false,"id":""}`, cookie, csrf)
+	if code != 200 {
+		t.Fatalf("create weekly-window task over API: %d", code)
+	}
+}
+
+func TestRecurrenceAcrossNewYear(t *testing.T) {
+	anchor, err := time.Parse("2006-01-02", "2026-12-30")
+	if err != nil {
+		t.Fatal(err)
+	}
+	dates := []struct {
+		date string
+		want bool
+	}{
+		{"2026-12-28", true},
+		{"2027-01-03", true},
+		{"2027-01-04", false},
+		{"2027-01-10", false},
+		{"2027-01-11", true},
+		{"2027-01-17", true},
+		{"2027-01-18", false},
+	}
+	for _, tc := range dates {
+		target, _ := time.Parse("2006-01-02", tc.date)
+		got, _ := taskOccurrence(anchor, target, "biweekly_window")
+		if got != tc.want {
+			t.Fatalf("%s: biweekly_window got %t want %t", tc.date, got, tc.want)
+		}
+	}
+}
