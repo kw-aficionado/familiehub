@@ -1,13 +1,14 @@
 FROM golang:1.23-alpine AS builder
 RUN apk add --no-cache gcc musl-dev sqlite-dev
 ARG TARGETARCH
+ARG SOURCE_COMMIT=dev
 WORKDIR /src
 COPY go.mod ./
 COPY main.go integrations.go ./
 COPY internal ./internal
 COPY web ./web
 # CGO + SQLite: build runs under the target architecture via buildx/QEMU for multiarch.
-RUN CGO_ENABLED=1 go build -trimpath -ldflags="-s -w" -o /out/familiehub .
+RUN CGO_ENABLED=1 go build -trimpath -ldflags="-s -w -X main.buildCommit=${SOURCE_COMMIT}" -o /out/familiehub .
 
 FROM alpine:3.21
 RUN apk add --no-cache sqlite-libs ca-certificates tzdata \

@@ -151,3 +151,31 @@ Lokal `go test` dækker login, CSRF, CRUD, gentagelseslogik, HA-kalenderdata, pu
 - [Yggdrasil Runes](https://github.com/kristianwind/yggdrasil/blob/main/docs/guides/runes.md)
 - [Yggdrasil Networking](https://github.com/kristianwind/yggdrasil/blob/main/docs/guides/networking.md)
 - [Yggdrasil Runes with an LLM](https://github.com/kristianwind/yggdrasil/blob/main/docs/guides/runes-with-an-llm.md)
+
+## Farvekoder og tags i Google Kalender
+
+Fra oktober 2026 kan den eksisterende Home Assistant kalenderintegration farvelægge aftaler med hashtags i **titlen**. Eksempler:
+
+- `#Anton #Sport Badminton` viser **Badminton** med Antons personfarve og en diskret sportsetiket.
+- `#Alma #Skole Terminsprøve` viser **Terminsprøve** med Almas farve.
+- `#Anton #Alma Biograf` får en todelt farvestribe og vises under begge personfiltre.
+- `#Sport Fodboldkamp` får sportens kategorifarve, når der ikke er person-tags.
+
+Person-tags matcher eksisterende familiemedlemmer (uden forskel på store/små bogstaver).
+Et navn med mellemrum kan bruges samlet (`Anne Marie` → `#AnneMarie`).
+Understøttede kategorier: `#Sport`, `#Skole`, `#Arbejde`, `#Hjemme`, `#Familie`,
+`#Fritid`, `#Privat` og `#Legeaftale`. Ukendte hashtags bevares i titlen.
+Aftaler uden tags bevarer den neutrale farve. Tags ændrer **aldrig** noget i Google Kalender.
+Google Kalenders egne eventfarver kan ikke læses via den nuværende Home Assistant REST-integration.
+
+Farver hentes fra personprofiler i FamilieHub. Tjek at personnavnet svarer til hashtagget.
+De nye metadata bruges også i personfiltre. For at filtrere på Anton trykkes på `Anton` øverst.
+
+### Undgå cachede opdateringer
+
+Appens HTML/JS/CSS sendes med `Cache-Control: no-store`. Desuden kan `/api/version`
+bruges til at se `commit` og version (også uden login). Build-hashen vises i footeren,
+så det kan verificeres, at Yggdrasil startede det nyeste Docker-image.
+Ved genstart henter Yggdrasil normalt imaget igen. Hvis hash ikke ændres: kontrollér
+Yggdrasils serverlog og hvilken Docker-image-tag der er knyttet til serverens Rune.
+Runen er ikke ændret; GHCR-tagget `0.1.1` bliver genudgivet ved push til `main`.

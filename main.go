@@ -33,6 +33,9 @@ var assets embed.FS
 var ident = regexp.MustCompile(`^[a-z0-9_]+$`)
 var color = regexp.MustCompile(`^#[0-9a-fA-F]{6}$`)
 
+// buildCommit is set at Docker build time; it never contains credentials.
+var buildCommit = "dev"
+
 type Person struct {
 	ID            string `json:"id"`
 	Name          string `json:"name"`
@@ -41,16 +44,18 @@ type Person struct {
 	Position      int    `json:"position"`
 }
 type Event struct {
-	ID       string `json:"id"`
-	Title    string `json:"title"`
-	Start    string `json:"start_at"`
-	End      string `json:"end_at"`
-	Kind     string `json:"kind"`
-	PersonID string `json:"person_id"`
-	PickupBy string `json:"pickup_by"`
-	Location string `json:"location"`
-	Notes    string `json:"notes"`
-	External bool   `json:"external"`
+	ID        string   `json:"id"`
+	Title     string   `json:"title"`
+	Start     string   `json:"start_at"`
+	End       string   `json:"end_at"`
+	Kind      string   `json:"kind"`
+	PersonID  string   `json:"person_id"`
+	PickupBy  string   `json:"pickup_by"`
+	Location  string   `json:"location"`
+	Notes     string   `json:"notes"`
+	External  bool     `json:"external"`
+	PersonIDs []string `json:"person_ids,omitempty"`
+	Category  string   `json:"category,omitempty"`
 }
 type Task struct {
 	ID         string `json:"id"`
@@ -149,6 +154,10 @@ func securityHeaders(h http.Handler) http.Handler {
 		w.Header().Set("X-Content-Type-Options", "nosniff")
 		w.Header().Set("X-Frame-Options", "DENY")
 		w.Header().Set("Referrer-Policy", "no-referrer")
+		// Never serve an old Safari-cached dashboard when the container is updated.
+		if !strings.HasPrefix(r.URL.Path, "/api/") {
+			w.Header().Set("Cache-Control", "no-store, max-age=0")
+		}
 		w.Header().Set("Content-Security-Policy", "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'")
 		h.ServeHTTP(w, r)
 	})
@@ -160,6 +169,9 @@ func (a *App) routes() {
 	}
 	a.mux.Handle("GET /", http.FileServer(http.FS(web)))
 	a.mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) { writeJSON(w, 200, map[string]string{"status": "ok"}) })
+	a.mux.HandleFunc("GET /api/version", func(w http.ResponseWriter, r *http.Request) {
+		writeJSON(w, 200, map[string]string{"version": "0.1.1", "commit": buildCommit})
+	})
 	a.mux.HandleFunc("POST /api/login", a.login)
 	a.mux.HandleFunc("GET /api/session", a.session)
 	a.mux.HandleFunc("POST /api/logout", a.withAuth(a.logout))
@@ -368,6 +380,9 @@ func (a *App) state(w http.ResponseWriter, r *http.Request) {
 			warning = "Home Assistant-kalendere: " + haFriendlyError(e)
 			log.Printf("calendar integration error: %v", e)
 		} else {
+			for i := range external {
+				external[i] = decorateExternalEvent(external[i], people)
+			}
 			ev = append(ev, external...)
 		}
 	}

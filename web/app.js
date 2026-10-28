@@ -17,6 +17,17 @@
   function member(id){return S.people.find(function(x){return x.id===id})||null}
   function nameOf(id){var p=member(id);return p?p.name:'Ingen'}
   function colorOf(id){var p=member(id);return p?p.color:'#8ba5a8'}
+  // Category colours apply only when no tagged family member takes precedence.
+  var categoryColors={sport:'#2086b5',skole:'#8158b1',arbejde:'#718096',hjemme:'#dc8a29',familie:'#cf578f',fritid:'#2a9d8f',privat:'#798087',legeaftale:'#e86a3c'};
+  function colorsOf(ev){
+    var ids=ev.person_ids&&ev.person_ids.length?ev.person_ids:(ev.person_id?[ev.person_id]:[]),colors=[];
+    ids.forEach(function(id){var p=member(id);if(p&&colors.indexOf(p.color)===-1)colors.push(p.color)});
+    if(!colors.length)colors.push(categoryColors[ev.category]||'#8ba5a8');
+    return colors;
+  }
+  function tint(hex,alpha){var v=hex.substring(1);return 'rgba('+parseInt(v.substring(0,2),16)+','+parseInt(v.substring(2,4),16)+','+parseInt(v.substring(4,6),16)+','+alpha+')'}
+  function matchesPersonFilter(ev){return !S.filter||ev.person_id===S.filter||ev.pickup_by===S.filter||(ev.person_ids||[]).indexOf(S.filter)!==-1}
+  function stripeOf(colors){if(colors.length===1)return colors[0];var stops=[];colors.forEach(function(c,i){var a=100*i/colors.length,b=100*(i+1)/colors.length;stops.push(c+' '+a+'%');stops.push(c+' '+b+'%')});return 'linear-gradient(to bottom,'+stops.join(',')+')'}
   function show(id){$(id).classList.remove('hidden')}
   function hide(id){$(id).classList.add('hidden')}
   function errorMessage(x){return x&&x.error?x.error:'Der opstod en fejl. Prøv igen.'}
@@ -53,9 +64,19 @@
   function renderFilters(){var root=$('peopleFilters');root.replaceChildren();var all=el('button',{'class':'chip'+(!S.filter?' selected':''),'type':'button'},'Alle');all.addEventListener('click',function(){S.filter='';render()});root.appendChild(all);
     S.people.forEach(function(p){var b=el('button',{'class':'chip'+(S.filter===p.id?' selected':''),'type':'button'});var dot=el('i',{'class':'dot'});dot.style.background=p.color;b.appendChild(dot);b.appendChild(document.createTextNode(p.name));b.addEventListener('click',function(){S.filter=S.filter===p.id?'':p.id;render()});root.appendChild(b)})
   }
-  function filteredEvents(){return S.events.filter(function(e){return !S.filter||e.person_id===S.filter||e.pickup_by===S.filter||!e.person_id})}
+  function filteredEvents(){return S.events.filter(matchesPersonFilter)}
   function matchesDay(ev,date){var st=new Date(ev.start_at),en=new Date(ev.end_at),start=localMidnight(date),end=addDays(start,1);return st<end&&en>start}
-  function eventCard(ev){var node=el('button',{'class':'event-card','type':'button','title':ev.external?'Ekstern kalender: kun læsning':'Tryk for at redigere'});node.style.borderLeftColor=colorOf(ev.person_id);var time=el('span',{'class':'event-time'},clock(ev.start_at));node.appendChild(time);node.appendChild(el('span',{'class':'event-name'},ev.title));if(ev.external)node.appendChild(el('span',{'class':'external-symbol'},'↗'));node.addEventListener('click',function(){openEvent(ev)});return node}
+  function eventCard(ev){
+    var node=el('button',{'class':'event-card','type':'button','title':ev.external?'Ekstern kalender: kun læsning':'Tryk for at redigere'});
+    var colors=colorsOf(ev);
+    node.style.setProperty('--event-stripe',stripeOf(colors));
+    node.style.backgroundColor=tint(colors[0],0.09);
+    node.appendChild(el('span',{'class':'event-time'},clock(ev.start_at)));
+    node.appendChild(el('span',{'class':'event-name'},ev.title));
+    if(ev.category)node.appendChild(el('span',{'class':'event-category'},'#'+ev.category));
+    if(ev.external)node.appendChild(el('span',{'class':'external-symbol'},'↗'));
+    node.addEventListener('click',function(){openEvent(ev)});return node;
+  }
   function renderCalendar(){var root=$('calendar');root.replaceChildren();root.className='calendar '+(S.view==='week'?'week-view':'day-view');var days=S.view==='week'?7:1;var start=range().start,events=filteredEvents();
     for(var i=0;i<days;i++){(function(date){var column=el('div',{'class':'day-column'+(dayString(date)===dayString(new Date())?' is-today':'')});var heading=el('button',{'class':'day-heading','type':'button'});heading.appendChild(el('span',{'class':'weekday'},formatDate(date,{weekday:'short'})));heading.appendChild(el('strong',null,String(date.getDate())));heading.addEventListener('click',function(){S.focus=new Date(date);setView('day')});column.appendChild(heading);
       var items=events.filter(function(e){return matchesDay(e,date)}).sort(function(a,b){return a.start_at.localeCompare(b.start_at)});
@@ -70,9 +91,9 @@
       var edit=el('button',{'class':'text-button','type':'button'},'Redigér');edit.addEventListener('click',function(){openTask(t)});row.appendChild(edit);root.appendChild(row)
     })
   }
-  function renderToday(){var root=$('todayList');root.replaceChildren();var es=S.events.filter(function(e){return matchesDay(e,S.focus)&&(!S.filter||e.person_id===S.filter||e.pickup_by===S.filter||!e.person_id)});
+  function renderToday(){var root=$('todayList');root.replaceChildren();var es=S.events.filter(function(e){return matchesDay(e,S.focus)&&matchesPersonFilter(e)});
     if(!es.length){root.appendChild(el('p',{'class':'empty-state'},'Ingen aftaler på den valgte dag.'));return}
-    es.sort(function(a,b){return a.start_at.localeCompare(b.start_at)}).slice(0,6).forEach(function(e){var row=el('div',{'class':'activity-row'});var dot=el('span',{'class':'activity-dot'});dot.style.background=colorOf(e.person_id);row.appendChild(dot);var box=el('div');box.appendChild(el('strong',null,e.title));var extra=clock(e.start_at)+'–'+clock(e.end_at);if(e.pickup_by)extra+=' · '+nameOf(e.pickup_by)+' henter';else if(e.person_id)extra+=' · '+nameOf(e.person_id);box.appendChild(el('small',null,extra));row.appendChild(box);root.appendChild(row)})
+    es.sort(function(a,b){return a.start_at.localeCompare(b.start_at)}).slice(0,6).forEach(function(e){var row=el('div',{'class':'activity-row'});var dot=el('span',{'class':'activity-dot'});dot.style.background=colorsOf(e)[0];row.appendChild(dot);var box=el('div');box.appendChild(el('strong',null,e.title));var extra=clock(e.start_at)+'–'+clock(e.end_at);if(e.pickup_by)extra+=' · '+nameOf(e.pickup_by)+' henter';else if(e.person_id)extra+=' · '+nameOf(e.person_id);box.appendChild(el('small',null,extra));row.appendChild(box);root.appendChild(row)})
   }
   function openModal(title,html){$('modalTitle').textContent=title;$('modalBody').innerHTML=html;$('formError').textContent='';show('modal');var first=$('modalBody').querySelector('input:not([type="hidden"])');if(first)first.focus()}
   function closeModal(){hide('modal');$('modalBody').replaceChildren()}
@@ -123,5 +144,7 @@
   var touchX=0,touchY=0;$('calendar').addEventListener('touchstart',function(e){if(e.touches.length===1){touchX=e.touches[0].clientX;touchY=e.touches[0].clientY}},{passive:true});
   $('calendar').addEventListener('touchend',function(e){if(e.changedTouches.length!==1||$('modal').classList.contains('hidden')===false)return;var dx=e.changedTouches[0].clientX-touchX,dy=e.changedTouches[0].clientY-touchY;if(Math.abs(dx)>70&&Math.abs(dy)<55)navigate(dx<0?1:-1)},{passive:true});
   document.addEventListener('visibilitychange',function(){if(!document.hidden&&S.csrf)load()});setInterval(function(){if(!document.hidden&&S.csrf)load()},60000);
+  function loadBuild(){fetch('/api/version',{cache:'no-store',credentials:'same-origin'}).then(function(r){return r.json()}).then(function(v){var commit=(v.commit||'dev').substring(0,8);$('buildVersion').textContent=' · Build '+commit}).catch(function(){})}
+  loadBuild();
   init();
 })();

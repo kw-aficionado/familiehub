@@ -10,6 +10,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"regexp"
 	"strings"
 	"syscall"
 	"time"
@@ -59,6 +60,63 @@ func (a *App) haEvents(ctx context.Context, start, end time.Time) ([]Event, erro
 		}
 	}
 	return out, nil
+}
+
+// Recognised hashtags in a Google/iCloud calendar title are display metadata only.
+// HA remains read-only and the original calendar event is never modified.
+// Unknown tags remain in the visible title. Tags can occur anywhere as whole tokens.
+var calendarTagPattern = regexp.MustCompile(`(?i)(^|[[:space:]])#([\p{L}\p{N}_-]+)`)
+
+var calendarCategories = map[string]bool{
+	"sport": true, "skole": true, "arbejde": true, "hjemme": true,
+	"familie": true, "fritid": true, "privat": true, "legeaftale": true,
+}
+
+func decorateExternalEvent(ev Event, people []Person) Event {
+	title := ev.Title
+	var visible strings.Builder
+	previous := 0
+	seen := map[string]bool{}
+	for _, match := range calendarTagPattern.FindAllStringSubmatchIndex(title, -1) {
+		tag := title[match[4]:match[5]]
+		recognized := false
+		for _, person := range people {
+			// #AnneMarie also matches the person named "Anne Marie".
+			alias := strings.Join(strings.Fields(person.Name), "")
+			if strings.EqualFold(alias, tag) && person.ID != "" {
+				recognized = true
+				if !seen[person.ID] {
+					ev.PersonIDs = append(ev.PersonIDs, person.ID)
+					seen[person.ID] = true
+				}
+			}
+		}
+		if !recognized && calendarCategories[strings.ToLower(tag)] {
+			recognized = true
+			if ev.Category == "" {
+				ev.Category = strings.ToLower(tag)
+			}
+		}
+		if !recognized {
+			continue
+		}
+		visible.WriteString(title[previous:match[0]])
+		// The whole match includes the preceding whitespace when present.
+		visible.WriteByte(' ')
+		previous = match[1]
+	}
+	if previous == 0 { // No recognised tags; preserve the event as provided.
+		return ev
+	}
+	visible.WriteString(title[previous:])
+	cleaned := strings.Join(strings.Fields(visible.String()), " ")
+	if cleaned != "" {
+		ev.Title = cleaned
+	}
+	if len(ev.PersonIDs) > 0 {
+		ev.PersonID = ev.PersonIDs[0] // compatibility with existing colour/identity code
+	}
+	return ev
 }
 
 // Home Assistant's REST calendar API uses {"dateTime": "..."} or {"date": "..."}.

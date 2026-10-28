@@ -418,3 +418,110 @@ func TestRecurrenceAcrossNewYear(t *testing.T) {
 		}
 	}
 }
+
+func TestExternalCalendarHashtagRecognition(t *testing.T) {
+	people := []Person{
+		{ID: "anton-id", Name: "Anton", Color: "#fca311"},
+		{ID: "alma-id", Name: "Alma", Color: "#db472f"},
+		{ID: "anne-id", Name: "Anne Marie", Color: "#1188aa"},
+	}
+	tests := []struct {
+		name, input, title, category, person string
+		all                                  []string
+	}{
+		{name: "person and category", input: "#Anton #Sport Badminton", title: "Badminton", category: "sport", person: "anton-id", all: []string{"anton-id"}},
+		{name: "two participants", input: "#Anton #Alma Biograf", title: "Biograf", person: "anton-id", all: []string{"anton-id", "alma-id"}},
+		{name: "case insensitive", input: "#aNtOn #SKOLE Terminsprøve", title: "Terminsprøve", category: "skole", person: "anton-id", all: []string{"anton-id"}},
+		{name: "name with spaces", input: "Aftensmad #AnneMarie", title: "Aftensmad", person: "anne-id", all: []string{"anne-id"}},
+		{name: "category only", input: "#Sport Fodboldkamp", title: "Fodboldkamp", category: "sport"},
+		{name: "unknown stays", input: "#Anton #Fremtid Svømning", title: "#Fremtid Svømning", person: "anton-id", all: []string{"anton-id"}},
+		{name: "no tag", input: "Almas træning", title: "Almas træning"},
+		{name: "partial person not recognized", input: "#Antonia Musik", title: "#Antonia Musik"},
+		{name: "URL fragment is not a tag", input: "https://example.test/#Sport", title: "https://example.test/#Sport"},
+		{name: "duplicate person", input: "#Alma #Alma #Hjemme Hjemmeopgave", title: "Hjemmeopgave", category: "hjemme", person: "alma-id", all: []string{"alma-id"}},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			result := decorateExternalEvent(Event{Title: tc.input, External: true}, people)
+			if result.Title != tc.title || result.PersonID != tc.person || result.Category != tc.category {
+				t.Fatalf("want title=%q person=%q category=%q, got %+v", tc.title, tc.person, tc.category, result)
+			}
+			if len(result.PersonIDs) != len(tc.all) {
+				t.Fatalf("person ID count: want %v, got %v", tc.all, result.PersonIDs)
+			}
+			for i, id := range tc.all {
+				if result.PersonIDs[i] != id {
+					t.Fatalf("person IDs want %v, got %v", tc.all, result.PersonIDs)
+				}
+			}
+		})
+	}
+}
+
+func TestTaggedHAEventsInState(t *testing.T) {
+	ha := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/api/calendars/calendar.familie" {
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = io.WriteString(w, `[{"summary":"#Anton #Alma #Sport Badminton","start":{"dateTime":"2026-10-28T15:00:00+01:00"},"end":{"dateTime":"2026-10-28T17:00:00+01:00"}},{"summary":"Fælles aftale","start":{"date":"2026-10-29"},"end":{"date":"2026-10-30"}}]`)
+			return
+		}
+		http.NotFound(w, r)
+	}))
+	defer ha.Close()
+	a, _ := testApp(t)
+	a.cfg.HAURL = ha.URL
+	a.cfg.HAToken = "private-test-token"
+	a.cfg.HACalendars = []string{"calendar.familie"}
+	server := httptest.NewServer(securityHeaders(a.mux))
+	defer server.Close()
+	cookie, csrf := authenticated(t, server)
+	personIDs := []string{}
+	for _, name := range []string{"Anton", "Alma"} {
+		payload, _ := json.Marshal(Person{Name: name, Color: "#abcd12"})
+		code, body, _ := req(t, server, "POST", "/api/people", string(payload), cookie, csrf)
+		if code != 200 {
+			t.Fatalf("create %s: %v", name, body)
+		}
+		personIDs = append(personIDs, body["id"].(string))
+	}
+	code, state, _ := req(t, server, "GET", "/api/state?day=2026-10-28&start=2026-10-28T00:00:00Z&end=2026-10-30T00:00:00Z", "", cookie, "")
+	if code != 200 || state["warning"] != "" {
+		t.Fatalf("state: %v", state)
+	}
+	events := state["events"].([]any)
+	if len(events) != 2 {
+		t.Fatalf("events: %v", events)
+	}
+	tagged := events[0].(map[string]any)
+	if tagged["title"] != "Badminton" || tagged["category"] != "sport" || tagged["person_id"] != personIDs[0] {
+		t.Fatalf("bad tag translation: %v", tagged)
+	}
+	ids := tagged["person_ids"].([]any)
+	if len(ids) != 2 || ids[0] != personIDs[0] || ids[1] != personIDs[1] {
+		t.Fatalf("people not assigned: %v", ids)
+	}
+	plain := events[1].(map[string]any)
+	if plain["title"] != "Fælles aftale" || plain["person_id"] != "" {
+		t.Fatalf("untagged should be unchanged: %v", plain)
+	}
+}
+
+func TestBuildVersionAndStaticCache(t *testing.T) {
+	a, _ := testApp(t)
+	s := httptest.NewServer(securityHeaders(a.mux))
+	defer s.Close()
+	code, body, _ := req(t, s, "GET", "/api/version", "", "", "")
+	if code != 200 || body["commit"] != buildCommit || body["version"] != "0.1.1" {
+		t.Fatalf("unexpected build metadata: %v", body)
+	}
+	for _, path := range []string{"/", "/app.js", "/style.css"} {
+		resp, err := http.Get(s.URL + path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		resp.Body.Close()
+		if !strings.Contains(resp.Header.Get("Cache-Control"), "no-store") {
+			t.Errorf("%s should not be cacheable: %v", path, resp.Header)
+		}
+	}
+}

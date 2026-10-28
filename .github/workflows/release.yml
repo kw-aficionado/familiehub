@@ -38,6 +38,8 @@ jobs:
       - uses: docker/build-push-action@v6
         with:
           context: .
+          build-args: |
+            SOURCE_COMMIT=${{ github.sha }}
           push: true
           platforms: linux/amd64,linux/arm64
           tags: ${{ steps.meta.outputs.tags }}
