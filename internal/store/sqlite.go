@@ -108,6 +108,28 @@ func (d *DB) Exec(sql string, args ...string) error {
 	_, err := d.query(sql, args...)
 	return err
 }
+// Statement is an SQL statement with bound text parameters for atomic batches.
+type Statement struct { SQL string; Args []string }
+
+// ExecBatch commits all writes or rolls back every change on the first error.
+// The database lock prevents unrelated requests from interleaving statements.
+func (d *DB) ExecBatch(statements []Statement) error {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	if _,err:=d.query("BEGIN IMMEDIATE");err!=nil{return err}
+	for _,statement:=range statements{
+		if _,err:=d.query(statement.SQL,statement.Args...);err!=nil{
+			_,_=d.query("ROLLBACK")
+			return err
+		}
+	}
+	if _,err:=d.query("COMMIT");err!=nil{
+		_,_=d.query("ROLLBACK")
+		return err
+	}
+	return nil
+}
+
 func (d *DB) Init() error {
 	statements := []string{
 		`CREATE TABLE IF NOT EXISTS people(id TEXT PRIMARY KEY,name TEXT NOT NULL,color TEXT NOT NULL,notify_service TEXT NOT NULL DEFAULT '',position INTEGER NOT NULL DEFAULT 0)`,
@@ -115,6 +137,7 @@ func (d *DB) Init() error {
 		`CREATE INDEX IF NOT EXISTS events_dates ON events(start_at,end_at)`,
 		`CREATE TABLE IF NOT EXISTS tasks(id TEXT PRIMARY KEY,title TEXT NOT NULL,assigned_to TEXT NOT NULL DEFAULT '',due_date TEXT NOT NULL,repeat_rule TEXT NOT NULL DEFAULT 'none')`,
 		`CREATE TABLE IF NOT EXISTS task_templates(id TEXT PRIMARY KEY,title TEXT NOT NULL,assigned_to TEXT NOT NULL DEFAULT '',repeat_rule TEXT NOT NULL DEFAULT 'none')`,
+		`CREATE TABLE IF NOT EXISTS planner_meta(key TEXT PRIMARY KEY,value TEXT NOT NULL)`,
 		`CREATE TABLE IF NOT EXISTS calendar_owners(entity_id TEXT PRIMARY KEY,person_id TEXT NOT NULL DEFAULT '')`,
 		`CREATE TABLE IF NOT EXISTS direct_calendars(id TEXT PRIMARY KEY,provider TEXT NOT NULL,name TEXT NOT NULL,person_id TEXT NOT NULL DEFAULT '',endpoint TEXT NOT NULL DEFAULT '',username TEXT NOT NULL DEFAULT '',client_id TEXT NOT NULL DEFAULT '',secret_cipher TEXT NOT NULL DEFAULT '',access_cipher TEXT NOT NULL DEFAULT '',refresh_cipher TEXT NOT NULL DEFAULT '')`,
 		`CREATE TABLE IF NOT EXISTS direct_oauth_states(state_hash TEXT PRIMARY KEY,calendar_id TEXT NOT NULL,session_hash TEXT NOT NULL,expires_at TEXT NOT NULL)`,
@@ -142,6 +165,30 @@ func (d *DB) Init() error {
 	if !hasAccountID {
 		if err := d.Exec("ALTER TABLE sessions ADD COLUMN account_id TEXT NOT NULL DEFAULT ''"); err != nil {
 			return fmt.Errorf("migration sessions account_id: %w", err)
+		}
+	}
+
+	// Additive migrations: keep all existing templates, chores and completions.
+	for _, col := range []struct{table, name, definition string}{
+		{"task_templates","category","TEXT NOT NULL DEFAULT 'Diverse'"},
+		{"task_templates","minutes","INTEGER NOT NULL DEFAULT 15"},
+		{"task_templates","points","INTEGER NOT NULL DEFAULT 3"},
+		{"task_templates","times_per_week","INTEGER NOT NULL DEFAULT 1"},
+		{"tasks","rotation_members","TEXT NOT NULL DEFAULT ''"},
+		{"tasks","rotation_start","TEXT NOT NULL DEFAULT ''"},
+		{"tasks","rotation_weeks","INTEGER NOT NULL DEFAULT 0"},
+		{"tasks","plan_id","TEXT NOT NULL DEFAULT ''"},
+	} {
+		columns,err:=d.Query("PRAGMA table_info("+col.table+")")
+		if err!=nil{return fmt.Errorf("migration columns %s: %w",col.table,err)}
+		found:=false
+		for _,existing:=range columns{if existing["name"]==col.name{found=true;break}}
+		if found{continue}
+		if err:=d.Exec("ALTER TABLE "+col.table+" ADD COLUMN "+col.name+" "+col.definition);err!=nil{
+			return fmt.Errorf("migration %s.%s: %w",col.table,col.name,err)
+		}
+		if col.table=="task_templates" && col.name=="times_per_week"{
+			if err:=d.Exec("UPDATE task_templates SET times_per_week=CASE WHEN repeat_rule='daily' THEN 7 WHEN repeat_rule='weekdays' THEN 5 ELSE 1 END");err!=nil{return err}
 		}
 	}
 	return nil
