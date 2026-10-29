@@ -18,9 +18,9 @@ En selvhostet familietavle til iPad Air 2, nyere tablets og telefoner.
 
 Opgavearkivet har nu kategori, minutter pr. gang, belastningspoint (1–20) og antal gange pr. uge. Disse tal er vejledende og kan ændres i redigeringen af en skabelon. Samme opgave får én ansvarlig for en given uge, og tilbagevendende opgaver roterer til næste familiemedlem efter det valgte antal uger. Ved to børn byttes de to pakker. Rotation beregnes af serveren, så den fungerer uden AI og over genstarter. Gamle opgaver og historiske afkrydsninger ændres ikke af databaseopgraderingen.
 
-Den deterministiske fordelingsmotor fungerer helt uden API-nøgle. AI-forklaringen sender kun opgavetitler, interne person-ID'er og point/minutter til den konfigurerede AI-udbyder, og AI har ikke skriveadgang til opgaver. Fejl/timeout fra AI betyder ikke, at planlægningen går i stå. Kun administratoren kan importere standardskabeloner og godkende/aktivere nye planer. Det er en guidet planlægningsassistent, ikke en autonom chat-agent.
+Den deterministiske fordelingsmotor fungerer helt uden API-nøgle. AI-forklaringen sender kun opgavetitler, interne person-ID'er og point/minutter til den konfigurerede AI-udbyder, og AI har ikke skriveadgang til opgaver. Fejl/timeout fra AI betyder ikke, at planlægningen går i stå. Kun administratoren kan importere standardskabeloner. Alle indloggede familiemedlemmer, der allerede kan oprette almindelige opgaver, kan også godkende og gemme en foreslået opgaveplan. Det er en guidet planlægningsassistent, ikke en autonom chat-agent.
 
-Bemærk: En plan opretter tilbagevendende opgaver. Kør ikke **Godkend og gem** to gange for den samme plan, da begge sæt ellers bliver oprettet. Vælg selv, hvilke eksisterende opgaver der skal indgå; planlæggeren sletter aldrig eksisterende opgaver.
+Efter godkendelse åbner FamilieHub automatisk **startugen** og viser en kvittering med antallet af gemte opgaver. Hvis gemning fejler, står fejlen synligt direkte ved knappen. Planen kan godt starte i næste uge og derfor mangle i visningen **I dag**.\n\nBemærk: En plan opretter tilbagevendende opgaver. Kør ikke **Godkend og gem** to gange for den samme plan, da begge sæt ellers bliver oprettet. Vælg selv, hvilke eksisterende opgaver der skal indgå; planlæggeren sletter aldrig eksisterende opgaver.
 
 ## AI-familieassistent (frivillig)
 

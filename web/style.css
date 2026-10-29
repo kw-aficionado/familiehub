@@ -301,3 +301,9 @@ html[data-theme="dark"] .ai-assist-result{background:#213a3d;color:#e2f0ef}
 .planner-preview button{margin:10px 8px 0 0}
 html[data-theme="dark"] .planner-choice{background:#213a3d;border-color:#365358}
 @media(max-width:700px){.planner-pref select{width:100%;min-width:0}.planner-choice{gap:7px;padding:8px}}
+
+/* Keep save errors visible beside the confirmation button in the long planning dialog. */
+.planner-save-status{margin-top:10px;font-size:14px;line-height:1.5;color:#315961;font-weight:650}
+.planner-save-status.error{color:#af413c}
+html[data-theme="dark"] .planner-save-status{color:#c5e8e6}
+html[data-theme="dark"] .planner-save-status.error{color:#ffaca3}
