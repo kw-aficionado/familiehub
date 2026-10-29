@@ -345,9 +345,9 @@
           catch(e){aiResult.textContent='AI kunne ikke kontaktes: '+e.message+'. Planen kan stadig gemmes.'}
           aiButton.disabled=false;
         });
-        var button=el('button',{'type':'button','class':'primary'},'Godkend og gem opgaveplan');root.appendChild(button);
         var saveStatus=el('p',{'class':'planner-save-status','role':'status','aria-live':'polite'});
         root.appendChild(saveStatus);
+        var button=el('button',{'type':'button','class':'primary'},'Godkend og gem opgaveplan');root.appendChild(button);
         button.addEventListener('click',async function(){
           if(!plannerDraft){saveStatus.textContent='Beregn planen igen, før du gemmer.';saveStatus.classList.add('error');return}
           button.disabled=true;
@@ -361,6 +361,7 @@
           }catch(e){
             saveStatus.textContent='Kunne ikke gemme opgaveplanen: '+e.message;
             saveStatus.classList.add('error');
+            saveStatus.scrollIntoView({block:'nearest'});
             button.textContent='Prøv at gemme igen';
             button.disabled=false;
             return;
