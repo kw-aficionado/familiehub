@@ -1,0 +1,28 @@
+name: MCP source QA snapshot
+on:
+  push:
+    branches: [feature/secure-mcp-access-20261029]
+permissions:
+  contents: read
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: false
+      - name: Prepare source and public dependencies for isolated tests
+        run: |
+          go mod vendor
+          mkdir -p /tmp/familiehub-qa
+          git archive HEAD | tar -x -C /tmp/familiehub-qa
+          cp -R vendor /tmp/familiehub-qa/vendor
+          git rev-parse HEAD > /tmp/familiehub-qa/SOURCE_COMMIT
+          tar -czf /tmp/familiehub-source-qa.tar.gz -C /tmp/familiehub-qa .
+      - uses: actions/upload-artifact@v4
+        with:
+          name: familiehub-source-qa
+          path: /tmp/familiehub-source-qa.tar.gz
+          retention-days: 1
