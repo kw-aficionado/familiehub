@@ -204,3 +204,14 @@ Header og kalendernavigation har mindre lodret padding. Kalenderkortene bruger i
 - Samme farver som i kalenderen bruges på opgavekortene og personnavnene. Fællesopgaver får neutral farve.
 - Opgavearkivet, familiemedlemmer og HA-integration er samlet under Indstillinger.
 - Ingen databasemigrering eller ændring af Rune-filen er nødvendig.
+
+## iPhone-scroll, dagens aftaler, nattema og kalenderfarver
+
+- På iPhone kan ugekalenderen scrolles vandret fra mandag til søndag uden automatisk at skifte uge. Brug pilene til at skifte uge.
+- **Familien i dag** viser den faktiske dato i `Europe/Copenhagen`, også når den valgte kalenderuge er en anden uge. Serverens `/api/state` leverer nu `today_date` og `today_events`.
+- **Indstillinger → Kalendere og farver:** hver HA-kalender kan knyttes til en standardperson og dermed dennes farve. Overskriv standarden med `#Alma` eller flere person-tags i en bestemt aftaletitel. Ukendte hashtags bevares, og Home Assistant er fortsat skrivebeskyttet.
+- Koblingen mellem HA-kalender og standardperson gemmes i `/data/familiehub.sqlite` i en ny `calendar_owners`-tabel. Migrationen er additiv.
+- **Indstillinger → Skærm og nattilstand:** automatisk tema mellem 21:00 og 07:00, manuelt lys/mørkt eller ændrede klokkeslæt. Gemmes lokalt i browseren på den enkelte enhed.
+- Indbygget mørk **pauseskærm** ved inaktivitet, standard 10 minutter; valgfrit 5/20/30 minutter eller slået fra. Et tryk viser appen igen. Browserens pauseskærm hindrer ikke iPadOS i at låse skærmen, hvis iPadOS automatisk låsning er slået til; den ændrer ikke fysisk skærmlysstyrke.
+- Nye endpoints: `GET /api/calendar-owners`, `PUT /api/calendar-owners`, begge kræver en gyldig FamilieHub-session; PUT kræver CSRF-token.
+- Eksisterende Rune og Docker-tag `0.1.1` er uændret. Flere HA-kalendere kræver blot, at deres entity-ID er medtaget i `HA_CALENDARS`.

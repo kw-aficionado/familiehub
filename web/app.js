@@ -1,7 +1,7 @@
 /* FamilieHub: zero-dependency, iPadOS 15-compatible frontend. */
 (function () {
   'use strict';
-  var S = {csrf:'', view:'week', focus:new Date(), filter:'', people:[], events:[], tasks:[], templates:[], allTasks:[], settingsOpen:false, settingsTab:'templates', settingsQuery:'', page:'kalender', taskPeriod:'week', taskFocus:new Date(), taskFilter:'', taskStatus:'open', weekEntries:[], loading:0, socket:null};
+  var S = {csrf:'', view:'week', focus:new Date(), filter:'', people:[], events:[], tasks:[], templates:[], allTasks:[], settingsOpen:false, settingsTab:'templates', settingsQuery:'', page:'kalender', taskPeriod:'week', taskFocus:new Date(), taskFilter:'', taskStatus:'open', weekEntries:[], todayEvents:[], todayDate:'', loading:0, socket:null};
   var $ = function(id){return document.getElementById(id)};
   function el(tag,props,text){var x=document.createElement(tag);if(props)Object.keys(props).forEach(function(k){x.setAttribute(k,props[k])});if(text!==undefined)x.textContent=text;return x}
   function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})}
@@ -41,13 +41,13 @@
     if(!resp.ok)throw new Error(errorMessage(data));return data;
   }
   async function init(){
-    try{var d=await api('/api/session');if(d.authenticated){S.csrf=d.csrf;hide('login');show('app');await load();syncPage();listen()}else{show('login')}}catch(e){show('login');$('loginError').textContent=e.message}
+    try{var d=await api('/api/session');if(d.authenticated){S.csrf=d.csrf;hide('login');show('app');await load();syncPage();listen();scheduleSaver()}else{show('login')}}catch(e){show('login');$('loginError').textContent=e.message}
   }
   function range(){var start=S.view==='week'?startWeek(S.focus):localMidnight(S.focus),end=addDays(start,S.view==='week'?7:1);return {start:start,end:end}}
   async function load(){
     var token=++S.loading,r=range(),day=dayString(S.focus);
     try{var p=new URLSearchParams({start:r.start.toISOString(),end:r.end.toISOString(),day:day});var data=await api('/api/state?'+p.toString());if(token!==S.loading)return;
-      S.people=data.people||[];S.events=data.events||[];S.tasks=data.tasks||[];render();setOnline(true);
+      S.people=data.people||[];S.events=data.events||[];S.todayEvents=data.today_events||[];S.todayDate=data.today_date||dayString(new Date());S.tasks=data.tasks||[];render();setOnline(true);
       $('warning').textContent=data.warning||'';data.warning?show('warning'):hide('warning');$('updated').textContent='Opdateret '+formatDate(new Date(),{hour:'2-digit',minute:'2-digit'});
     }catch(e){setOnline(false);$('warning').textContent='Kunne ikke hente data: '+e.message;show('warning')}
   }
@@ -93,8 +93,8 @@
       var edit=el('button',{'class':'text-button','type':'button'},'Redigér');edit.addEventListener('click',function(){openTask(t)});row.appendChild(edit);root.appendChild(row)
     })
   }
-  function renderToday(){var root=$('todayList');root.replaceChildren();var es=S.events.filter(function(e){return matchesDay(e,S.focus)&&matchesPersonFilter(e)});
-    if(!es.length){root.appendChild(el('p',{'class':'empty-state'},'Ingen aftaler på den valgte dag.'));return}
+  function renderToday(){var root=$('todayList');root.replaceChildren();var es=S.todayEvents.filter(matchesPersonFilter);$('todayDateLabel').textContent=S.todayDate?formatDate(new Date(S.todayDate+'T12:00:00'),{day:'numeric',month:'short'}):'';
+    if(!es.length){root.appendChild(el('p',{'class':'empty-state'},'Ingen aftaler i dag.'));return}
     es.sort(function(a,b){return a.start_at.localeCompare(b.start_at)}).slice(0,6).forEach(function(e){var row=el('div',{'class':'activity-row'});var dot=el('span',{'class':'activity-dot'});dot.style.background=colorsOf(e)[0];row.appendChild(dot);var box=el('div');box.appendChild(el('strong',null,e.title));var extra=clock(e.start_at)+'–'+clock(e.end_at);if(e.pickup_by)extra+=' · '+nameOf(e.pickup_by)+' henter';else if(e.person_id)extra+=' · '+nameOf(e.person_id);box.appendChild(el('small',null,extra));row.appendChild(box);root.appendChild(row)})
   }
   function openModal(title,html){$('modalTitle').textContent=title;$('modalBody').innerHTML=html;$('formError').textContent='';show('modal');var first=$('modalBody').querySelector('input:not([type="hidden"])');if(first)first.focus()}
@@ -186,7 +186,7 @@
       if(active)link.setAttribute('aria-current','page');else link.removeAttribute('aria-current');
     });
     if(page==='opgaver')loadTasksPage().catch(function(err){$('tasksPageList').replaceChildren(el('p',{'class':'error'},'Kunne ikke hente opgaver: '+err.message))});
-    if(page==='indstillinger')refreshSettingsData().catch(function(err){$('settingsList').replaceChildren(el('p',{'class':'error'},'Kunne ikke hente arkivet: '+err.message))});
+    if(page==='indstillinger'){refreshSettingsData().catch(function(err){$('settingsList').replaceChildren(el('p',{'class':'error'},'Kunne ikke hente arkivet: '+err.message))});loadCalendarOwners()}
   }
   function taskWeekStart(){return dayString(startWeek(S.taskFocus))}
   async function loadTasksPage(){
@@ -303,8 +303,8 @@
    if(editing){$('deleteBtn').addEventListener('click',function(){if(confirm('Slet '+p.name+'? Opgaver og aftaler beholder deres historik.'))saveOrError(function(){return api('/api/people/'+p.id,'DELETE')})});if(p.notify_service)$('testBtn').addEventListener('click',async function(){try{await api('/api/notifications/test','POST',{person_id:p.id});$('formError').textContent='Testnotifikation sendt.'}catch(e){$('formError').textContent=e.message}})}
   }
   async function settings(){var status;try{status=await api('/api/integrations')}catch(e){alert(e.message);return}var calendarText=!status.calendar_entities.length?'Ingen kalendere valgt':status.calendar_ok?'Kalenderadgang OK':status.calendar_error||'Ingen kalendertest';openModal('Integrationer','<div class="integration-list"><p><strong>Home Assistant API:</strong> '+(status.ha_online?'Forbundet':status.ha_configured?'Kan ikke forbindes':'Ikke konfigureret')+'</p>'+(status.ha_error?'<p class="error">'+esc(status.ha_error)+'</p>':'')+'<p><strong>HA-kalendere:</strong> '+esc(status.calendar_entities.join(', ')||'Ingen')+'</p><p><strong>Kalendertest:</strong> '+esc(calendarText)+'</p><p class="muted">Konfigurér HA_URL, HA_TOKEN og HA_CALENDARS under Yggdrasil → FamilieHub → Settings. Genstart FamilieHub for at indlæse ændringer. Kalender-entity-id starter med calendar. Ingen tokens vises her.</p></div>')}
-  $('loginForm').addEventListener('submit',async function(ev){ev.preventDefault();$('loginError').textContent='';try{var d=await api('/api/login','POST',{password:$('password').value});S.csrf=d.csrf;$('password').value='';hide('login');show('app');await load();syncPage();listen()}catch(e){$('loginError').textContent=e.message}});
-  $('logoutBtn').addEventListener('click',async function(){try{await api('/api/logout','POST',{})}catch(e){}if(S.socket)S.socket.close();S.csrf='';hide('app');show('login')});
+  $('loginForm').addEventListener('submit',async function(ev){ev.preventDefault();$('loginError').textContent='';try{var d=await api('/api/login','POST',{password:$('password').value});S.csrf=d.csrf;$('password').value='';hide('login');show('app');await load();syncPage();listen();scheduleSaver()}catch(e){$('loginError').textContent=e.message}});
+  $('logoutBtn').addEventListener('click',async function(){try{await api('/api/logout','POST',{})}catch(e){}if(S.socket)S.socket.close();S.csrf='';hideSaver();scheduleSaver();hide('app');show('login')});
   $('dayBtn').addEventListener('click',function(){setView('day')});$('weekBtn').addEventListener('click',function(){setView('week')});
   $('prevBtn').addEventListener('click',function(){navigate(-1)});$('nextBtn').addEventListener('click',function(){navigate(1)});$('todayBtn').addEventListener('click',function(){S.focus=new Date();load()});
   $('addEventBtn').addEventListener('click',function(){openEvent()});$('addTaskBtn').addEventListener('click',function(){openTask()});$('settingsPeopleBtn').addEventListener('click',openPeople);$('settingsHABtn').addEventListener('click',settings);$('settingsBtn').addEventListener('click',settings);
@@ -320,9 +320,110 @@
   $('closeModal').addEventListener('click',closeModal);$('modal').addEventListener('click',function(e){if(e.target.hasAttribute('data-close'))closeModal()});
   document.addEventListener('keydown',function(e){if(e.key==='Escape')closeModal()});
   var touchX=0,touchY=0;$('calendar').addEventListener('touchstart',function(e){if(e.touches.length===1){touchX=e.touches[0].clientX;touchY=e.touches[0].clientY}},{passive:true});
-  $('calendar').addEventListener('touchend',function(e){if(e.changedTouches.length!==1||$('modal').classList.contains('hidden')===false)return;var dx=e.changedTouches[0].clientX-touchX,dy=e.changedTouches[0].clientY-touchY;if(Math.abs(dx)>70&&Math.abs(dy)<55)navigate(dx<0?1:-1)},{passive:true});
+  $('calendar').addEventListener('touchend',function(e){if(e.changedTouches.length!==1||$('modal').classList.contains('hidden')===false)return;var dx=e.changedTouches[0].clientX-touchX,dy=e.changedTouches[0].clientY-touchY;if(window.innerWidth>700&&Math.abs(dx)>70&&Math.abs(dy)<55)navigate(dx<0?1:-1)},{passive:true});
   document.addEventListener('visibilitychange',function(){if(!document.hidden&&S.csrf)load()});setInterval(function(){if(!document.hidden&&S.csrf)load()},60000);
+
+  // The calendar owner is a fallback only: explicit person tags override it.
+  async function loadCalendarOwners(){
+    var root=$('calendarOwnerList');root.replaceChildren();
+    $('calendarOwnerError').textContent='';
+    try{
+      var entries=await api('/api/calendar-owners');
+      if(!entries.length){root.appendChild(el('p',{'class':'muted'},'Ingen HA-kalendere konfigureret. Tilføj calendar.* i Yggdrasil → HA_CALENDARS.'));return}
+      entries.forEach(function(item){
+        var row=el('div',{'class':'calendar-owner-row'});
+        var name=el('div',{'class':'calendar-owner-name'});name.appendChild(el('strong',null,item.entity_id));
+        name.appendChild(el('small',null,'Farve fra standardpersonen, medmindre aftalen har #Person-tag'));
+        row.appendChild(name);
+        var input=el('select',{'aria-label':'Standardperson for '+item.entity_id});
+        input.innerHTML=personOptions(item.person_id,'Fælles / neutral farve');
+        input.addEventListener('change',async function(){
+          input.disabled=true;
+          try{
+            await api('/api/calendar-owners','PUT',{entity_id:item.entity_id,person_id:input.value});
+            item.person_id=input.value;
+            $('calendarOwnerError').textContent='Gemt';
+            await load();
+          }catch(e){input.value=item.person_id;$('calendarOwnerError').textContent=e.message}
+          input.disabled=false;
+        });
+        row.appendChild(input);root.appendChild(row);
+      });
+    }catch(e){root.appendChild(el('p',{'class':'error'},'Kalenderfarver kunne ikke indlæses: '+e.message))}
+  }
+
+  // Each display has independent light/dark and idle-screen preferences.
+  var displayPrefs={theme:'auto',nightFrom:'21:00',nightTo:'07:00',saverDelay:10};
+  var saverTimer=null,saverVisible=false;
+  function validClock(value){return typeof value==='string'&&/^\d\d:\d\d$/.test(value)&&Number(value.slice(0,2))<24&&Number(value.slice(3))<60}
+  function restoreDisplaySettings(){
+    try{
+      var saved=JSON.parse(localStorage.getItem('familiehub-display-v1')||'{}');
+      if(['auto','light','dark'].indexOf(saved.theme)!==-1)displayPrefs.theme=saved.theme;
+      if(validClock(saved.nightFrom))displayPrefs.nightFrom=saved.nightFrom;
+      if(validClock(saved.nightTo))displayPrefs.nightTo=saved.nightTo;
+      if([0,5,10,20,30].indexOf(Number(saved.saverDelay))!==-1)displayPrefs.saverDelay=Number(saved.saverDelay);
+    }catch(e){}
+    $('themeMode').value=displayPrefs.theme;
+    $('nightFrom').value=displayPrefs.nightFrom;
+    $('nightTo').value=displayPrefs.nightTo;
+    $('saverDelay').value=String(displayPrefs.saverDelay);
+    applyTheme();scheduleSaver();
+  }
+  function applyTheme(){
+    var dark=displayPrefs.theme==='dark';
+    if(displayPrefs.theme==='auto'){
+      var now=new Date(),n=now.getHours()*60+now.getMinutes();
+      var from=Number(displayPrefs.nightFrom.slice(0,2))*60+Number(displayPrefs.nightFrom.slice(3));
+      var to=Number(displayPrefs.nightTo.slice(0,2))*60+Number(displayPrefs.nightTo.slice(3));
+      dark=from>to?(n>=from||n<to):(from<to&&n>=from&&n<to);
+    }
+    document.documentElement.setAttribute('data-theme',dark?'dark':'light');
+    var meta=document.querySelector('meta[name="theme-color"]');if(meta)meta.setAttribute('content',dark?'#10181b':'#182d39');
+  }
+  function saveDisplaySettings(){
+    displayPrefs.theme=$('themeMode').value;
+    displayPrefs.nightFrom=validClock($('nightFrom').value)?$('nightFrom').value:'21:00';
+    displayPrefs.nightTo=validClock($('nightTo').value)?$('nightTo').value:'07:00';
+    displayPrefs.saverDelay=Number($('saverDelay').value);
+    try{localStorage.setItem('familiehub-display-v1',JSON.stringify(displayPrefs))}catch(e){}
+    applyTheme();scheduleSaver();
+  }
+  function updateSaver(){
+    var now=new Date();
+    $('saverClock').textContent=formatDate(now,{hour:'2-digit',minute:'2-digit',hour12:false,timeZone:'Europe/Copenhagen'});
+    $('saverDate').textContent=formatDate(now,{weekday:'long',day:'numeric',month:'long',timeZone:'Europe/Copenhagen'});
+    var next=S.todayEvents.filter(function(e){return new Date(e.end_at)>now}).sort(function(a,b){return a.start_at.localeCompare(b.start_at)})[0];
+    $('saverNext').textContent=next?next.title+' · '+clock(next.start_at):'Ingen flere aftaler i dag';
+  }
+  function showSaver(){
+    if(!S.csrf||!$('login').classList.contains('hidden')||!$('modal').classList.contains('hidden')){scheduleSaver();return}
+    saverVisible=true;updateSaver();show('screensaver');
+  }
+  function hideSaver(){
+    if(saverVisible){saverVisible=false;hide('screensaver')}
+  }
+  function scheduleSaver(){
+    if(saverTimer!==null)clearTimeout(saverTimer);
+    saverTimer=null;
+    if(displayPrefs.saverDelay>0&&S.csrf&&!document.hidden&&!saverVisible){
+      saverTimer=setTimeout(showSaver,displayPrefs.saverDelay*60000);
+    }
+  }
+  function activity(){
+    if(saverVisible)hideSaver();
+    scheduleSaver();
+  }
+  ['themeMode','nightFrom','nightTo','saverDelay'].forEach(function(id){$(id).addEventListener('change',saveDisplaySettings)});
+  $('saverPreviewBtn').addEventListener('click',showSaver);
+  $('screensaver').addEventListener('click',activity);
+  $('screensaver').addEventListener('touchstart',activity,{passive:true});
+  document.addEventListener('keydown',activity);
+  document.addEventListener('pointerdown',activity,{passive:true});
+  document.addEventListener('wheel',activity,{passive:true});
+  setInterval(function(){applyTheme();if(saverVisible)updateSaver()},60000);
   function loadBuild(){fetch('/api/version',{cache:'no-store',credentials:'same-origin'}).then(function(r){return r.json()}).then(function(v){var commit=(v.commit||'dev').substring(0,8);$('buildVersion').textContent=' · Build '+commit}).catch(function(){})}
+  restoreDisplaySettings();
   loadBuild();
   init();
 })();

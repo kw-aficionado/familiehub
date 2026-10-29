@@ -153,3 +153,100 @@ a.text-button,a.minor{display:inline-flex;align-items:center;justify-content:cen
 
 /* Assign the same person colour to the short home-page task preview. */
 .task-person-label{display:inline-flex;border-radius:5px;padding:2px 7px;font-size:12px;font-weight:750}
+
+
+/* iPhone week rail: horizontal scrolling must never trigger the week swipe. */
+@media(max-width:700px){
+  .calendar.week-view{display:flex;width:100%;max-width:100%;overflow-x:auto;overflow-y:hidden;
+    scroll-snap-type:none;-webkit-overflow-scrolling:touch;overscroll-behavior-x:contain;
+    justify-content:flex-start;padding-bottom:12px}
+  .calendar.week-view .day-column{flex:0 0 158px;min-width:158px;max-width:none;scroll-snap-align:none}
+  .calendar.week-view .day-column:last-child{margin-right:6px}
+}
+.today-date-label{font-weight:500;font-size:12px;color:#7b9290;margin-left:5px;white-space:nowrap}
+.settings-extra{display:grid;grid-template-columns:1fr 1fr;gap:15px;margin-top:18px;max-width:1050px;align-items:start}
+.settings-extra-card{min-height:280px;max-width:none;padding:18px}
+.settings-extra-card h2{margin-bottom:10px}
+.settings-extra-card>.muted{font-size:13px;line-height:1.5;margin:6px 0 14px}
+.calendar-owner-list{display:flex;flex-direction:column;gap:8px}
+.calendar-owner-row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 0;border-bottom:1px solid #e1ebe5}
+.calendar-owner-name{flex:1;min-width:0;overflow-wrap:anywhere}
+.calendar-owner-name strong{display:block;font-size:13px}
+.calendar-owner-name small{display:block;margin-top:4px;color:#799190;font-size:11px}
+.calendar-owner-row select{width:min(46%,190px);max-width:190px;font-size:13px}
+.display-form{display:grid;grid-template-columns:1fr 1fr;gap:11px;margin-bottom:15px}
+.display-form .field{font-size:13px}
+.display-form input,.display-form select{min-height:44px}
+@media(max-width:950px){.settings-extra{grid-template-columns:1fr}}
+@media(max-width:500px){.display-form{grid-template-columns:1fr}.calendar-owner-row{flex-direction:column;align-items:stretch}.calendar-owner-row select{width:100%;max-width:none}}
+
+/* Genuine dark appearance, not a grey overlay. Text remains legible on the iPad LCD. */
+html[data-theme="dark"]{color-scheme:dark;background:#10181b}
+html[data-theme="dark"] body{background:#10181b;color:#dce8e8}
+html[data-theme="dark"] .topbar{border-bottom-color:#294047}
+html[data-theme="dark"] .brand strong,html[data-theme="dark"] h1,html[data-theme="dark"] h2,
+html[data-theme="dark"] .day-heading strong,html[data-theme="dark"] .task-text strong,
+html[data-theme="dark"] .activity-row strong,html[data-theme="dark"] .task-page-content strong,
+html[data-theme="dark"] .settings-item-info strong{color:#e3eeee}
+html[data-theme="dark"] .brand small,html[data-theme="dark"] .eyebrow,
+html[data-theme="dark"] .muted,html[data-theme="dark"] .panel-title p,
+html[data-theme="dark"] .event-time,html[data-theme="dark"] .day-heading,
+html[data-theme="dark"] .weekday,html[data-theme="dark"] .event-category,
+html[data-theme="dark"] .task-repetition,html[data-theme="dark"] .task-date,
+html[data-theme="dark"] .today-date-label{color:#9bb7b9}
+html[data-theme="dark"] .panel,html[data-theme="dark"] .day-column,
+html[data-theme="dark"] .settings-panel,html[data-theme="dark"] .task-page-card,
+html[data-theme="dark"] .dialog,html[data-theme="dark"] .login-card{
+ background:#19282c;color:#dce8e8;border-color:#2a4145;box-shadow:none
+}
+html[data-theme="dark"] .day-column.is-today{border-color:#65b7bb}
+html[data-theme="dark"] .views,html[data-theme="dark"] .main-tab.active,
+html[data-theme="dark"] .task-periods{background:#243940}
+html[data-theme="dark"] .main-tab{color:#b9d0d1}
+html[data-theme="dark"] .main-tab.active{color:#e3f4f0}
+html[data-theme="dark"] .minor,html[data-theme="dark"] .icon-button,
+html[data-theme="dark"] .segment.active,html[data-theme="dark"] .chip,
+html[data-theme="dark"] .text-button,html[data-theme="dark"] .task-period.active,
+html[data-theme="dark"] .task-status-filters button,
+html[data-theme="dark"] .danger{
+ background:#24373c;color:#d1e5e4;border-color:#38555b;box-shadow:none
+}
+html[data-theme="dark"] .chip.selected,html[data-theme="dark"] .task-status-filters button.active{
+ background:#376d73;color:#fff
+}
+html[data-theme="dark"] input,html[data-theme="dark"] select,html[data-theme="dark"] textarea{
+ background:#1a2e34;color:#e1ece9;border-color:#466269
+}
+html[data-theme="dark"] .event-card{color:#e4f3f0;background-color:#263c3f!important}
+html[data-theme="dark"] .event-card:hover{background-color:#304b4e!important}
+html[data-theme="dark"] .event-name,html[data-theme="dark"] .event-time{color:#e3f0ed}
+html[data-theme="dark"] .event-category{color:#9cc4bd}
+html[data-theme="dark"] .day-heading,html[data-theme="dark"] .task-row,
+html[data-theme="dark"] .activity-row,html[data-theme="dark"] .settings-item,
+html[data-theme="dark"] .calendar-owner-row{border-bottom-color:#30484e}
+html[data-theme="dark"] .settings-tabs{border-bottom-color:#30484e}
+html[data-theme="dark"] .settings-tab.active{color:#8fd0d2}
+html[data-theme="dark"] .task-owner,html[data-theme="dark"] .task-person-label{filter:brightness(1.35)}
+html[data-theme="dark"] .warning{background:#453523;color:#f0d9ad}
+html[data-theme="dark"] .login-screen{background:#10181b}
+html[data-theme="dark"] .login-card p{color:#9eb1b0}
+html[data-theme="dark"] .form-grid .field{color:#d5e3e1}
+html[data-theme="dark"] .modal-backdrop{background:#030c0edb}
+html[data-theme="dark"] .settings-item-info small,html[data-theme="dark"] .calendar-owner-name small{color:#a1b6b6}
+
+/* Always-dark, low-glow in-app saver; no iPadOS auto-lock or password prompt. */
+.screensaver{position:fixed;inset:0;z-index:200;background:#050a0d;color:#bdcbd5;
+ display:flex;align-items:center;justify-content:center;text-align:center;cursor:pointer;
+ overflow:hidden;touch-action:manipulation}
+.saver-inner{display:flex;align-items:center;flex-direction:column;gap:12px;
+ width:min(85vw,560px);animation:saver-drift 80s ease-in-out infinite alternate}
+.saver-label{text-transform:uppercase;letter-spacing:.18em;color:#627989;font-size:12px}
+.saver-clock{font-weight:300;font-size:clamp(64px,12vw,138px);letter-spacing:-.07em;
+ font-variant-numeric:tabular-nums;color:#afc1cf;line-height:1.15}
+.saver-date{font-size:17px;color:#8198a6;text-transform:capitalize}
+.saver-next{margin:45px 0 12px;width:100%;padding:15px 8px;border-top:1px solid #192b30}
+.saver-next p{font-size:11px;letter-spacing:.15em;color:#637e86;margin-bottom:14px}
+.saver-next strong{font-size:18px;font-weight:450;color:#a1bac1}
+.saver-hint{font-size:12px;color:#587079}
+@keyframes saver-drift{0%{transform:translate(-14px,-9px)}100%{transform:translate(14px,9px)}}
+@media(prefers-reduced-motion:reduce){.saver-inner{animation:none}}

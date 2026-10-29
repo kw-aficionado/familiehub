@@ -56,7 +56,7 @@ func (a *App) haEvents(ctx context.Context, start, end time.Time) ([]Event, erro
 			if st == "" || en == "" {
 				continue
 			}
-			out = append(out, Event{ID: "ha:" + entity + ":" + sha(e.Summary + st + en)[:16], Title: e.Summary, Start: st, End: en, Kind: "kalender", Location: e.Location, Notes: e.Description, External: true})
+			out = append(out, Event{ID: "ha:" + entity + ":" + sha(e.Summary + st + en)[:16], Title: e.Summary, Start: st, End: en, Kind: "kalender", Location: e.Location, Notes: e.Description, External: true, SourceCalendar: entity})
 		}
 	}
 	return out, nil

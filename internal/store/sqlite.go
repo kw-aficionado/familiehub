@@ -115,6 +115,7 @@ func (d *DB) Init() error {
 		`CREATE INDEX IF NOT EXISTS events_dates ON events(start_at,end_at)`,
 		`CREATE TABLE IF NOT EXISTS tasks(id TEXT PRIMARY KEY,title TEXT NOT NULL,assigned_to TEXT NOT NULL DEFAULT '',due_date TEXT NOT NULL,repeat_rule TEXT NOT NULL DEFAULT 'none')`,
 		`CREATE TABLE IF NOT EXISTS task_templates(id TEXT PRIMARY KEY,title TEXT NOT NULL,assigned_to TEXT NOT NULL DEFAULT '',repeat_rule TEXT NOT NULL DEFAULT 'none')`,
+		`CREATE TABLE IF NOT EXISTS calendar_owners(entity_id TEXT PRIMARY KEY,person_id TEXT NOT NULL DEFAULT '')`,
 		`CREATE TABLE IF NOT EXISTS completions(task_id TEXT NOT NULL,day TEXT NOT NULL,PRIMARY KEY(task_id,day),FOREIGN KEY(task_id) REFERENCES tasks(id) ON DELETE CASCADE)`,
 		`CREATE TABLE IF NOT EXISTS sessions(id TEXT PRIMARY KEY,expires_at TEXT NOT NULL)`,
 		`CREATE TABLE IF NOT EXISTS reminders(reminder_key TEXT PRIMARY KEY,sent_at TEXT NOT NULL)`,

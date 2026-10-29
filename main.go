@@ -56,6 +56,7 @@ type Event struct {
 	External  bool     `json:"external"`
 	PersonIDs []string `json:"person_ids,omitempty"`
 	Category  string   `json:"category,omitempty"`
+	SourceCalendar string `json:"source_calendar,omitempty"`
 }
 type Task struct {
 	ID         string `json:"id"`
@@ -176,6 +177,8 @@ func (a *App) routes() {
 	a.mux.HandleFunc("GET /api/session", a.session)
 	a.mux.HandleFunc("POST /api/logout", a.withAuth(a.logout))
 	a.mux.HandleFunc("GET /api/state", a.withAuth(a.state))
+	a.mux.HandleFunc("GET /api/calendar-owners", a.withAuth(a.calendarOwnersGet))
+	a.mux.HandleFunc("PUT /api/calendar-owners", a.withAuth(a.calendarOwnersPut))
 	a.mux.HandleFunc("GET /api/stream", a.withAuth(a.stream))
 	a.mux.HandleFunc("GET /api/integrations", a.withAuth(a.integrations))
 	a.mux.HandleFunc("POST /api/people", a.withAuth(a.personSave))
@@ -354,45 +357,57 @@ func (a *App) withAuth(h http.HandlerFunc) http.HandlerFunc {
 	}
 }
 func (a *App) state(w http.ResponseWriter, r *http.Request) {
-	start, end, day := r.URL.Query().Get("start"), r.URL.Query().Get("end"), r.URL.Query().Get("day")
-	if !validTime(start) || !validTime(end) || !validDay(day) {
-		apiError(w, 400, "Ugyldigt dato-interval")
-		return
-	}
-	st, en := mustTime(start), mustTime(end)
-	if !en.After(st) || en.Sub(st) > 45*24*time.Hour {
-		apiError(w, 400, "Maksimalt 45 dage pr. forespørgsel")
-		return
-	}
-	people, err := a.people()
-	if err != nil {
-		apiError(w, 500, "Kunne ikke læse personer")
-		return
-	}
-	ev, err := a.events(st, en)
-	if err != nil {
-		apiError(w, 500, "Kunne ikke læse kalenderen")
-		return
-	}
-	tasks, err := a.tasks(day)
-	if err != nil {
-		apiError(w, 500, "Kunne ikke læse opgaver")
-		return
-	}
-	warning := ""
-	if a.cfg.HAURL != "" && a.cfg.HAToken != "" && len(a.cfg.HACalendars) > 0 {
-		external, e := a.haEvents(r.Context(), st, en)
-		if e != nil {
-			warning = "Home Assistant-kalendere: " + haFriendlyError(e)
-			log.Printf("calendar integration error: %v", e)
-		} else {
-			for i := range external {
-				external[i] = decorateExternalEvent(external[i], people)
-			}
-			ev = append(ev, external...)
-		}
-	}
-	writeJSON(w, 200, map[string]any{"people": people, "events": ev, "tasks": tasks, "warning": warning})
+ start, end, day := r.URL.Query().Get("start"), r.URL.Query().Get("end"), r.URL.Query().Get("day")
+ if !validTime(start) || !validTime(end) || !validDay(day) {
+  apiError(w, 400, "Ugyldigt dato-interval")
+  return
+ }
+ st, en := mustTime(start), mustTime(end)
+ if !en.After(st) || en.Sub(st) > 45*24*time.Hour {
+  apiError(w, 400, "Maksimalt 45 dage pr. forespørgsel")
+  return
+ }
+ people, err := a.people()
+ if err != nil { apiError(w, 500, "Kunne ikke læse personer"); return }
+ owners, err := a.calendarOwnerMap()
+ if err != nil { apiError(w, 500, "Kalenderindstillinger kunne ikke læses"); return }
+ ev, err := a.events(st,en)
+ if err != nil { apiError(w, 500, "Kunne ikke læse kalenderen"); return }
+ tasks,err := a.tasks(day)
+ if err != nil { apiError(w, 500, "Kunne ikke læse opgaver"); return }
+ warning := ""
+ withHA := a.cfg.HAURL != "" && a.cfg.HAToken != "" && len(a.cfg.HACalendars)>0
+ if withHA {
+  external,e := a.haEvents(r.Context(),st,en)
+  if e!=nil {warning="Home Assistant-kalendere: "+haFriendlyError(e);log.Printf("calendar integration error: %v",e)} else {
+   ev=append(ev,applyCalendarOwners(external,people,owners)...)
+  }
+ }
+ // Today's family panel must always use the actual Copenhagen calendar day,
+ // independently of the date currently selected on the dashboard.
+ now:=time.Now().In(a.loc)
+ today:=now.Format("2006-01-02")
+ todayStart:=time.Date(now.Year(),now.Month(),now.Day(),0,0,0,0,a.loc)
+ todayEnd:=todayStart.AddDate(0,0,1)
+ var todayEvents []Event
+ if !st.After(todayStart) && !en.Before(todayEnd) {
+  for _,e:=range ev {
+   startAt,e1:=time.Parse(time.RFC3339,e.Start)
+   endAt,e2:=time.Parse(time.RFC3339,e.End)
+   if e1==nil && e2==nil && startAt.Before(todayEnd) && endAt.After(todayStart) {todayEvents=append(todayEvents,e)}
+  }
+ } else {
+  todayEvents,err=a.events(todayStart,todayEnd)
+  if err!=nil {apiError(w,500,"Kunne ikke læse dagens aftaler");return}
+  if withHA {
+   external,e:=a.haEvents(r.Context(),todayStart,todayEnd)
+   if e!=nil {
+    if warning=="" {warning="Home Assistant-kalendere: "+haFriendlyError(e)}
+   } else {todayEvents=append(todayEvents,applyCalendarOwners(external,people,owners)...)}
+  }
+ }
+ if todayEvents==nil {todayEvents=[]Event{}}
+ writeJSON(w,200,map[string]any{"people":people,"events":ev,"today_events":todayEvents,"today_date":today,"tasks":tasks,"warning":warning})
 }
 func mustTime(s string) time.Time { t, _ := time.Parse(time.RFC3339, s); return t }
 func (a *App) people() ([]Person, error) {
