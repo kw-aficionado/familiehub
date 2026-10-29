@@ -213,6 +213,9 @@ func (a *App) routes() {
 	a.mux.HandleFunc("DELETE /api/events/{id}", a.withAuth(a.eventDelete))
 	a.mux.HandleFunc("GET /api/tasks/all", a.withAuth(a.allTasks))
 	a.mux.HandleFunc("GET /api/tasks/week", a.withAuth(a.tasksWeek))
+	a.mux.HandleFunc("POST /api/planner/seed", a.withAdmin(a.plannerSeed))
+	a.mux.HandleFunc("POST /api/planner/preview", a.withAuth(a.plannerPreview))
+	a.mux.HandleFunc("POST /api/planner/apply", a.withAdmin(a.plannerApply))
 	a.mux.HandleFunc("GET /api/templates", a.withAuth(a.templates))
 	a.mux.HandleFunc("POST /api/templates", a.withAuth(a.templateSave))
 	a.mux.HandleFunc("PUT /api/templates/{id}", a.withAuth(a.templateSave))
@@ -525,7 +528,7 @@ func taskOccurrence(due, target time.Time, rule string) (bool, string) {
 }
 
 func (a *App) tasks(day string) ([]Task, error) {
-	rows, err := a.db.Query("SELECT id,title,assigned_to,due_date,repeat_rule FROM tasks ORDER BY title")
+	rows, err := a.db.Query("SELECT id,title,assigned_to,due_date,repeat_rule,rotation_members,rotation_start,rotation_weeks FROM tasks ORDER BY title")
 	if err != nil {
 		return nil, err
 	}
@@ -547,7 +550,9 @@ func (a *App) tasks(day string) ([]Task, error) {
 		if err != nil {
 			return nil, err
 		}
-		out = append(out, Task{ID: r["id"], Title: r["title"], AssignedTo: r["assigned_to"], DueDate: r["due_date"], RepeatRule: r["repeat_rule"], Done: len(completed) > 0})
+		weeks,_:=strconv.Atoi(r["rotation_weeks"])
+		owner:=rotatedOwner(r["assigned_to"],r["rotation_members"],r["rotation_start"],weeks,day)
+		out = append(out, Task{ID: r["id"], Title: r["title"], AssignedTo: owner, DueDate: r["due_date"], RepeatRule: r["repeat_rule"], Done: len(completed) > 0})
 	}
 	return out, nil
 }
