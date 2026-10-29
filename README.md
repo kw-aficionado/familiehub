@@ -372,3 +372,17 @@ Til langsomme lokale modeller venter AI-integrationen nu op til **45 sekunder** 
 ### OpenAI GPT-6 Luna og langsomme AI-forespørgsler
 
 Til `gpt-6-luna` bruger FamilieHub nu `reasoning_effort: none` på Chat Completions, fordi modellen ellers starter med medium ræsonnering. Påmindelser og korte AI-opsummeringer har ikke brug for denne ekstra betænkningstid. Outputgrænsen er 384 tokens. OpenAI-kald afbrydes efter 23 sekunder, så reverse proxy normalt kan returnere en brugbar JSON-fejl før sin egen timeout; lokale kompatible LLM'er beholder 45 sekunder. En HTTP 401 betyder forkert API-nøgle, 403/404 kan betyde manglende modeladgang, og 429 kan skyldes kvote eller hastighedsgrænse. API-nøglen vises aldrig i fejlteksten.
+
+
+## Sikker MCP-adgang til ChatGPT
+
+FamilieHub har en valgfri, som standard deaktiveret MCP-server på `/mcp`.
+Under **Indstillinger → MCP-adgang til ChatGPT** kan administratoren give
+OAuth-adgang til at læse opgaver og, efter et særskilt samtykke, rette dem.
+Eksisterende planer kan flyttes til den aktuelle uge uden at genskabe opgaver.
+Skrivekald kræver en forhåndsvisning; historik, adgangskoder og API-nøgler
+beskyttes. Forbindelser kan tilbagekaldes med det samme.
+
+Se [MCP-opsætning, rettigheder og tests](docs/MCP.md). Aktivering kræver en
+offentlig HTTPS-adresse og matchende `APP_URL`; kodeopdateringen forbinder ikke
+automatisk ChatGPT og ændrer ikke familiens opgaver.

@@ -164,6 +164,7 @@ func securityHeaders(h http.Handler) http.Handler {
 	})
 }
 func (a *App) routes() {
+	a.mcpRoutes()
 	web, err := fs.Sub(assets, "web")
 	if err != nil {
 		panic(err)
