@@ -3,7 +3,6 @@ package main
 import (
  "encoding/hex"
  "fmt"
- "net/http"
  "net/http/httptest"
  "strings"
  "testing"
