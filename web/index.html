@@ -48,7 +48,13 @@
    <div class="tasks-filters"><div id="taskPeopleFilters" class="filters" aria-label="Filtrer efter ansvarlig"></div><div id="taskStatusFilters" class="task-status-filters" role="group" aria-label="Opgavestatus"><button type="button" data-status="open">Udestående</button><button type="button" data-status="all">Alle</button><button type="button" data-status="done">Udførte</button></div></div>
    <div class="tasks-summary"><h2 id="tasksPeriodTitle">Denne uge</h2><span class="muted" id="tasksCount"></span></div>
    <section id="tasksPageList" class="tasks-page-list" aria-live="polite"></section>
-   <section class="settings-panel ai-assist-panel" aria-label="AI-hjælp til opgaver">
+   <section class="settings-panel ai-assist-panel" id="plannerPanel" aria-label="AI Opgaveplanlægger">
+<h2>AI Opgaveplanlægger</h2>
+<p class="muted">Vælg familiemedlemmer, opgaver og rotation. FamilieHub beregner en fair fordeling, også uden AI-forbindelse. Se forslaget, før du gemmer.</p>
+<div class="ai-actions"><button type="button" id="plannerOpenBtn" class="primary">Lav en opgaveplan</button><button type="button" id="plannerSeedBtn" class="minor">Tilføj 15 forslag til opgavearkiv</button></div>
+<p id="plannerStatus" class="muted" role="status"></p>
+</section>
+<section class="settings-panel ai-assist-panel" aria-label="AI-hjælp til opgaver">
      <h2>AI-familieassistent</h2>
      <p class="muted">Få et kort overblik, ugens prioriteringer eller idéer til at komme videre. AI ændrer aldrig opgaver automatisk.</p>
      <div class="ai-actions"><button type="button" class="minor" data-ai-mode="today">Dagens overblik</button><button type="button" class="minor" data-ai-mode="week">Prioritér ugen</button><button type="button" class="minor" data-ai-mode="ideas">Giv idéer</button></div>
