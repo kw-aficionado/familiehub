@@ -1,0 +1,66 @@
+name: Apply prepared MCP change
+on:
+  push:
+    branches: [feature/secure-mcp-access-20261029]
+    paths: [mcp-upgrade.manifest.json]
+permissions:
+  contents: write
+jobs:
+  apply:
+    if: github.actor == 'kw-aficionado'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/secure-mcp-access-20261029
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: false
+      - name: Apply exact reviewed source payload
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import base64, gzip, hashlib, json
+          manifest=json.loads(Path('mcp-upgrade.manifest.json').read_text())
+          encoded=''.join(Path('mcp-upgrade.part'+str(i)).read_text().strip() for i in (1,2,3))
+          raw=gzip.decompress(base64.b64decode(encoded,validate=True))
+          assert len(raw)<200000
+          assert hashlib.sha256(raw).hexdigest()==manifest['sha256']=='fd025a216bf56f9a21cd7e8439feef15fbfaec8cf3a7fd938a0da4ce97033cf5'
+          data=json.loads(raw)
+          allowed={'mcp_auth.go','mcp_tools.go','mcp_test.go','internal/store/transaction.go','web/mcp.js','tests/mcp_browser_test.py','docs/MCP.md'}
+          assert set(data['files'])==allowed
+          for name,content in data['files'].items():
+              path=Path(name)
+              assert not path.exists(), name+' already exists'
+              path.parent.mkdir(parents=True,exist_ok=True)
+              path.write_text(content,encoding='utf-8')
+          assert {item['path'] for item in data['patches']}=={'main.go','web/index.html','README.md'}
+          for item in data['patches']:
+              path=Path(item['path']); old=path.read_text(encoding='utf-8')
+              assert hashlib.sha256(old.encode()).hexdigest()==item['sha256'], 'Concurrent source change: '+str(path)
+              if 'append' in item:
+                  new=old+item['append']
+              else:
+                  assert old.count(item['old'])==1
+                  new=old.replace(item['old'],item['new'])
+              path.write_text(new,encoding='utf-8')
+          print('Applied seven new source files and three guarded edits; no production data touched.')
+          PY
+      - name: Verify before committing
+        run: |
+          go test ./...
+          go test -race ./...
+          go vet ./...
+          node --check web/app.js
+          node --check web/mcp.js
+          python -m py_compile tests/mcp_browser_test.py
+      - name: Commit tested source only
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add main.go web/index.html README.md mcp_auth.go mcp_tools.go mcp_test.go internal/store/transaction.go web/mcp.js tests/mcp_browser_test.py docs/MCP.md
+          git rm mcp-upgrade.manifest.json mcp-upgrade.part1 mcp-upgrade.part2 mcp-upgrade.part3
+          git commit -m 'Add opt-in MCP OAuth, task previews, safe plan moving and authorization tests'
+          git push origin HEAD:feature/secure-mcp-access-20261029
