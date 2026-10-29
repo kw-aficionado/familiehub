@@ -2,7 +2,6 @@ package main
 
 import (
  "context"
- "encoding/json"
  "io"
  "net/http"
  "net/http/httptest"
@@ -23,7 +22,7 @@ func TestDirectCalendarValidationAndAuth(t *testing.T) {
   if validCalendarEndpoint(input){t.Fatalf("unsafe URL accepted: %q",input)}
  }
  if !validCalendarEndpoint("https://calendar.example.org/family.ics"){t.Fatal("HTTPS ICS feed rejected")}
- status,_,_=req(t,s,"POST","/api/direct-calendars",`{"provider":"ics","name":"Privat kalender","url":"https://example.com/family.ics","person_id":"","secret":""}`,cookie,"")
+ status,_,_:=req(t,s,"POST","/api/direct-calendars",`{"provider":"ics","name":"Privat kalender","url":"https://example.com/family.ics","person_id":"","secret":""}`,cookie,"")
  if status!=403{t.Fatalf("CSRF not enforced: %d",status)}
  status,created,_:=req(t,s,"POST","/api/direct-calendars",`{"provider":"ics","name":"Familien","url":"https://example.org/family.ics","person_id":"","secret":""}`,cookie,csrf)
  if status!=201{t.Fatalf("ICS connection not created: %d",status)}
