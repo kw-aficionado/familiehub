@@ -10,7 +10,7 @@ func TestSMTPSettingsAreAdminOnlyAndSecretsStayEncrypted(t *testing.T) {
  a,_:=testApp(t)
  server:=httptest.NewServer(securityHeaders(a.mux));defer server.Close()
  cookie,csrf:=authenticated(t,server)
- status,_,_=req(t,server,"PUT","/api/email/config",`{"host":"smtp.example.com","port":587,"username":"sender","from":"notify@example.com","password":"private-smtp-password"}`,cookie,"")
+ status,_,_:=req(t,server,"PUT","/api/email/config",`{"host":"smtp.example.com","port":587,"username":"sender","from":"notify@example.com","password":"private-smtp-password"}`,cookie,"")
  if status!=403{t.Fatalf("SMTP config should require CSRF: %d",status)}
  status,_,_=req(t,server,"PUT","/api/email/config",`{"host":"smtp.example.com","port":587,"username":"sender","from":"notify@example.com","password":"private-smtp-password"}`,cookie,csrf)
  if status!=200{t.Fatalf("SMTP config not saved: %d",status)}
