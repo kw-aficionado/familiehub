@@ -142,7 +142,12 @@ func (a *App) aiGenerate(ctx context.Context,cfg aiStored,systemPrompt,userPromp
    if cfg.BaseURL==""||!validAIBase(cfg.BaseURL){return "",errors.New("Ugyldig adresse til kompatibel AI")}
    endpoint=strings.TrimRight(cfg.BaseURL,"/")+"/chat/completions"
   }
-  payload["max_completion_tokens"]=270 // OpenAI; compatible providers may not accept this field.
+  payload["max_completion_tokens"]=384 // OpenAI; compatible providers may not accept this field.
+  // Simple reminders should not spend time on internal reasoning. GPT-6 Luna
+  // defaults to medium reasoning unless explicitly overridden.
+  if cfg.Provider=="openai" && cfg.Model=="gpt-6-luna"{
+   payload["reasoning_effort"]="none"
+  }
   if cfg.Provider=="compatible"{
   delete(payload,"max_completion_tokens")
   payload["max_tokens"]=512
@@ -151,30 +156,42 @@ func (a *App) aiGenerate(ctx context.Context,cfg aiStored,systemPrompt,userPromp
   payload["messages"]=[]map[string]string{{"role":"system","content":systemPrompt},{"role":"user","content":userPrompt}}
  }
  buf,err:=json.Marshal(payload);if err!=nil{return "",err}
- // Local models can be slow to load. Do not inherit the 8-second HA client timeout.
- const aiRequestTimeout=45*time.Second
- contextLimited,cancel:=context.WithTimeout(ctx,aiRequestTimeout);defer cancel()
+ // Return an OpenAI JSON timeout before common reverse-proxy upstream limits.
+ // Local models retain more time to load into memory.
+ requestTimeout:=45*time.Second
+ if cfg.Provider=="openai"{requestTimeout=23*time.Second}
+ contextLimited,cancel:=context.WithTimeout(ctx,requestTimeout);defer cancel()
  req,err:=http.NewRequestWithContext(contextLimited,http.MethodPost,endpoint,strings.NewReader(string(buf)));if err!=nil{return "",err}
  req.Header.Set("Content-Type","application/json")
  if cfg.Provider=="anthropic"{
   req.Header.Set("x-api-key",key);req.Header.Set("anthropic-version","2023-06-01")
  }else if key!=""{req.Header.Set("Authorization","Bearer "+key)}
- client:=&http.Client{Timeout:aiRequestTimeout}
+ client:=&http.Client{Timeout:requestTimeout}
  // Keep the production/test transport, but not the short shared HA timeout.
- if a.client!=nil{copyClient:=*a.client;client=&copyClient;client.Timeout=aiRequestTimeout}
+ if a.client!=nil{copyClient:=*a.client;client=&copyClient;client.Timeout=requestTimeout}
  client.CheckRedirect=func(*http.Request,[]*http.Request)error{return http.ErrUseLastResponse}
  resp,err:=client.Do(req)
  if err!=nil{
   var netErr net.Error
   if errors.Is(err,context.DeadlineExceeded)||(errors.As(err,&netErr)&&netErr.Timeout()){
+   if cfg.Provider=="openai"{return "",errors.New("OpenAI API svarede ikke inden for 23 sekunder. Prøv igen eller vælg en hurtigere model.")}
    return "",errors.New("AI-serveren svarede ikke inden for 45 sekunder. Indlæs modellen på LLM-serveren og kontrollér forbindelsen fra FamilieHub.")
   }
   return "",errors.New("FamilieHub kan ikke kontakte AI-serveren. Kontrollér adresse, port og netværksadgang fra FamilieHub-serveren.")
  }
  defer resp.Body.Close()
  if resp.StatusCode<200||resp.StatusCode>=300{
+  if cfg.Provider=="openai"{
+   switch resp.StatusCode{
+   case 400:return "",errors.New("OpenAI API svarede HTTP 400: model eller API-parameter blev afvist.")
+   case 401:return "",errors.New("OpenAI API svarede HTTP 401: kontrollér API-nøglen.")
+   case 403:return "",errors.New("OpenAI API svarede HTTP 403: kontrollér projektets adgang til modellen.")
+   case 404:return "",errors.New("OpenAI API svarede HTTP 404: kontrollér modelnavn og projektadgang.")
+   case 429:return "",errors.New("OpenAI API svarede HTTP 429: kontrollér API-kreditter, forbrugsgrænse eller hastighedsgrænse.")
+   }
+  }
   if resp.StatusCode==404&&cfg.Provider=="compatible"{return "",errors.New("AI-serveren svarede HTTP 404. Kontrollér, at den understøtter POST /v1/chat/completions.")}
-  return "",fmt.Errorf("AI-serveren svarede HTTP %d. Kontrollér modelnavn og API-indstillinger",resp.StatusCode)
+  return "",fmt.Errorf("AI-udbyderen svarede HTTP %d. Kontrollér modelnavn og API-indstillinger",resp.StatusCode)
  }
  body,err:=io.ReadAll(io.LimitReader(resp.Body,64*1024));if err!=nil{return "",errors.New("Kunne ikke læse AI-svar")}
  answer:=""

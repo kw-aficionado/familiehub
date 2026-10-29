@@ -130,3 +130,52 @@ func TestSlowLocalLLMDoesNotInheritSharedClientTimeout(t *testing.T) {
  answer,err:=app.aiGenerate(context.Background(),cfg,"Svar kort","Hej")
  if err!=nil||answer!="Forbindelsen virker."{t.Fatalf("shared client timeout broke local AI: %q, %v",answer,err)}
 }
+
+
+func TestOpenAILunaUsesNoReasoningAndKeepsOtherModelsCompatible(t *testing.T){
+ app,_:=testApp(t)
+ cipher,err:=app.encryptAIKey("sk-test-not-real")
+ if err!=nil{t.Fatal(err)}
+ count:=0
+ app.client=&http.Client{Transport:roundTripTestFunc(func(r *http.Request)(*http.Response,error){
+  count++
+  if r.URL.String()!="https://api.openai.com/v1/chat/completions"{t.Errorf("wrong OpenAI endpoint: %s",r.URL)}
+  if r.Header.Get("Authorization")!="Bearer sk-test-not-real"{t.Error("OpenAI bearer token not sent")}
+  var payload map[string]any
+  if err:=json.NewDecoder(r.Body).Decode(&payload);err!=nil{t.Error(err)}
+  if payload["max_completion_tokens"]!=float64(384){t.Errorf("unexpected output limit: %v",payload["max_completion_tokens"])}
+  switch payload["model"]{
+  case "gpt-6-luna":
+   if payload["reasoning_effort"]!="none"{t.Errorf("Luna should use none reasoning, got %v",payload["reasoning_effort"])}
+  case "gpt-4.1-mini":
+   if _,set:=payload["reasoning_effort"];set{t.Error("older OpenAI models must not receive reasoning_effort")}
+  default:t.Errorf("unexpected model %v",payload["model"])
+  }
+  return &http.Response{StatusCode:200,Header:make(http.Header),Body:io.NopCloser(strings.NewReader(`{"choices":[{"message":{"content":"Det virker."}}]}`))},nil
+ })}
+ cfg:=aiStored{AIConfig:AIConfig{Provider:"openai",Model:"gpt-6-luna"},Ciphertext:cipher}
+ for _,model:=range []string{"gpt-6-luna","gpt-4.1-mini"}{
+  cfg.Model=model
+  output,err:=app.aiGenerate(context.Background(),cfg,"Giv et kort svar","Hej")
+  if err!=nil||output!="Det virker."{t.Fatalf("%s reply %q error %v",model,output,err)}
+ }
+ if count!=2{t.Fatalf("expected 2 requests, got %d",count)}
+}
+
+func TestOpenAIStatusErrorsAreActionableAndDoNotLeakSecrets(t *testing.T){
+ app,_:=testApp(t)
+ cipher,err:=app.encryptAIKey("sk-super-secret-value")
+ if err!=nil{t.Fatal(err)}
+ cfg:=aiStored{AIConfig:AIConfig{Provider:"openai",Model:"gpt-6-luna"},Ciphertext:cipher}
+ cases:=[]struct{status int; expected string}{
+  {400,"HTTP 400"},{401,"HTTP 401"},{403,"HTTP 403"},{404,"HTTP 404"},{429,"HTTP 429"},
+ }
+ for _,tc:=range cases{
+  app.client=&http.Client{Transport:roundTripTestFunc(func(r *http.Request)(*http.Response,error){
+   return &http.Response{StatusCode:tc.status,Header:make(http.Header),Body:io.NopCloser(strings.NewReader(`{"error":{"message":"secret key sk-super-secret-value","type":"invalid_request_error"}}`))},nil
+  })}
+  _,err:=app.aiGenerate(context.Background(),cfg,"Kort svar","Hej")
+  if err==nil||!strings.Contains(err.Error(),tc.expected){t.Fatalf("status %d: unexpected error %v",tc.status,err)}
+  if strings.Contains(err.Error(),"sk-super-secret-value"){t.Fatal("OpenAI error leaked API key")}
+ }
+}
