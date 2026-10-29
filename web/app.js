@@ -36,7 +36,15 @@
     var opts={method:method||'GET',credentials:'same-origin',headers:{}};
     if(body!==undefined){opts.headers['Content-Type']='application/json';opts.body=JSON.stringify(body)}
     if(opts.method!=='GET')opts.headers['X-CSRF-Token']=S.csrf;
-    var resp=await fetch(path,opts);var data=await resp.json().catch(function(){return {error:'Ugyldigt serversvar'}});
+    var resp=await fetch(path,opts);
+    var data=await resp.json().catch(function(){return null});
+    if(data===null){
+      var code='HTTP '+resp.status;
+      var gateway=resp.status===502||resp.status===503||resp.status===504;
+      throw new Error(gateway
+        ?'FamilieHubs proxy svarede '+code+' uden JSON. AI-serveren kan være utilgængelig eller for langsom. Kontrollér forbindelsen fra FamilieHub-serveren.'
+        :'FamilieHub modtog et svar uden gyldig JSON ('+code+'). Kontrollér server- og proxylog.');
+    }
     if(resp.status===401&&path!=='/api/login'){hide('app');show('login');throw new Error('Session udløbet. Log ind igen.')}
     if(!resp.ok)throw new Error(errorMessage(data));return data;
   }

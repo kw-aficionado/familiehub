@@ -2,6 +2,7 @@ package main
 
 import (
  "context"
+ "encoding/json"
  "io"
  "net/http"
  "net/http/httptest"
@@ -109,4 +110,23 @@ func TestAIPendingTasksAndDeduplicatedPush(t *testing.T){
  if pushes!=1{t.Fatalf("daily push must dedupe across restarts: got %d",pushes)}
  a.aiReminders(now.Add(10*time.Minute),people)
  if pushes!=1{t.Fatalf("unplanned reminder minute: got %d",pushes)}
+}
+
+
+func TestSlowLocalLLMDoesNotInheritSharedClientTimeout(t *testing.T) {
+ app,_:=testApp(t)
+ local:=httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter,r *http.Request){
+  if r.URL.Path!="/v1/chat/completions"{t.Errorf("wrong compatible route: %s",r.URL.Path)}
+  var payload struct{Stream *bool `json:"stream"`}
+  if err:=json.NewDecoder(r.Body).Decode(&payload);err!=nil{t.Error(err)}
+  if payload.Stream==nil||*payload.Stream{t.Error("compatible API should explicitly disable streaming")}
+  time.Sleep(65*time.Millisecond)
+  w.Header().Set("Content-Type","application/json")
+  _,_=io.WriteString(w,`{"choices":[{"message":{"content":"Forbindelsen virker."}}]}`)
+ }))
+ defer local.Close()
+ app.client=&http.Client{Timeout:1*time.Millisecond}
+ cfg:=aiStored{AIConfig:AIConfig{Provider:"compatible",Model:"qwen-local",BaseURL:local.URL+"/v1"}}
+ answer,err:=app.aiGenerate(context.Background(),cfg,"Svar kort","Hej")
+ if err!=nil||answer!="Forbindelsen virker."{t.Fatalf("shared client timeout broke local AI: %q, %v",answer,err)}
 }

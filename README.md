@@ -345,3 +345,9 @@ Når en person har flere kanaler, forsøges Home Assistant først, derefter Web 
 **iPad Air 2:** Understøtter ikke iPadOS 16.4 og kan derfor ikke modtage disse Web Push-notifikationer. Brug i stedet e-mailpåmindelser eller beskeder inde i FamilieHub. En webapp kan heller ikke forhindre iPadOS' egen skærmlåsning.
 
 Ved Web Push anvender FamilieHub det velafprøvede Go-bibliotek `github.com/SherClockHolmes/webpush-go` med kryptering og VAPID (v1.4.0). Udstyr og pushleverandører skal tillade udgående HTTPS fra FamilieHub-serveren.
+
+### Fejlfinding: Lokal AI via Tailscale
+
+En OpenAI-kompatibel server skal kunne besvare `POST /v1/chat/completions` med almindelig JSON i `choices[0].message.content`. Et browserbesøg på `/v1` tester ikke chat-endpointet. Brug serverens `GET /v1/models` til at kontrollere det præcise modelnavn.
+
+Til langsomme lokale modeller venter AI-integrationen nu op til **45 sekunder** og arver ikke den almindelige 8-sekunders HTTP-timeout. FamilieHub sender `stream: false` og viser statuskoden fra proxyfejl (fx HTTP 502/504) i stedet for den upræcise besked `Ugyldigt serversvar`. Tailscale-adresser virker kun, når **selve FamilieHub-serveren** har adgang til Tailscale-nettet. Hvis en reverse proxy afbryder inden 45 sekunder, skal dens timeout kontrolleres særskilt.
