@@ -337,6 +337,14 @@
         root.appendChild(el('h3',null,'Forslag til opgaveplan'));
         preview.assignments.forEach(function(a){root.appendChild(el('p',null,nameOf(a.person_id)+' · '+a.title+' · '+a.points+' point · '+a.due_date))});
         var summary=el('p',{'class':'muted'},people.map(function(id){return nameOf(id)+': '+preview.totals[id]+' point / '+preview.minutes[id]+' min. per uge'+(plannerDraft.rotate_weeks?' (efter skift: '+preview.next_totals[id]+' point)':'')}).join(' | '));root.appendChild(summary);
+        var aiButton=el('button',{'type':'button','class':'minor'},'Få AI-vurdering af fordelingen');root.appendChild(aiButton);
+        var aiResult=el('p',{'class':'muted'});root.appendChild(aiResult);
+        aiButton.addEventListener('click',async function(){
+          aiButton.disabled=true;aiResult.textContent='AI analyserer fordelingen…';
+          try{var advice=await api('/api/planner/advice','POST',plannerDraft);aiResult.textContent=advice.text}
+          catch(e){aiResult.textContent='AI kunne ikke kontaktes: '+e.message+'. Planen kan stadig gemmes.'}
+          aiButton.disabled=false;
+        });
         var button=el('button',{'type':'button','class':'primary'},'Godkend og gem opgaveplan');root.appendChild(button);
         button.addEventListener('click',async function(){
           button.disabled=true;
