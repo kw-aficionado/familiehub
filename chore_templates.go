@@ -2,6 +2,7 @@ package main
 
 import (
 	"net/http"
+ "strconv"
 	"strings"
 	"time"
 )
@@ -13,8 +14,13 @@ type TaskTemplate struct {
 	Title      string `json:"title"`
 	AssignedTo string `json:"assigned_to"`
 	RepeatRule string `json:"repeat_rule"`
+ Category string `json:"category"`
+ Minutes int `json:"minutes"`
+ Points int `json:"points"`
+ TimesPerWeek int `json:"times_per_week"`
 }
 
+func parseNumber(value string, fallback int) int{n,e:=strconv.Atoi(value);if e!=nil{return fallback};return n}
 func validRepeatRule(rule string) bool {
 	switch rule {
 	case "none", "daily", "weekdays", "weekly", "biweekly", "once_week", "weekly_window", "biweekly_window":
@@ -41,7 +47,7 @@ func (a *App) allTasks(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *App) templates(w http.ResponseWriter, r *http.Request) {
-	rows, err := a.db.Query("SELECT id,title,assigned_to,repeat_rule FROM task_templates ORDER BY title COLLATE NOCASE, id")
+	rows, err := a.db.Query("SELECT id,title,assigned_to,repeat_rule,category,minutes,points,times_per_week FROM task_templates ORDER BY title COLLATE NOCASE, id")
 	if err != nil {
 		apiError(w, 500, "Opgavearkivet kunne ikke hentes")
 		return
@@ -50,7 +56,7 @@ func (a *App) templates(w http.ResponseWriter, r *http.Request) {
 	for _, row := range rows {
 		templates = append(templates, TaskTemplate{
 			ID: row["id"], Title: row["title"],
-			AssignedTo: row["assigned_to"], RepeatRule: row["repeat_rule"],
+			AssignedTo: row["assigned_to"], RepeatRule: row["repeat_rule"], Category:row["category"], Minutes:parseNumber(row["minutes"],15), Points:parseNumber(row["points"],3), TimesPerWeek:parseNumber(row["times_per_week"],1),
 		})
 	}
 	writeJSON(w, 200, templates)
@@ -62,6 +68,14 @@ func (a *App) templateSave(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	tpl.Title = strings.TrimSpace(tpl.Title)
+ tpl.Category=strings.TrimSpace(tpl.Category)
+ if tpl.Category==""{tpl.Category="Diverse"}
+ if tpl.Minutes==0{tpl.Minutes=15}
+ if tpl.Points==0{tpl.Points=3}
+ if tpl.TimesPerWeek==0{
+  switch tpl.RepeatRule{case "daily":tpl.TimesPerWeek=7;case "weekdays":tpl.TimesPerWeek=5;default:tpl.TimesPerWeek=1}
+ }
+ if len([]rune(tpl.Category))>40||tpl.Minutes<1||tpl.Minutes>240||tpl.Points<1||tpl.Points>20||tpl.TimesPerWeek<1||tpl.TimesPerWeek>7{apiError(w,400,"Kontrollér kategori, minutter, point og hyppighed");return}
 	if !bounded(tpl.Title, 150) || !validRepeatRule(tpl.RepeatRule) {
 		apiError(w, 400, "Kontrollér navn og gentagelse")
 		return
@@ -86,7 +100,7 @@ func (a *App) templateSave(w http.ResponseWriter, r *http.Request) {
 	}
 	if r.Method == http.MethodPost {
 		tpl.ID = newID()
-		if err := a.db.Exec("INSERT INTO task_templates(id,title,assigned_to,repeat_rule) VALUES(?,?,?,?)", tpl.ID, tpl.Title, tpl.AssignedTo, tpl.RepeatRule); err != nil {
+		if err := a.db.Exec("INSERT INTO task_templates(id,title,assigned_to,repeat_rule,category,minutes,points,times_per_week) VALUES(?,?,?,?,?,?,?,?)", tpl.ID, tpl.Title, tpl.AssignedTo, tpl.RepeatRule,tpl.Category,strconv.Itoa(tpl.Minutes),strconv.Itoa(tpl.Points),strconv.Itoa(tpl.TimesPerWeek)); err != nil {
 			apiError(w, 500, "Skabelonen kunne ikke oprettes")
 			return
 		}
@@ -103,7 +117,7 @@ func (a *App) templateSave(w http.ResponseWriter, r *http.Request) {
 			apiError(w, 404, "Skabelonen findes ikke")
 			return
 		}
-		if err := a.db.Exec("UPDATE task_templates SET title=?,assigned_to=?,repeat_rule=? WHERE id=?", tpl.Title, tpl.AssignedTo, tpl.RepeatRule, tpl.ID); err != nil {
+		if err := a.db.Exec("UPDATE task_templates SET title=?,assigned_to=?,repeat_rule=?,category=?,minutes=?,points=?,times_per_week=? WHERE id=?", tpl.Title, tpl.AssignedTo, tpl.RepeatRule,tpl.Category,strconv.Itoa(tpl.Minutes),strconv.Itoa(tpl.Points),strconv.Itoa(tpl.TimesPerWeek),tpl.ID); err != nil {
 			apiError(w, 500, "Skabelonen kunne ikke gemmes")
 			return
 		}
