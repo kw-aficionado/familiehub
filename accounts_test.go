@@ -75,7 +75,7 @@ func TestFamilyAccountsAdminLoginAndRevocation(t *testing.T){
  if session["authenticated"]!=false{t.Fatalf("change password must revoke session: %v",session)}
 
  // Existing administrator can still log in without a username.
- code,_,_=req(t,s,"GET","/api/accounts","",adminCookie,"")
+ code,_=arrayRequest(t,s,"/api/accounts",adminCookie)
  if code!=200{t.Fatalf("legacy admin lost admin access: %d",code)}
 }
 
