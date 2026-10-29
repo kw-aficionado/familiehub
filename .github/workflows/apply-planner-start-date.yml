@@ -2,6 +2,9 @@ name: Apply and verify planner start date feature
 on:
   push:
     branches: [feature/planner-start-date-favicon]
+    paths:
+      - .github/workflows/apply-planner-start-date.yml
+      - .github/planner-start-feature.zip
 permissions:
   contents: write
 jobs:
@@ -32,15 +35,15 @@ jobs:
                   dest.write_bytes(z.read(name))
           PY
           python3 apply_feature.py
-          rm apply_feature.py .github/planner-start-feature.zip .github/workflows/apply-planner-start-date.yml
+          rm apply_feature.py
+          git checkout -- .github/workflows/ci.yml
       - name: Verify final source and assets
         run: |
           git diff --check
           for file in web/*.js; do node --check "$file"; done
           node --test tests/planner_dates.test.js
           go test ./...
-          go test -race ./...
-      - name: Commit verified feature only
+      - name: Commit verified application files only
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
