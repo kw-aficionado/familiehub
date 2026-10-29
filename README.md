@@ -372,3 +372,15 @@ Til langsomme lokale modeller venter AI-integrationen nu op til **45 sekunder** 
 ### OpenAI GPT-6 Luna og langsomme AI-forespørgsler
 
 Til `gpt-6-luna` bruger FamilieHub nu `reasoning_effort: none` på Chat Completions, fordi modellen ellers starter med medium ræsonnering. Påmindelser og korte AI-opsummeringer har ikke brug for denne ekstra betænkningstid. Outputgrænsen er 384 tokens. OpenAI-kald afbrydes efter 23 sekunder, så reverse proxy normalt kan returnere en brugbar JSON-fejl før sin egen timeout; lokale kompatible LLM'er beholder 45 sekunder. En HTTP 401 betyder forkert API-nøgle, 403/404 kan betyde manglende modeladgang, og 429 kan skyldes kvote eller hastighedsgrænse. API-nøglen vises aldrig i fejlteksten.
+
+
+## Valgfri startdato i AI Opgaveplanlægger
+
+Vælg **Hvornår skal planen starte?**; standarden er i dag i Europe/Copenhagen.
+Genveje: **I dag**, **I morgen**, **Næste mandag**. Alle ugedage kan vælges.
+Opgaver starter aldrig før den valgte dato. En start midt i ugen giver en kortere
+første uge, som vises separat i forhåndsvisningen. Ugentligt opgavebytte følger
+fortsat kalenderuger (mandag); datoen for første bytte vises inden godkendelse.
+
+Eksisterende opgaver ændres ikke. FamilieHubs hus-ikon bruges også som
+favicon (SVG + ICO) og Apple touch-ikon. Se docs/PLANNER-START.md.

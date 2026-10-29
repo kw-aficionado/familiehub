@@ -41,6 +41,10 @@ type PlannerPreview struct {
  NextTotals map[string]int `json:"next_totals"`
  RotateWeeks int `json:"rotate_weeks"`
  StartDate string `json:"start_date"`
+ FirstWeekEnd string `json:"first_week_end"`
+ FirstWeekTotals map[string]int `json:"first_week_totals"`
+ FirstWeekMinutes map[string]int `json:"first_week_minutes"`
+ FirstRotationDate string `json:"first_rotation_date,omitempty"`
  Warning string `json:"warning,omitempty"`
 }
 type archiveSeed struct{Title,Category,Rule string;Minutes,Points,Times int}
@@ -84,7 +88,6 @@ func (a *App) planPreview(input PlannerRequest)(PlannerPreview,error){
  if input.RotateWeeks!=0&&input.RotateWeeks!=1&&input.RotateWeeks!=2&&input.RotateWeeks!=4{return p,fmt.Errorf("Vælg ingen rotation, 1, 2 eller 4 uger")}
  if !validDay(input.StartDate){return p,fmt.Errorf("Ugyldig startdato")}
  start,_:=time.Parse("2006-01-02",input.StartDate)
- if start.Weekday()!=time.Monday{return p,fmt.Errorf("Startdato skal være en mandag")}
  people,err:=a.people();if err!=nil{return p,err}
  validPeople:=map[string]bool{};for _,person:=range people{validPeople[person.ID]=true}
  selectedPeople:=map[string]bool{}
@@ -121,7 +124,7 @@ func (a *App) planPreview(input PlannerRequest)(PlannerPreview,error){
    if selected==""||score<best{selected=person;best=score}
   }
   for _,day:=range j.days{
-   due:=start.AddDate(0,0,day).Format("2006-01-02")
+   due:=plannerScheduledDate(start,day,len(j.days)==1)
    rule:="weekly"
    if len(j.days)==1{rule="weekly_window"}
    if j.tpl["repeat_rule"]=="biweekly_window"{rule="biweekly_window"}
@@ -136,6 +139,8 @@ func (a *App) planPreview(input PlannerRequest)(PlannerPreview,error){
    p.NextTotals[next]+=assignment.Points
   }
  }else{for id,total:=range p.Totals{p.NextTotals[id]=total}}
+ plannerDateDetails(&p,start,input.People)
+ if input.StartDate<time.Now().In(a.loc).Format("2006-01-02"){p.Warning="Startdatoen ligger før i dag. Tidligere opgaver kan blive vist som forfaldne og udløse påmindelser."}
  return p,nil
 }
 func (a *App) plannerPreview(w http.ResponseWriter,r *http.Request){
@@ -155,7 +160,7 @@ func (a *App) plannerApply(w http.ResponseWriter,r *http.Request){
   steps=append(steps,store.Statement{SQL:"INSERT INTO tasks(id,title,assigned_to,due_date,repeat_rule,rotation_members,rotation_start,rotation_weeks,plan_id) VALUES(?,?,?,?,?,?,?,?,?)",Args:[]string{newID(),assignment.Title,assignment.PersonID,assignment.DueDate,assignment.RepeatRule,rotation,p.StartDate,strconv.Itoa(v.RotateWeeks),planID}})
  }
  if err:=a.db.ExecBatch(steps);err!=nil{apiError(w,500,"Kunne ikke gemme planen");return}
- a.broadcast();writeJSON(w,200,map[string]any{"ok":true,"plan_id":planID,"created":len(steps)})
+ a.broadcast();writeJSON(w,200,map[string]any{"ok":true,"plan_id":planID,"created":len(steps),"start_date":p.StartDate,"first_rotation_date":p.FirstRotationDate})
 }
 func rotatedOwner(owner,members,start string,weeks int,day string)string{
  if members==""||weeks<1||start==""{return owner}
@@ -165,7 +170,7 @@ func rotatedOwner(owner,members,start string,weeks int,day string)string{
  if e1!=nil||e2!=nil||target.Before(anchor){return owner}
  index:=-1;for i,id:=range ids{if id==owner{index=i;break}}
  if index<0{return owner}
- step:=int(target.Sub(anchor).Hours()/24)/7/weeks
+ step:=int(weekStart(target).Sub(weekStart(anchor)).Hours()/24)/7/weeks
  return ids[(index+step)%len(ids)]
 }
 

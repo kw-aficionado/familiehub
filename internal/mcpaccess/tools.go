@@ -380,7 +380,7 @@ func (s *Server) previewShift(actor string, v shiftRequest) (any, error) {
 		}
 		if r["rotation_start"] != "" {
 			d, err = parseDate(r["rotation_start"])
-			if err != nil || d.Weekday() != time.Monday {
+			if err != nil {
 				return nil, errors.New("Invalid rotation anchor")
 			}
 		}
