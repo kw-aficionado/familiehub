@@ -346,12 +346,49 @@
           aiButton.disabled=false;
         });
         var button=el('button',{'type':'button','class':'primary'},'Godkend og gem opgaveplan');root.appendChild(button);
+        var saveStatus=el('p',{'class':'planner-save-status','role':'status','aria-live':'polite'});
+        root.appendChild(saveStatus);
         button.addEventListener('click',async function(){
+          if(!plannerDraft){saveStatus.textContent='Beregn planen igen, før du gemmer.';saveStatus.classList.add('error');return}
           button.disabled=true;
-          try{var data=await api('/api/planner/apply','POST',plannerDraft);closeModal();$('plannerStatus').textContent='Plan gemt med '+data.created+' opgaver. Rotation sker automatisk.';await load();await loadTasksPage()}
-          catch(e){$('formError').textContent=e.message;button.disabled=false}
+          button.textContent='Gemmer opgaveplan…';
+          saveStatus.classList.remove('error');
+          saveStatus.textContent='Gemmer opgaverne i FamilieHub…';
+          var saved;
+          try{
+            saved=await api('/api/planner/apply','POST',plannerDraft);
+            if(!saved||saved.ok!==true||!(saved.created>0))throw new Error('FamilieHub bekræftede ikke, at opgaverne blev oprettet.');
+          }catch(e){
+            saveStatus.textContent='Kunne ikke gemme opgaveplanen: '+e.message;
+            saveStatus.classList.add('error');
+            button.textContent='Prøv at gemme igen';
+            button.disabled=false;
+            return;
+          }
+          // A successful write must never be mistaken for failure if refreshing the list fails.
+          var startDate=plannerDraft.start_date;
+          closeModal();
+          S.taskFocus=new Date(startDate+'T12:00:00');
+          S.taskPeriod='week';
+          S.taskFilter='';
+          S.taskStatus='all';
+          $('plannerStatus').textContent='Opgaveplan gemt: '+saved.created+' opgaver fra '+startDate+'. Viser startugen nedenfor.';
+          try{
+            await loadTasksPage();
+            await load();
+          }catch(e){
+            $('plannerStatus').textContent='Opgaveplanen blev gemt ('+saved.created+' opgaver), men listen kunne ikke opdateres: '+e.message+'. Genindlæs Opgaver; gem ikke igen.';
+          }
+          $('plannerStatus').scrollIntoView({block:'nearest'});
         });
       }catch(e){$('formError').textContent=e.message}
+    });
+    // Invalidate a previously calculated preview when any input changes.
+    $('plannerForm').addEventListener('change',function(){
+      if(!plannerDraft)return;
+      plannerDraft=null;
+      $('plannerPreview').replaceChildren();
+      $('formError').textContent='Indstillingerne er ændret. Beregn planen igen for at godkende den.';
     });
   }
   $('plannerOpenBtn').addEventListener('click',openPlanner);
