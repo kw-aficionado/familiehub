@@ -83,7 +83,11 @@ func (a *App) directCalendarsSave(w http.ResponseWriter,r *http.Request){
  if len(v.Username)>150||len(v.ClientID)>300||len(v.Secret)>4096{apiError(w,400,"Et felt er for langt");return}
  if v.Provider=="ics"||v.Provider=="icloud"{
   if !validCalendarEndpoint(v.URL){apiError(w,400,"Angiv kalenderens HTTPS-adresse; interne adresser er ikke tilladt");return}
-  if v.Provider=="icloud"&&(v.Username==""||v.Secret==""){apiError(w,400,"iCloud kræver Apple ID og en app-specifik adgangskode");return}
+  if v.Provider=="icloud"{
+   endpoint,_:=url.Parse(v.URL)
+   if !strings.HasSuffix(strings.ToLower(endpoint.Hostname()),".icloud.com"){apiError(w,400,"iCloud CalDAV-adressen skal tilhøre icloud.com");return}
+   if v.Username==""||v.Secret==""{apiError(w,400,"iCloud kræver Apple ID og en app-specifik adgangskode");return}
+  }
  }else {
   if v.ClientID==""||v.Secret==""{apiError(w,400,"OAuth kræver client ID og client secret fra udbyderen");return}
   if v.URL!=""{apiError(w,400,"URL er kun til ICS og iCloud");return}

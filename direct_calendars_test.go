@@ -121,3 +121,28 @@ func TestDirectGoogleAndMicrosoftReaders(t *testing.T) {
  }
  if len(provider)!=4{t.Fatalf("unexpected requests: %+v",provider)}
 }
+
+func TestICSRecurringWeekdaysAndExceptions(t *testing.T){
+ loc,_:=time.LoadLocation("Europe/Copenhagen")
+ row:=calendarRecord{CalendarConnection:CalendarConnection{ID:"a",Provider:"ics",Name:"Family"}}
+ ics:="BEGIN:VCALENDAR\r\nBEGIN:VEVENT\r\nUID:recurrence\r\nSUMMARY:Musik\r\nDTSTART;TZID=Europe/Copenhagen:20261026T160000\r\nDTEND;TZID=Europe/Copenhagen:20261026T170000\r\nRRULE:FREQ=WEEKLY;INTERVAL=1;BYDAY=MO,WE,FR\r\nEXDATE;TZID=Europe/Copenhagen:20261028T160000\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n"
+ from:=time.Date(2026,10,26,0,0,0,0,loc)
+ events:=parseICS(ics,row,from,from.AddDate(0,0,14),loc)
+ // 3 days x 2 weeks - one explicit exclusion = five instances.
+ if len(events)!=5 {t.Fatalf("expected five recurring events, got %d: %+v",len(events),events)}
+ for _,ev:=range events {
+  if strings.HasPrefix(ev.Start,"2026-10-28") {t.Fatal("EXDATE not excluded")}
+ }
+}
+func TestICSRecurrenceCountAndDST(t *testing.T){
+ loc,_:=time.LoadLocation("Europe/Copenhagen")
+ row:=calendarRecord{CalendarConnection:CalendarConnection{ID:"b"}}
+ ics:="BEGIN:VCALENDAR\nBEGIN:VEVENT\nUID:daily\nSUMMARY:Breakfast\nDTSTART;TZID=Europe/Copenhagen:20261024T080000\nDTEND;TZID=Europe/Copenhagen:20261024T090000\nRRULE:FREQ=DAILY;COUNT=3\nEND:VEVENT\nEND:VCALENDAR\n"
+ from:=time.Date(2026,10,23,0,0,0,0,loc)
+ events:=parseICS(ics,row,from,from.AddDate(0,0,8),loc)
+ if len(events)!=3{t.Fatalf("COUNT recurrence: %d",len(events))}
+ for _,ev:=range events{
+  dt,e:=time.Parse(time.RFC3339,ev.Start)
+  if e!=nil||dt.In(loc).Hour()!=8{t.Fatalf("DST shifted the wall clock: %s",ev.Start)}
+ }
+}

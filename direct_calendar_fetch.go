@@ -9,6 +9,7 @@ import (
  "io"
  "net/http"
  "net/url"
+ "strconv"
  "strings"
  "time"
 )
@@ -159,7 +160,7 @@ func (a *App) icsCalendarEvents(ctx context.Context,row calendarRecord,from,to t
  if err!=nil{return nil,err}
  return parseICS(string(raw),row,from,to,a.loc),nil
 }
-type icsItem struct{Props map[string]string;StartKey,EndKey string}
+type icsItem struct{Props map[string]string;StartKey,EndKey string;Exdates []string;ExdateKey string}
 func parseICS(raw string,row calendarRecord,from,to time.Time,loc *time.Location)[]Event {
  raw=strings.ReplaceAll(strings.ReplaceAll(raw,"\r\n","\n"),"\r","\n")
  var lines []string
@@ -177,6 +178,7 @@ func parseICS(raw string,row calendarRecord,from,to time.Time,loc *time.Location
   typ:=strings.ToUpper(strings.Split(key,";")[0])
   if typ=="DTSTART"{item.StartKey=key}
   if typ=="DTEND"{item.EndKey=key}
+  if typ=="EXDATE"{item.Exdates=append(item.Exdates,val);item.ExdateKey=key;continue}
   item.Props[typ]=val
  }
  out:=[]Event{}
@@ -184,10 +186,33 @@ func parseICS(raw string,row calendarRecord,from,to time.Time,loc *time.Location
   start,ok:=icsDate(v.Props["DTSTART"],v.StartKey,loc);if !ok{continue}
   end,ok:=icsDate(v.Props["DTEND"],v.EndKey,loc)
   if !ok||!end.After(start){end=start.Add(time.Hour);if len(v.Props["DTSTART"])==8{end=start.AddDate(0,0,1)}}
-  if !end.After(from)||!start.Before(to){continue}
+  if v.Props["RRULE"]==""&&(!end.After(from)||!start.Before(to)){continue}
   title:=icsUnescape(v.Props["SUMMARY"]);if title==""{title="Kalenderaftale"}
   uid:=v.Props["UID"];if uid==""{uid=sha(title+start.String())}
-  out=append(out,externalEvent(row,uid,title,start.Format(time.RFC3339),end.Format(time.RFC3339),icsUnescape(v.Props["LOCATION"]),icsUnescape(v.Props["DESCRIPTION"])))
+  duration:=end.Sub(start)
+  if duration<=0{duration=time.Hour}
+  addOccurrence:=func(at time.Time){
+    finish:=at.Add(duration)
+    if !finish.After(from)||!at.Before(to){return}
+    out=append(out,externalEvent(row,uid,title,at.Format(time.RFC3339),finish.Format(time.RFC3339),icsUnescape(v.Props["LOCATION"]),icsUnescape(v.Props["DESCRIPTION"])))
+  }
+  if v.Props["RRULE"]==""{addOccurrence(start);continue}
+  rule:=parseICSRule(v.Props["RRULE"],start,loc)
+  if rule.freq==""{addOccurrence(start);continue}
+  excluded:=map[string]bool{}
+  for _,group:=range v.Exdates{
+    for _,date:=range strings.Split(group,","){
+      if parsed,valid:=icsDate(date,v.ExdateKey,loc);valid{excluded[parsed.UTC().Format(time.RFC3339)]=true}
+    }
+  }
+  count:=0
+  for day:=start;day.Before(to)&&day.Before(start.AddDate(60,0,0));day=day.AddDate(0,0,1){
+    if !matchesICSRule(day,start,rule){continue}
+    if !rule.until.IsZero()&&day.After(rule.until){break}
+    count++
+    if rule.count>0&&count>rule.count{break}
+    if !excluded[day.UTC().Format(time.RFC3339)]{addOccurrence(day)}
+  }
  }
  return out
 }
@@ -211,4 +236,59 @@ func icsDate(value,key string,loc *time.Location)(time.Time,bool){
 func icsUnescape(s string)string{
  r:=strings.NewReplacer("\\n","\n","\\N","\n","\\,",",","\\;",";","\\\\","\\")
  return r.Replace(s)
+}
+
+type icsRepeatRule struct{
+ freq string
+ interval int
+ count int
+ until time.Time
+ bydays map[time.Weekday]bool
+}
+func parseICSRule(raw string,start time.Time,loc *time.Location)icsRepeatRule {
+ r:=icsRepeatRule{interval:1}
+ for _,part:=range strings.Split(raw,";"){
+  key,v,ok:=strings.Cut(part,"=");if !ok{continue}
+  switch strings.ToUpper(key){
+  case "FREQ":r.freq=strings.ToUpper(v)
+  case "INTERVAL":if n,e:=strconv.Atoi(v);e==nil&&n>0&&n<=366{r.interval=n}
+  case "COUNT":if n,e:=strconv.Atoi(v);e==nil&&n>0{r.count=n}
+  case "UNTIL":
+   if n,valid:=icsDate(v,"",loc);valid{r.until=n}else if n,e:=time.Parse("20060102T150405Z",v);e==nil{r.until=n}
+  case "BYDAY":
+   r.bydays=map[time.Weekday]bool{}
+   labels:=map[string]time.Weekday{"MO":time.Monday,"TU":time.Tuesday,"WE":time.Wednesday,"TH":time.Thursday,"FR":time.Friday,"SA":time.Saturday,"SU":time.Sunday}
+   for _,day:=range strings.Split(v,","){if d,ok:=labels[day];ok{r.bydays[d]=true}}
+  }
+ }
+ if r.freq!="DAILY"&&r.freq!="WEEKLY"&&r.freq!="MONTHLY"&&r.freq!="YEARLY"{r.freq=""}
+ return r
+}
+func calendarDaysBetween(a,b time.Time)int {
+ first:=time.Date(a.Year(),a.Month(),a.Day(),0,0,0,0,time.UTC)
+ second:=time.Date(b.Year(),b.Month(),b.Day(),0,0,0,0,time.UTC)
+ return int(second.Sub(first).Hours()/24)
+}
+func matchesICSRule(day,start time.Time,rule icsRepeatRule)bool {
+ diff:=calendarDaysBetween(start,day)
+ if diff<0{return false}
+ if len(rule.bydays)>0&&!rule.bydays[day.Weekday()]{return false}
+ switch rule.freq{
+ case "DAILY":return diff%rule.interval==0
+ case "WEEKLY":
+  // Align weekly recurrence with ISO Monday, retaining wall time at DST changes.
+  startMonday:=start.AddDate(0,0,-(int(start.Weekday())+6)%7)
+  thisMonday:=day.AddDate(0,0,-(int(day.Weekday())+6)%7)
+  weeks:=calendarDaysBetween(startMonday,thisMonday)/7
+  if weeks%rule.interval!=0{return false}
+  if len(rule.bydays)==0{return day.Weekday()==start.Weekday()}
+  return true
+ case "MONTHLY":
+  months:=(day.Year()-start.Year())*12+int(day.Month())-int(start.Month())
+  return months>=0&&months%rule.interval==0&&day.Day()==start.Day()
+ case "YEARLY":
+  years:=day.Year()-start.Year()
+  return years>=0&&years%rule.interval==0&&day.Month()==start.Month()&&day.Day()==start.Day()
+ }
+ return false
 }
