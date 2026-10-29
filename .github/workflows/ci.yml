@@ -20,4 +20,7 @@ jobs:
           go test ./...
           go test -race ./...
       - name: Check browser JavaScript syntax
-        run: node --check web/app.js
+        run: |
+          for file in web/*.js; do
+            node --check "$file"
+          done

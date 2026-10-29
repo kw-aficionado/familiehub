@@ -164,6 +164,7 @@ func securityHeaders(h http.Handler) http.Handler {
 	})
 }
 func (a *App) routes() {
+	a.mcpRoutes() // Scoped MCP access; disabled until an administrator enables it.
 	web, err := fs.Sub(assets, "web")
 	if err != nil {
 		panic(err)
