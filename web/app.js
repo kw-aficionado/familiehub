@@ -302,14 +302,27 @@
     plannerDraft=null;
     var html='<form id="plannerForm" class="form-grid">'+
       '<div class="field field-wide"><strong>Hvilke børn skal dele opgaverne?</strong><div id="plannerPeople" class="planner-checks"></div></div>'+
-      field('Startdato (mandag)','<input name="start_date" type="date" required>')+
+      field('Hvornår skal planen starte?','<input id="plannerStartDate" name="start_date" type="date" aria-describedby="plannerStartHint" required>')+
+      '<div class="field field-wide"><div class="ai-actions"><button type="button" class="minor" data-planner-start="today">I dag</button><button type="button" class="minor" data-planner-start="tomorrow">I morgen</button><button type="button" class="minor" data-planner-start="monday">Næste mandag</button></div><p id="plannerStartHint" class="muted" role="status"></p></div>'+
       field('Hvor tit skal opgaverne byttes?','<select name="rotate_weeks"><option value="1">Hver uge</option><option value="2">Hver anden uge</option><option value="4">Hver fjerde uge</option><option value="0">Ingen automatisk rotation</option></select>')+
       '<div class="field field-wide"><strong>Vælg opgaver og hyppighed</strong><p class="muted">Ret belastningspoint og minutter i Opgavearkiv. Hyppighed gælder antal gange pr. uge.</p><div id="plannerChoices" class="planner-checks"></div></div>'+
       '<div class="field field-wide"><strong>Valgfri ønsker og begrænsninger</strong><div id="plannerPrefs"></div></div>'+
       '<div class="form-actions"><button type="submit" class="primary">Beregn retfærdig fordeling</button></div></form><div id="plannerPreview" class="planner-preview"></div>';
     openModal('AI Opgaveplanlægger',html);
-    var next=startWeek(new Date());if(next<localMidnight(new Date()))next=addDays(next,7);
-    $('plannerForm').elements.start_date.value=dayString(next);
+    var dates=window.FamilyHubPlannerDates,startField=$('plannerForm').elements.start_date;
+    startField.value=dates.today();
+    function updateStartHint(){
+      var value=startField.value;
+      if(!value){$('plannerStartHint').textContent='Vælg en startdato.';return}
+      $('plannerStartHint').textContent='Opgaver starter tidligst '+formatDate(new Date(value+'T12:00:00'),{weekday:'long',day:'numeric',month:'long',year:'numeric'})+'. Den første uge kan være kortere. Opgavebytte sker om mandagen.'+(value<dates.today()?' Datoen ligger før i dag; opgaver kan blive forfaldne.':'');
+    }
+    document.querySelectorAll('[data-planner-start]').forEach(function(button){button.addEventListener('click',function(){
+      startField.value=dates.shortcut(button.getAttribute('data-planner-start'),dates.today());
+      startField.dispatchEvent(new Event('change',{bubbles:true}));
+    })});
+    startField.addEventListener('input',updateStartHint);
+    startField.addEventListener('change',updateStartHint);
+    updateStartHint();
     S.people.forEach(function(p,i){
       var line=el('label',{'class':'planner-choice'}),check=el('input',{'type':'checkbox','data-person':p.id});
       check.checked=i<2;line.appendChild(check);line.appendChild(el('span',null,p.name));$('plannerPeople').appendChild(line);
@@ -333,15 +346,21 @@
       people.forEach(function(id){var p=document.querySelector('[data-prefer="'+id+'"]').value,a=document.querySelector('[data-avoid="'+id+'"]').value;preferences[id]=p?[p]:[];avoid[id]=a?[a]:[]});
       plannerDraft={people:people,choices:choices,start_date:$('plannerForm').elements.start_date.value,rotate_weeks:Number($('plannerForm').elements.rotate_weeks.value),preferences:preferences,avoid:avoid};
       try{
-        var preview=await api('/api/planner/preview','POST',plannerDraft),root=$('plannerPreview');
+        var draft=plannerDraft;
+        var preview=await api('/api/planner/preview','POST',draft),root=$('plannerPreview');
+        if(plannerDraft!==draft||!root)return;
         root.appendChild(el('h3',null,'Forslag til opgaveplan'));
+        root.appendChild(el('p',{'class':'planner-start-summary'},'Planen starter '+formatDate(new Date(preview.start_date+'T12:00:00'),{weekday:'long',day:'numeric',month:'long',year:'numeric'})+'. Ingen opgaver er aktive før denne dato.'));
+        if(preview.first_rotation_date)root.appendChild(el('p',{'class':'muted'},'Første opgavebytte: '+formatDate(new Date(preview.first_rotation_date+'T12:00:00'),{weekday:'long',day:'numeric',month:'long',year:'numeric'})+'.'));
+        if(preview.warning)root.appendChild(el('p',{'class':'warning'},preview.warning));
+        if(preview.first_week_totals)root.appendChild(el('p',{'class':'muted'},'Første uge ('+preview.start_date+' til '+preview.first_week_end+'): '+people.map(function(id){return nameOf(id)+': '+preview.first_week_totals[id]+' point / '+preview.first_week_minutes[id]+' min.'}).join(' | ')));
         preview.assignments.forEach(function(a){root.appendChild(el('p',null,nameOf(a.person_id)+' · '+a.title+' · '+a.points+' point · '+a.due_date))});
-        var summary=el('p',{'class':'muted'},people.map(function(id){return nameOf(id)+': '+preview.totals[id]+' point / '+preview.minutes[id]+' min. per uge'+(plannerDraft.rotate_weeks?' (efter skift: '+preview.next_totals[id]+' point)':'')}).join(' | '));root.appendChild(summary);
+        var summary=el('p',{'class':'muted'},people.map(function(id){return nameOf(id)+': '+preview.totals[id]+' point / '+preview.minutes[id]+' min. i en fuld uge'+(draft.rotate_weeks?' (efter skift: '+preview.next_totals[id]+' point)':'')}).join(' | '));root.appendChild(summary);
         var aiButton=el('button',{'type':'button','class':'minor'},'Få AI-vurdering af fordelingen');root.appendChild(aiButton);
         var aiResult=el('p',{'class':'muted'});root.appendChild(aiResult);
         aiButton.addEventListener('click',async function(){
           aiButton.disabled=true;aiResult.textContent='AI analyserer fordelingen…';
-          try{var advice=await api('/api/planner/advice','POST',plannerDraft);aiResult.textContent=advice.text}
+          try{var advice=await api('/api/planner/advice','POST',draft);aiResult.textContent=advice.text}
           catch(e){aiResult.textContent='AI kunne ikke kontaktes: '+e.message+'. Planen kan stadig gemmes.'}
           aiButton.disabled=false;
         });
@@ -349,14 +368,14 @@
         root.appendChild(saveStatus);
         var button=el('button',{'type':'button','class':'primary'},'Godkend og gem opgaveplan');root.appendChild(button);
         button.addEventListener('click',async function(){
-          if(!plannerDraft){saveStatus.textContent='Beregn planen igen, før du gemmer.';saveStatus.classList.add('error');return}
+          if(plannerDraft!==draft){saveStatus.textContent='Beregn planen igen, før du gemmer.';saveStatus.classList.add('error');return}
           button.disabled=true;
           button.textContent='Gemmer opgaveplan…';
           saveStatus.classList.remove('error');
           saveStatus.textContent='Gemmer opgaverne i FamilieHub…';
           var saved;
           try{
-            saved=await api('/api/planner/apply','POST',plannerDraft);
+            saved=await api('/api/planner/apply','POST',draft);
             if(!saved||saved.ok!==true||!(saved.created>0))throw new Error('FamilieHub bekræftede ikke, at opgaverne blev oprettet.');
           }catch(e){
             saveStatus.textContent='Kunne ikke gemme opgaveplanen: '+e.message;
@@ -367,7 +386,7 @@
             return;
           }
           // A successful write must never be mistaken for failure if refreshing the list fails.
-          var startDate=plannerDraft.start_date;
+          var startDate=saved.start_date||draft.start_date;
           closeModal();
           S.taskFocus=new Date(startDate+'T12:00:00');
           S.taskPeriod='week';
@@ -385,12 +404,14 @@
       }catch(e){$('formError').textContent=e.message}
     });
     // Invalidate a previously calculated preview when any input changes.
-    $('plannerForm').addEventListener('change',function(){
+    function invalidatePlannerPreview(){
       if(!plannerDraft)return;
       plannerDraft=null;
       $('plannerPreview').replaceChildren();
       $('formError').textContent='Indstillingerne er ændret. Beregn planen igen for at godkende den.';
-    });
+    }
+    $('plannerForm').addEventListener('input',invalidatePlannerPreview);
+    $('plannerForm').addEventListener('change',invalidatePlannerPreview);
   }
   $('plannerOpenBtn').addEventListener('click',openPlanner);
   $('plannerSeedBtn').addEventListener('click',async function(){

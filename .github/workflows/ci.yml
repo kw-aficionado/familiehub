@@ -19,6 +19,8 @@ jobs:
         run: |
           go test ./...
           go test -race ./...
+      - name: Test planner date shortcuts
+        run: node --test tests/planner_dates.test.js
       - name: Check browser JavaScript syntax
         run: |
           for file in web/*.js; do

@@ -544,6 +544,7 @@ func (a *App) tasks(day string) ([]Task, error) {
 		if err != nil {
 			continue
 		}
+		if !plannerTaskHasStarted(r["rotation_start"],day) {continue}
 		visible, completionKey := taskOccurrence(due, target, r["repeat_rule"])
 		if !visible {
 			continue
@@ -721,7 +722,7 @@ func (a *App) toggle(w http.ResponseWriter, r *http.Request) {
 		apiError(w, 400, "Ugyldig dato")
 		return
 	}
-	rows, err := a.db.Query("SELECT due_date,repeat_rule FROM tasks WHERE id=?", id)
+	rows, err := a.db.Query("SELECT due_date,repeat_rule,rotation_start FROM tasks WHERE id=?", id)
 	if err != nil {
 		apiError(w, 500, "Kunne ikke læse opgaven")
 		return
@@ -736,6 +737,10 @@ func (a *App) toggle(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	selected, _ := time.Parse("2006-01-02", v.Day)
+	if !plannerTaskHasStarted(rows[0]["rotation_start"],v.Day) {
+		apiError(w,400,"Opgaven er ikke startet på den valgte dato")
+		return
+	}
 	visible, completionKey := taskOccurrence(due, selected, rows[0]["repeat_rule"])
 	if !visible {
 		apiError(w, 400, "Opgaven er ikke aktiv på den valgte dag")
