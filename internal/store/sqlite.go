@@ -120,6 +120,7 @@ func (d *DB) Init() error {
 		`CREATE TABLE IF NOT EXISTS sessions(id TEXT PRIMARY KEY,expires_at TEXT NOT NULL)`,
 		`CREATE TABLE IF NOT EXISTS accounts(id TEXT PRIMARY KEY,username TEXT NOT NULL UNIQUE COLLATE NOCASE,password_hash TEXT NOT NULL,person_id TEXT NOT NULL DEFAULT '',enabled TEXT NOT NULL DEFAULT '1')`,
 		`CREATE TABLE IF NOT EXISTS reminders(reminder_key TEXT PRIMARY KEY,sent_at TEXT NOT NULL)`,
+		`CREATE TABLE IF NOT EXISTS ai_settings(id INTEGER PRIMARY KEY CHECK(id=1),provider TEXT NOT NULL DEFAULT 'off',model TEXT NOT NULL DEFAULT '',base_url TEXT NOT NULL DEFAULT '',api_key_cipher TEXT NOT NULL DEFAULT '',reminders_enabled TEXT NOT NULL DEFAULT '0',reminder_time TEXT NOT NULL DEFAULT '18:00')`,
 	}
 	for _, s := range statements {
 		if err := d.Exec(s); err != nil {

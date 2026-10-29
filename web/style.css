@@ -258,3 +258,17 @@ html[data-theme="dark"] .settings-item-info small,html[data-theme="dark"] .calen
 .account-enabled input[type="checkbox"]{width:23px;height:23px}
 .login-hint{margin-top:12px!important;font-size:12px;color:#758b8d;line-height:1.5}
 @media(max-width:700px){.accounts-panel .settings-item{align-items:start}.accounts-panel .settings-item-actions{width:100%;justify-content:flex-end}}
+
+/* Opt-in AI service configuration and read-only task suggestions. */
+.ai-settings-panel,.ai-assist-panel{margin-top:18px;max-width:1100px;padding:18px;min-height:0}
+.ai-settings-panel h2,.ai-assist-panel h2{margin-bottom:8px}
+.ai-settings-panel>.muted,.ai-assist-panel>.muted{font-size:13px;line-height:1.5;margin-bottom:14px}
+.ai-settings-panel .display-form{grid-template-columns:repeat(2,minmax(0,1fr))}
+.ai-settings-panel .field-wide{grid-column:1/-1}
+.ai-settings-panel .ai-check{display:flex;flex-direction:row;align-items:center;gap:10px;min-height:40px}
+.ai-settings-panel .ai-check input{flex:none;width:21px;height:21px;margin:0}
+.ai-actions{display:flex;flex-wrap:wrap;align-items:center;gap:9px}
+.ai-actions button{min-height:44px}
+.ai-assist-result{margin-top:13px;padding:16px;background:#edf5f3;border-radius:11px;color:#20404a;font-size:14px;line-height:1.6;white-space:pre-wrap;overflow-wrap:anywhere}
+html[data-theme="dark"] .ai-assist-result{background:#213a3d;color:#e2f0ef}
+@media(max-width:700px){.ai-settings-panel .display-form{grid-template-columns:1fr}.ai-settings-panel .field-wide{grid-column:1}.ai-actions button{flex:1}}

@@ -8,8 +8,8 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <title>FamilieHub</title>
 <link rel="icon" href="/icon.svg" type="image/svg+xml">
-<link rel="stylesheet" href="/style.css?v=family-accounts-1">
-<script src="/app.js?v=family-accounts-1" defer></script>
+<link rel="stylesheet" href="/style.css?v=ai-family-1">
+<script src="/app.js?v=ai-family-1" defer></script>
 </head>
 <body>
 <section id="login" class="login-screen hidden">
@@ -47,6 +47,12 @@
    <div class="tasks-filters"><div id="taskPeopleFilters" class="filters" aria-label="Filtrer efter ansvarlig"></div><div id="taskStatusFilters" class="task-status-filters" role="group" aria-label="Opgavestatus"><button type="button" data-status="open">Udestående</button><button type="button" data-status="all">Alle</button><button type="button" data-status="done">Udførte</button></div></div>
    <div class="tasks-summary"><h2 id="tasksPeriodTitle">Denne uge</h2><span class="muted" id="tasksCount"></span></div>
    <section id="tasksPageList" class="tasks-page-list" aria-live="polite"></section>
+   <section class="settings-panel ai-assist-panel" aria-label="AI-hjælp til opgaver">
+     <h2>AI-familieassistent</h2>
+     <p class="muted">Få et kort overblik, ugens prioriteringer eller idéer til at komme videre. AI ændrer aldrig opgaver automatisk.</p>
+     <div class="ai-actions"><button type="button" class="minor" data-ai-mode="today">Dagens overblik</button><button type="button" class="minor" data-ai-mode="week">Prioritér ugen</button><button type="button" class="minor" data-ai-mode="ideas">Giv idéer</button></div>
+     <p id="aiAssistStatus" role="status" class="muted"></p><div id="aiAssistResult" class="ai-assist-result hidden"></div>
+   </section>
  </section>
  <section id="settingsPage" class="settings-page hidden" aria-label="Indstillinger">
    <div class="settings-heading"><div><p class="eyebrow">FAMILIEHUB</p><h1>Indstillinger</h1><p class="muted">Administrér opgavearkiv, familiemedlemmer og integrationer.</p></div><a class="minor" href="#kalender" id="backToCalendar">‹ Tilbage til kalender</a></div>
@@ -67,6 +73,22 @@
        <p id="accountSelfInfo" class="muted"></p>
        <button id="changeMyPasswordBtn" type="button" class="minor">Skift min adgangskode</button>
      </div>
+   </section>
+   <section class="settings-panel ai-settings-panel" id="aiSettingsPanel" aria-label="AI og påmindelser">
+     <h2>AI og påmindelser</h2>
+     <p class="muted">FamilieHub finder selv ikke-udførte opgaver. AI skriver en venlig påmindelse, hvis en udbyder er valgt; ellers bruges almindelig tekst. Kun opgavetitler, datoer og modtagerens navn sendes til AI.</p>
+     <div class="display-form">
+       <label class="field">AI-udbyder<select id="aiProvider"><option value="off">Ingen AI (almindelige påmindelser)</option><option value="openai">OpenAI / ChatGPT API</option><option value="anthropic">Claude (Anthropic API)</option><option value="compatible">OpenAI-kompatibel (Ollama mv.)</option></select></label>
+       <label class="field">Modelnavn<input id="aiModel" type="text" autocomplete="off" maxlength="100" placeholder="Fx gpt-4.1-mini eller egen model"></label>
+       <label class="field field-wide" id="aiBaseField">API-baseadresse (kun kompatibel)<input id="aiBaseURL" type="text" placeholder="https://server.example/v1 eller http://192.168.1.10:11434/v1" maxlength="300"></label>
+       <label class="field field-wide">API-nøgle – efterlad tomt for at beholde den gemte<input id="aiKey" type="password" autocomplete="new-password" placeholder="Indtast ny nøgle, hvis nødvendig" maxlength="4096"></label>
+       <label class="field ai-check"><input id="aiClearKey" type="checkbox"> Slet gemt API-nøgle</label>
+       <label class="field ai-check"><input id="aiReminders" type="checkbox"> Send påmindelser via Home Assistant</label>
+       <label class="field">Tidspunkt for daglige påmindelser<input id="aiReminderTime" type="time" value="18:00"></label>
+     </div>
+     <div class="ai-actions"><button class="primary" type="button" id="aiSaveBtn">Gem AI-indstillinger</button><button class="minor" type="button" id="aiTestBtn">Test AI-forbindelsen</button></div>
+     <p id="aiConfigStatus" role="status" class="muted"></p>
+     <p class="muted">Påmindelser kræver en fungerende HA notify-service hos personen. API-nøglen gemmes krypteret. ChatGPT- og Claude-abonnementer giver ikke automatisk API-adgang.</p>
    </section>
    <div class="settings-extra">
      <section class="settings-panel settings-extra-card" aria-label="Kalenderfarver">

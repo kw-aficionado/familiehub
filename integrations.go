@@ -315,6 +315,7 @@ func (a *App) checkRemindersAt(now time.Time) {
 		byID[p.ID] = p
 	}
 	a.taskReminders(now, byID)
+	a.aiReminders(now, byID)
 	for _, ev := range evs {
 		if ev.PickupBy == "" || ev.Kind != "legeaftale" {
 			continue

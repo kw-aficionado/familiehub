@@ -4,6 +4,52 @@ En selvhostet familietavle til iPad Air 2, nyere tablets og telefoner.
 
 **Status:** Kørbar MVP. Go + SQLite + indlejret HTML/CSS/JavaScript (ingen npm-afhængigheder). Designet med browserkompatibilitet til iPadOS 15. Docker-imaget bygges automatisk via GitHub Actions ved push til `main`. Runen kræver, at dette workflow er gennemført, og at GHCR-pakken er offentligt tilgængelig (eller Yggdrasil har registry-adgang).
 
+
+## AI-familieassistent (frivillig)
+
+FamilieHub har en **frivillig AI-integration**, som kan formulere venlige påmindelser om opgaver, der ikke er afkrydset. Opgavedatoer, gentagelser og afkrydsninger beregnes altid deterministisk af FamilieHub – **AI bestemmer aldrig, om en opgave er overskredet, og kan ikke selv ændre data**.
+
+### Udbydere og indstilling
+
+Åbn **Indstillinger → AI og påmindelser** som administrator. Vælg:
+
+| Udbyder | Hvad der skal indtastes |
+| --- | --- |
+| **Ingen AI** | Påmindelser skrives i fast tekst – uden API-kald. |
+| **OpenAI API** | API-modelnavn og API-nøgle fra OpenAI-platformen. |
+| **Claude / Anthropic API** | Modelnavn og API-nøgle fra Anthropic Console. |
+| **OpenAI-kompatibel API** | API-baseadresse (slut fx på `/v1`), modelnavn og eventuel nøgle. Kan bruges med Ollama eller andre kompatible servere. |
+
+Eksempel på lokal Ollama-baseadresse: `http://192.168.1.10:11434/v1` (skal være tilgængelig fra Yggdrasil-serveren, ikke kun fra iPad'en). Eksempel på HTTPS-udbyder: `https://example.net/v1`. Remote HTTP uden TLS afvises.
+
+En **ChatGPT Plus- eller Claude Pro-konto giver ikke automatisk adgang til de respektive API'er**: API-nøgler og eventuelt separat fakturering kræves.
+
+Nøglen gemmes med **AES-256-GCM-kryptering** i SQLite under `/data`, afledt af den eksisterende vedvarende `session.key`. GET-endpointet viser kun, om en nøgle er konfigureret, aldrig selve nøglen. Blank nøgle i formularen bevarer den gemte nøgle; vælg **Slet gemt API-nøgle** for at fjerne den. Ved tab af `session.key` kan en tidligere gemt API-nøgle ikke dekrypteres.
+
+### Automatiske påmindelser
+
+Påmindelser er **slået fra som standard**, indtil administratoren vælger **Send påmindelser via Home Assistant** og et tidspunkt (standard kl. **18.00**).
+
+- Opgaver gennemgås for de seneste syv dage og den aktuelle dag. Kun uafsluttede forekomster med en ansvarlig person kan sendes.
+- Daglige opgaver og **Hverdage** registreres hver for sig; hele-uge-opgaver betragtes først som overskredet efter ugens sidste dag.
+- Hver person får **højst én opsummeret påmindelse pr. dag**, med deduplikering i SQLite over genstarter.
+- Modtageren skal allerede have en gyldig Home Assistant `notify`-service konfigureret i **Familiemedlemmer**.
+- AI formulerer teksten i en positiv tone. Hvis AI ikke er tilgængelig, bruges altid den almindelige tekst. Er ingen udbyder valgt, virker påmindelser stadig.
+- FamilieHub sender **kun personens navn og opgavernes titler/datoer** til AI. Ingen kalenderaftaler, adgangskoder, API-nøgler eller hele familiedatabasen sendes med.
+- Der kan være omkostninger pr. API-anmodning; vær især opmærksom på dette, hvis I bruger en ekstern AI-udbyder.
+
+### Hjælp direkte på opgavesiden
+
+Under **Opgaver → AI-familieassistent** findes tre manuelle værktøjer:
+
+- **Dagens overblik:** Opsummér uafsluttede opgaver i en kort, overskuelig tekst.
+- **Prioritér ugen:** Forslag til rækkefølge og opdeling af ugens opgaver.
+- **Giv idéer:** Tre konkrete forslag til at få opgaverne klaret.
+
+Forslagene ændrer ikke opgaver, familiemedlemmer eller gentagelser. Kald er begrænset med en kort pause for at forebygge utilsigtede API-udgifter. Hverken lokal eller fjern AI kan afkrydse opgaver på brugerens vegne.
+
+**Drift:** Ingen Rune-opdatering er påkrævet; `ai_settings` oprettes ved SQLite-migrering, og eksisterende data bevares. API-nøgler bør aldrig indsættes i GitHub, skærmbilleder eller logfiler.
+
 ## Skærmbilleder
 
 > **Demo med fiktive data:** Billederne er browser-renderede UI-eksempler af FamilieHubs design, ikke optagelser fra en privat familieinstallation. Navne, aktiviteter og kalender-ID'er er opdigtede. Visningerne er illustrative og er ikke en automatisk ende-til-ende-test af appen.

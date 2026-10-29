@@ -186,7 +186,7 @@
       if(active)link.setAttribute('aria-current','page');else link.removeAttribute('aria-current');
     });
     if(page==='opgaver')loadTasksPage().catch(function(err){$('tasksPageList').replaceChildren(el('p',{'class':'error'},'Kunne ikke hente opgaver: '+err.message))});
-    if(page==='indstillinger'){refreshSettingsData().catch(function(err){$('settingsList').replaceChildren(el('p',{'class':'error'},'Kunne ikke hente arkivet: '+err.message))});loadCalendarOwners();renderAccountSettings()}
+    if(page==='indstillinger'){refreshSettingsData().catch(function(err){$('settingsList').replaceChildren(el('p',{'class':'error'},'Kunne ikke hente arkivet: '+err.message))});loadCalendarOwners();renderAccountSettings();loadAISettings()}
   }
   function taskWeekStart(){return dayString(startWeek(S.taskFocus))}
   async function loadTasksPage(){
@@ -518,6 +518,64 @@
   }
   $('accountsAddBtn').addEventListener('click',function(){openAccountEditor()});
   $('changeMyPasswordBtn').addEventListener('click',changeMyPassword);
+
+  function aiStatus(message){$('aiConfigStatus').textContent=message}
+  function aiShowBaseURL(){
+    $('aiBaseField').classList.toggle('hidden',$('aiProvider').value!=='compatible');
+  }
+  async function loadAISettings(){
+    if(!accountIsAdmin()){$('aiSettingsPanel').classList.add('hidden');return}
+    $('aiSettingsPanel').classList.remove('hidden');
+    try{
+      var cfg=await api('/api/ai/config');
+      $('aiProvider').value=cfg.provider||'off';
+      $('aiModel').value=cfg.model||'';
+      $('aiBaseURL').value=cfg.base_url||'';
+      $('aiKey').value='';
+      $('aiClearKey').checked=false;
+      $('aiReminders').checked=!!cfg.reminders_enabled;
+      $('aiReminderTime').value=cfg.reminder_time||'18:00';
+      aiShowBaseURL();
+      aiStatus(cfg.key_set?'API-nøgle er gemt krypteret på serveren.':'Ingen API-nøgle gemt. For lokal Ollama kan nøglefeltet være tomt.');
+    }catch(e){aiStatus('Kunne ikke hente AI-indstillinger: '+e.message)}
+  }
+  $('aiProvider').addEventListener('change',aiShowBaseURL);
+  $('aiSaveBtn').addEventListener('click',async function(){
+    var b=$('aiSaveBtn');b.disabled=true;aiStatus('Gemmer…');
+    try{
+      var payload={
+        provider:$('aiProvider').value,
+        model:$('aiModel').value.trim(),
+        base_url:$('aiProvider').value==='compatible'?$('aiBaseURL').value.trim():'',
+        api_key:$('aiKey').value,
+        clear_key:$('aiClearKey').checked,
+        reminders_enabled:$('aiReminders').checked,
+        reminder_time:$('aiReminderTime').value
+      };
+      var cfg=await api('/api/ai/config','PUT',payload);
+      $('aiKey').value='';$('aiClearKey').checked=false;
+      aiStatus('Gemt. '+(cfg.key_set?'API-nøgle er klar.':'Ingen API-nøgle gemt.')+' Påmindelser: '+(cfg.reminders_enabled?'til':'fra')+'.');
+    }catch(e){aiStatus('Kunne ikke gemme: '+e.message)}
+    b.disabled=false;
+  });
+  $('aiTestBtn').addEventListener('click',async function(){
+    var b=$('aiTestBtn');b.disabled=true;aiStatus('Tester forbindelsen til AI-udbyderen…');
+    try{var d=await api('/api/ai/test','POST',{});aiStatus('Forbindelsen virker: '+d.text)}
+    catch(e){aiStatus('Test fejlede: '+e.message)}
+    b.disabled=false;
+  });
+  document.querySelectorAll('[data-ai-mode]').forEach(function(b){
+    b.addEventListener('click',async function(){
+      var status=$('aiAssistStatus'),result=$('aiAssistResult');
+      status.textContent='AI arbejder på forslaget…';result.classList.add('hidden');b.disabled=true;
+      try{
+        var d=await api('/api/ai/assist','POST',{mode:b.getAttribute('data-ai-mode')});
+        result.textContent=d.text;result.classList.remove('hidden');
+        status.textContent='AI-forslag – kontrollér selv oplysningerne. Intet er oprettet eller ændret.';
+      }catch(e){status.textContent='Kunne ikke hente AI-forslag: '+e.message}
+      b.disabled=false;
+    });
+  });
   function loadBuild(){fetch('/api/version',{cache:'no-store',credentials:'same-origin'}).then(function(r){return r.json()}).then(function(v){var commit=(v.commit||'dev').substring(0,8);$('buildVersion').textContent=' · Build '+commit}).catch(function(){})}
   restoreDisplaySettings();
   loadBuild();
