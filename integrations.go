@@ -353,6 +353,11 @@ func (a *App) checkRemindersAt(now time.Time) {
 
 // 16:00 reminder, grouped per assigned person. Dedupe persists across restarts.
 func (a *App) taskReminders(now time.Time, people map[string]Person) {
+	// The opt-in AI/reminder digest replaces the earlier 16:00 notification,
+	// so the same unfinished tasks do not generate two alerts in one day.
+	if cfg, err := a.loadAIConfig(); err == nil && cfg.RemindersEnabled {
+		return
+	}
 	if now.Hour() != 16 || now.Minute() > 10 {
 		return
 	}
