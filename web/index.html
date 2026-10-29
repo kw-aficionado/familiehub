@@ -8,15 +8,15 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <title>FamilieHub</title>
 <link rel="icon" href="/icon.svg" type="image/svg+xml">
-<link rel="stylesheet" href="/style.css?v=night-board-1">
-<script src="/app.js?v=night-board-1" defer></script>
+<link rel="stylesheet" href="/style.css?v=family-accounts-1">
+<script src="/app.js?v=family-accounts-1" defer></script>
 </head>
 <body>
 <section id="login" class="login-screen hidden">
  <div class="login-card">
   <div class="logo">⌂</div>
   <h1>FamilieHub</h1><p>Familiens fælles overblik</p>
-  <form id="loginForm"><label for="password">Adgangskode</label><input id="password" type="password" autocomplete="current-password" required minlength="12"><button type="submit" class="primary wide">Log ind</button></form>
+  <form id="loginForm"><label for="username">Brugernavn</label><input id="username" type="text" autocomplete="username" autocapitalize="none" autocorrect="off" spellcheck="false" maxlength="32" placeholder="Fx anton (valgfri for administrator)"><label for="password">Adgangskode</label><input id="password" type="password" autocomplete="current-password" required minlength="12"><button type="submit" class="primary wide">Log ind</button></form><p class="login-hint">Administrator: Log ind med den eksisterende adgangskode og lad brugernavnet stå tomt.</p>
   <p id="loginError" class="error" aria-live="polite"></p>
  </div>
 </section>
@@ -56,6 +56,18 @@
      <label class="settings-search"><span class="sr-only">Søg i opgaver</span><input id="settingsSearch" type="search" autocomplete="off" placeholder="Søg efter en opgave…"></label>
      <div id="settingsList" class="settings-list" aria-live="polite"></div>
    </div>
+   <section class="settings-panel accounts-panel" aria-label="Brugerkonti">
+     <div class="settings-panel-head"><div><h2>Brugere og login</h2><p class="muted">Hvert familiemedlem kan logge ind fra sin egen telefon eller tablet.</p></div><button type="button" id="accountsAddBtn" class="primary">+ Opret bruger</button></div>
+     <div id="accountsAdmin">
+       <p class="muted">Administratorens login bruger fortsat APP_PASSWORD fra Yggdrasil. Opret en separat konto til hvert familiemedlem.</p>
+       <div id="accountsList" class="settings-list"></div>
+       <p id="accountsError" class="error" role="status"></p>
+     </div>
+     <div id="accountSelf" class="hidden">
+       <p id="accountSelfInfo" class="muted"></p>
+       <button id="changeMyPasswordBtn" type="button" class="minor">Skift min adgangskode</button>
+     </div>
+   </section>
    <div class="settings-extra">
      <section class="settings-panel settings-extra-card" aria-label="Kalenderfarver">
        <h2>Kalendere og farver</h2>

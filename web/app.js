@@ -1,7 +1,7 @@
 /* FamilieHub: zero-dependency, iPadOS 15-compatible frontend. */
 (function () {
   'use strict';
-  var S = {csrf:'', view:'week', focus:new Date(), filter:'', people:[], events:[], tasks:[], templates:[], allTasks:[], settingsOpen:false, settingsTab:'templates', settingsQuery:'', page:'kalender', taskPeriod:'week', taskFocus:new Date(), taskFilter:'', taskStatus:'open', weekEntries:[], todayEvents:[], todayDate:'', loading:0, socket:null};
+  var S = {csrf:'', account:null, accounts:[], view:'week', focus:new Date(), filter:'', people:[], events:[], tasks:[], templates:[], allTasks:[], settingsOpen:false, settingsTab:'templates', settingsQuery:'', page:'kalender', taskPeriod:'week', taskFocus:new Date(), taskFilter:'', taskStatus:'open', weekEntries:[], todayEvents:[], todayDate:'', loading:0, socket:null};
   var $ = function(id){return document.getElementById(id)};
   function el(tag,props,text){var x=document.createElement(tag);if(props)Object.keys(props).forEach(function(k){x.setAttribute(k,props[k])});if(text!==undefined)x.textContent=text;return x}
   function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})}
@@ -41,7 +41,7 @@
     if(!resp.ok)throw new Error(errorMessage(data));return data;
   }
   async function init(){
-    try{var d=await api('/api/session');if(d.authenticated){S.csrf=d.csrf;hide('login');show('app');await load();syncPage();listen();scheduleSaver()}else{show('login')}}catch(e){show('login');$('loginError').textContent=e.message}
+    try{var d=await api('/api/session');if(d.authenticated){S.csrf=d.csrf;S.account=d.account||{role:'admin',username:'Administrator'};hide('login');show('app');await load();syncPage();listen();scheduleSaver()}else{show('login')}}catch(e){show('login');$('loginError').textContent=e.message}
   }
   function range(){var start=S.view==='week'?startWeek(S.focus):localMidnight(S.focus),end=addDays(start,S.view==='week'?7:1);return {start:start,end:end}}
   async function load(){
@@ -186,7 +186,7 @@
       if(active)link.setAttribute('aria-current','page');else link.removeAttribute('aria-current');
     });
     if(page==='opgaver')loadTasksPage().catch(function(err){$('tasksPageList').replaceChildren(el('p',{'class':'error'},'Kunne ikke hente opgaver: '+err.message))});
-    if(page==='indstillinger'){refreshSettingsData().catch(function(err){$('settingsList').replaceChildren(el('p',{'class':'error'},'Kunne ikke hente arkivet: '+err.message))});loadCalendarOwners()}
+    if(page==='indstillinger'){refreshSettingsData().catch(function(err){$('settingsList').replaceChildren(el('p',{'class':'error'},'Kunne ikke hente arkivet: '+err.message))});loadCalendarOwners();renderAccountSettings()}
   }
   function taskWeekStart(){return dayString(startWeek(S.taskFocus))}
   async function loadTasksPage(){
@@ -303,8 +303,8 @@
    if(editing){$('deleteBtn').addEventListener('click',function(){if(confirm('Slet '+p.name+'? Opgaver og aftaler beholder deres historik.'))saveOrError(function(){return api('/api/people/'+p.id,'DELETE')})});if(p.notify_service)$('testBtn').addEventListener('click',async function(){try{await api('/api/notifications/test','POST',{person_id:p.id});$('formError').textContent='Testnotifikation sendt.'}catch(e){$('formError').textContent=e.message}})}
   }
   async function settings(){var status;try{status=await api('/api/integrations')}catch(e){alert(e.message);return}var calendarText=!status.calendar_entities.length?'Ingen kalendere valgt':status.calendar_ok?'Kalenderadgang OK':status.calendar_error||'Ingen kalendertest';openModal('Integrationer','<div class="integration-list"><p><strong>Home Assistant API:</strong> '+(status.ha_online?'Forbundet':status.ha_configured?'Kan ikke forbindes':'Ikke konfigureret')+'</p>'+(status.ha_error?'<p class="error">'+esc(status.ha_error)+'</p>':'')+'<p><strong>HA-kalendere:</strong> '+esc(status.calendar_entities.join(', ')||'Ingen')+'</p><p><strong>Kalendertest:</strong> '+esc(calendarText)+'</p><p class="muted">Konfigurér HA_URL, HA_TOKEN og HA_CALENDARS under Yggdrasil → FamilieHub → Settings. Genstart FamilieHub for at indlæse ændringer. Kalender-entity-id starter med calendar. Ingen tokens vises her.</p></div>')}
-  $('loginForm').addEventListener('submit',async function(ev){ev.preventDefault();$('loginError').textContent='';try{var d=await api('/api/login','POST',{password:$('password').value});S.csrf=d.csrf;$('password').value='';hide('login');show('app');await load();syncPage();listen();scheduleSaver()}catch(e){$('loginError').textContent=e.message}});
-  $('logoutBtn').addEventListener('click',async function(){try{await api('/api/logout','POST',{})}catch(e){}if(S.socket)S.socket.close();S.csrf='';hideSaver();scheduleSaver();hide('app');show('login')});
+  $('loginForm').addEventListener('submit',async function(ev){ev.preventDefault();$('loginError').textContent='';try{var d=await api('/api/login','POST',{username:$('username').value.trim(),password:$('password').value});S.csrf=d.csrf;S.account=d.account||{role:'admin',username:'Administrator'};$('password').value='';hide('login');show('app');await load();syncPage();listen();scheduleSaver()}catch(e){$('loginError').textContent=e.message}});
+  $('logoutBtn').addEventListener('click',async function(){try{await api('/api/logout','POST',{})}catch(e){}if(S.socket)S.socket.close();S.csrf='';S.account=null;hideSaver();scheduleSaver();hide('app');show('login')});
   $('dayBtn').addEventListener('click',function(){setView('day')});$('weekBtn').addEventListener('click',function(){setView('week')});
   $('prevBtn').addEventListener('click',function(){navigate(-1)});$('nextBtn').addEventListener('click',function(){navigate(1)});$('todayBtn').addEventListener('click',function(){S.focus=new Date();load()});
   $('addEventBtn').addEventListener('click',function(){openEvent()});$('addTaskBtn').addEventListener('click',function(){openTask()});$('settingsPeopleBtn').addEventListener('click',openPeople);$('settingsHABtn').addEventListener('click',settings);$('settingsBtn').addEventListener('click',settings);
@@ -422,6 +422,102 @@
   document.addEventListener('pointerdown',activity,{passive:true});
   document.addEventListener('wheel',activity,{passive:true});
   setInterval(function(){applyTheme();if(saverVisible)updateSaver()},60000);
+
+  function accountIsAdmin(){return !!S.account&&S.account.role==='admin'}
+  function renderAccountSettings(){
+    $('accountsAddBtn').classList.toggle('hidden',!accountIsAdmin());
+    $('accountsAdmin').classList.toggle('hidden',!accountIsAdmin());
+    $('accountSelf').classList.toggle('hidden',accountIsAdmin());
+    if(accountIsAdmin()){loadAccounts()}else{
+      $('accountSelfInfo').textContent='Du er logget ind som '+(S.account?S.account.username:'medlem')+'. Du kan selv ændre din adgangskode.';
+    }
+  }
+  async function loadAccounts(){
+    if(!accountIsAdmin())return;
+    var root=$('accountsList');root.replaceChildren();
+    try{
+      S.accounts=await api('/api/accounts');
+      $('accountsError').textContent='';
+      if(!S.accounts.length){root.appendChild(el('p',{'class':'empty-state'},'Ingen personlige brugerkonti endnu. Klik + Opret bruger.'));return}
+      S.accounts.forEach(function(account){
+        var row=el('div',{'class':'settings-item'});
+        var color=el('i',{'class':'dot'});color.style.background=colorOf(account.person_id);
+        row.appendChild(color);
+        var info=el('div',{'class':'settings-item-info'});
+        info.appendChild(el('strong',null,account.username));
+        info.appendChild(el('small',null,(account.person_id?nameOf(account.person_id):'Intet familiemedlem tilknyttet')+' · '+(account.enabled?'Aktiv':'Deaktiveret')));
+        row.appendChild(info);
+        var actions=el('div',{'class':'settings-item-actions'});
+        var edit=el('button',{'class':'text-button','type':'button'},'Redigér');
+        edit.addEventListener('click',function(){openAccountEditor(account)});
+        actions.appendChild(edit);
+        var reset=el('button',{'class':'text-button','type':'button'},'Nulstil kode');
+        reset.addEventListener('click',function(){resetAccountPassword(account)});
+        actions.appendChild(reset);
+        var del=el('button',{'class':'text-button settings-delete','type':'button'},'Slet');
+        del.addEventListener('click',async function(){
+          if(!confirm('Slet brugeren '+account.username+'? Familiemedlemmets opgaver og aftaler bliver ikke slettet.'))return;
+          try{await api('/api/accounts/'+account.id,'DELETE');await loadAccounts()}catch(err){$('accountsError').textContent=err.message}
+        });actions.appendChild(del);
+        row.appendChild(actions);root.appendChild(row);
+      });
+    }catch(e){root.appendChild(el('p',{'class':'error'},'Kunne ikke hente brugere: '+e.message))}
+  }
+  function openAccountEditor(account){
+    if(!accountIsAdmin())return;
+    var editing=!!account;
+    var html='<form id="entryForm" class="form-grid">'+
+      field('Brugernavn','<input name="username" maxlength="32" minlength="3" autocapitalize="none" autocomplete="off" spellcheck="false" required pattern="[A-Za-z][A-Za-z0-9._-]{2,31}" value="'+esc(account?account.username:'')+'" placeholder="fx anton">')+
+      field('Familiemedlem','<select name="person_id">'+personOptions(account?account.person_id:'','Vælg familiemedlem (valgfrit)')+'</select>')+
+      (!editing?field('Midlertidig adgangskode','<input type="password" name="password" required minlength="12" maxlength="128" autocomplete="new-password">'):'')+
+      '<label class="field field-wide account-enabled"><span>Adgang til FamilieHub</span><span><input name="enabled" type="checkbox" '+(!account||account.enabled?'checked':'')+'> Konto aktiv</span></label>'+
+      '<p class="muted field-wide">Brugeren kan logge ind fra andre enheder med sit brugernavn og adgangskode. Send adgangskoden privat.</p>'+
+      '<div class="form-actions"><button type="submit" class="primary">'+(editing?'Gem bruger':'Opret bruger')+'</button></div></form>';
+    openModal(editing?'Redigér bruger':'Opret bruger',html);
+    $('entryForm').addEventListener('submit',function(ev){
+      ev.preventDefault();
+      var f=ev.currentTarget.elements;
+      var data={username:f.username.value.trim().toLowerCase(),person_id:f.person_id.value,enabled:f.enabled.checked,password:editing?'':f.password.value};
+      saveOrError(async function(){
+        await api(editing?'/api/accounts/'+account.id:'/api/accounts',editing?'PUT':'POST',data);
+        await loadAccounts();
+      });
+    });
+  }
+  function resetAccountPassword(account){
+    if(!accountIsAdmin())return;
+    openModal('Nulstil adgangskode for '+account.username,
+      '<form id="entryForm" class="form-grid">'+field('Ny adgangskode','<input type="password" name="password" required minlength="12" maxlength="128" autocomplete="new-password">')+
+      '<p class="muted field-wide">Alle tidligere login-sessioner for '+esc(account.username)+' bliver logget af.</p>'+
+      '<div class="form-actions"><button type="submit" class="primary">Gem ny adgangskode</button></div></form>');
+    $('entryForm').addEventListener('submit',function(ev){
+      ev.preventDefault();
+      var pass=ev.currentTarget.elements.password.value;
+      saveOrError(function(){return api('/api/accounts/'+account.id+'/password','POST',{password:pass})});
+    });
+  }
+  function changeMyPassword(){
+    if(accountIsAdmin()){alert('Administratorens adgangskode ændres i Yggdrasil under APP_PASSWORD.');return}
+    openModal('Skift min adgangskode',
+      '<form id="entryForm" class="form-grid">'+
+      field('Nuværende adgangskode','<input type="password" name="old_password" required autocomplete="current-password">')+
+      field('Ny adgangskode','<input type="password" name="new_password" required minlength="12" maxlength="128" autocomplete="new-password">')+
+      '<p class="muted field-wide">Når du gemmer, logges du af på alle enheder. Log derefter ind med din nye adgangskode.</p>'+
+      '<div class="form-actions"><button type="submit" class="primary">Skift adgangskode</button></div></form>');
+    $('entryForm').addEventListener('submit',async function(ev){
+      ev.preventDefault();
+      var f=ev.currentTarget.elements;
+      try{
+        await api('/api/account/password','POST',{old_password:f.old_password.value,new_password:f.new_password.value});
+        closeModal();
+        if(S.socket)S.socket.close();S.socket=null;
+        S.csrf='';S.account=null;hideSaver();scheduleSaver();hide('app');show('login');
+        $('password').value='';$('loginError').textContent='Adgangskoden er ændret. Log ind igen.';
+      }catch(e){$('formError').textContent=e.message}
+    });
+  }
+  $('accountsAddBtn').addEventListener('click',function(){openAccountEditor()});
+  $('changeMyPasswordBtn').addEventListener('click',changeMyPassword);
   function loadBuild(){fetch('/api/version',{cache:'no-store',credentials:'same-origin'}).then(function(r){return r.json()}).then(function(v){var commit=(v.commit||'dev').substring(0,8);$('buildVersion').textContent=' · Build '+commit}).catch(function(){})}
   restoreDisplaySettings();
   loadBuild();

@@ -215,3 +215,17 @@ Header og kalendernavigation har mindre lodret padding. Kalenderkortene bruger i
 - Indbygget mørk **pauseskærm** ved inaktivitet, standard 10 minutter; valgfrit 5/20/30 minutter eller slået fra. Et tryk viser appen igen. Browserens pauseskærm hindrer ikke iPadOS i at låse skærmen, hvis iPadOS automatisk låsning er slået til; den ændrer ikke fysisk skærmlysstyrke.
 - Nye endpoints: `GET /api/calendar-owners`, `PUT /api/calendar-owners`, begge kræver en gyldig FamilieHub-session; PUT kræver CSRF-token.
 - Eksisterende Rune og Docker-tag `0.1.1` er uændret. Flere HA-kalendere kræver blot, at deres entity-ID er medtaget i `HA_CALENDARS`.
+
+## Flere brugerlogins på familiens egne enheder
+
+Fra opdateringen med `accounts.go` kan hvert familiemedlem bruge et separat brugernavn og en individuel adgangskode på egen telefon eller tablet.
+
+1. Log ind som administrator med den oprindelige adgangskode i `APP_PASSWORD` (brugernavnet kan være tomt eller `admin`).
+2. Gå til **Indstillinger → Brugere og login → + Opret bruger**.
+3. Indtast et brugernavn (fx `anton`), vælg eventuelt tilknyttet familiemedlem, og tildel en individuel kode på 12–128 tegn. Giv koden til vedkommende via en privat kanal.
+4. Brugeren besøger den samme HTTPS-adresse på egen enhed, indtaster sit brugernavn og sin kode og får en separat session.
+5. Brugere kan selv ændre kode under **Indstillinger → Skift min adgangskode**. Administratoren kan redigere, deaktivere, slette og nulstille loginoplysninger. Nulstilling/deaktivering annullerer tidligere sessioner.
+
+**Rettigheder:** Administratoradgang til brugerkonti kræver `APP_PASSWORD`. Medlemskonti kan bruge familiekalenderen og opgaverne, men kan ikke oprette, slette eller nulstille loginoplysninger for andre brugere. Familiemedlemsprofiler og login-konti er separate; sletning af en login-konto sletter ikke opgaver eller kalenderaftaler. Delte aktiviteter er synlige for alle indloggede brugere; systemet er endnu ikke en privat kalender per bruger.
+
+**Sikkerhed:** Individuelle adgangskoder gemmes som saltede PBKDF2-HMAC-SHA256-hashes (600.000 iterationer) i SQLite under `/data`; læsbare adgangskoder gemmes ikke. HTTPS anbefales til alle enheder. Den eksisterende `APP_PASSWORD` fortsætter som administratornøgle, så den bør kun være kendt af administratoren. Der kræves ingen ny Rune; SQLite-migreringen er additiv og bevarer eksisterende sessioner.

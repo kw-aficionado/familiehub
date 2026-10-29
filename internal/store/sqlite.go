@@ -118,11 +118,23 @@ func (d *DB) Init() error {
 		`CREATE TABLE IF NOT EXISTS calendar_owners(entity_id TEXT PRIMARY KEY,person_id TEXT NOT NULL DEFAULT '')`,
 		`CREATE TABLE IF NOT EXISTS completions(task_id TEXT NOT NULL,day TEXT NOT NULL,PRIMARY KEY(task_id,day),FOREIGN KEY(task_id) REFERENCES tasks(id) ON DELETE CASCADE)`,
 		`CREATE TABLE IF NOT EXISTS sessions(id TEXT PRIMARY KEY,expires_at TEXT NOT NULL)`,
+		`CREATE TABLE IF NOT EXISTS accounts(id TEXT PRIMARY KEY,username TEXT NOT NULL UNIQUE COLLATE NOCASE,password_hash TEXT NOT NULL,person_id TEXT NOT NULL DEFAULT '',enabled TEXT NOT NULL DEFAULT '1')`,
 		`CREATE TABLE IF NOT EXISTS reminders(reminder_key TEXT PRIMARY KEY,sent_at TEXT NOT NULL)`,
 	}
 	for _, s := range statements {
 		if err := d.Exec(s); err != nil {
 			return fmt.Errorf("migration: %w", err)
+		}
+	}
+	// Existing deployments already have sessions: add account linkage without
+	// replacing the database or ending legacy administrator sessions.
+	cols, err := d.Query("PRAGMA table_info(sessions)")
+	if err != nil { return fmt.Errorf("migration sessions columns: %w", err) }
+	hasAccountID := false
+	for _, col := range cols { if col["name"] == "account_id" { hasAccountID = true; break } }
+	if !hasAccountID {
+		if err := d.Exec("ALTER TABLE sessions ADD COLUMN account_id TEXT NOT NULL DEFAULT ''"); err != nil {
+			return fmt.Errorf("migration sessions account_id: %w", err)
 		}
 	}
 	return nil

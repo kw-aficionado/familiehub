@@ -176,6 +176,13 @@ func (a *App) routes() {
 	a.mux.HandleFunc("POST /api/login", a.login)
 	a.mux.HandleFunc("GET /api/session", a.session)
 	a.mux.HandleFunc("POST /api/logout", a.withAuth(a.logout))
+	a.mux.HandleFunc("GET /api/account/me", a.withAuth(a.accountMe))
+	a.mux.HandleFunc("POST /api/account/password", a.withAuth(a.accountChangePassword))
+	a.mux.HandleFunc("GET /api/accounts", a.withAdmin(a.accountsList))
+	a.mux.HandleFunc("POST /api/accounts", a.withAdmin(a.accountSave))
+	a.mux.HandleFunc("PUT /api/accounts/{id}", a.withAdmin(a.accountSave))
+	a.mux.HandleFunc("POST /api/accounts/{id}/password", a.withAdmin(a.accountResetPassword))
+	a.mux.HandleFunc("DELETE /api/accounts/{id}", a.withAdmin(a.accountDelete))
 	a.mux.HandleFunc("GET /api/state", a.withAuth(a.state))
 	a.mux.HandleFunc("GET /api/calendar-owners", a.withAuth(a.calendarOwnersGet))
 	a.mux.HandleFunc("PUT /api/calendar-owners", a.withAuth(a.calendarOwnersPut))
@@ -271,12 +278,13 @@ func (a *App) cookie(w http.ResponseWriter, value string, expire time.Time) {
 	http.SetCookie(w, &http.Cookie{Name: "fh_session", Value: value, Path: "/", HttpOnly: true, Secure: strings.HasPrefix(a.cfg.AppURL, "https://"), SameSite: http.SameSiteLaxMode, Expires: expire, MaxAge: int(time.Until(expire).Seconds())})
 }
 func (a *App) session(w http.ResponseWriter, r *http.Request) {
-	id := a.sessionID(r)
-	if id == "" {
+	user, ok := a.accountIdentity(r)
+	if !ok {
 		writeJSON(w, 200, map[string]any{"authenticated": false})
 		return
 	}
-	writeJSON(w, 200, map[string]any{"authenticated": true, "csrf": mac(a.key, "csrf:"+id)})
+	id := a.sessionID(r)
+	writeJSON(w, 200, map[string]any{"authenticated": true, "csrf": mac(a.key, "csrf:"+id), "account": identityResponse(user)})
 }
 func remoteIP(r *http.Request) string {
 	p := r.RemoteAddr
@@ -287,6 +295,7 @@ func remoteIP(r *http.Request) string {
 }
 func (a *App) login(w http.ResponseWriter, r *http.Request) {
 	var body struct {
+		Username string `json:"username"`
 		Password string `json:"password"`
 	}
 	if !readJSON(w, r, &body) {
@@ -308,10 +317,22 @@ func (a *App) login(w http.ResponseWriter, r *http.Request) {
 		apiError(w, 429, "For mange loginforsøg. Prøv igen senere.")
 		return
 	}
-	aHash := sha(a.cfg.Password)
-	bHash := sha(body.Password)
-	if !hmac.Equal([]byte(aHash), []byte(bHash)) {
-		apiError(w, 401, "Forkert adgangskode")
+	username := strings.ToLower(strings.TrimSpace(body.Username))
+	accountID := ""
+	var valid bool
+	if username == "" || username == "admin" {
+		// Backward compatible administrator account: same APP_PASSWORD in Rune.
+		aHash := sha(a.cfg.Password)
+		valid = hmac.Equal([]byte(aHash), []byte(sha(body.Password)))
+	} else if accountUsernamePattern.MatchString(username) {
+		rows, err := a.db.Query("SELECT id,password_hash,enabled FROM accounts WHERE username=? COLLATE NOCASE", username)
+		if err == nil && len(rows)>0 && rows[0]["enabled"] == "1" {
+			valid = checkAccountPassword(body.Password, rows[0]["password_hash"])
+			if valid {accountID=rows[0]["id"]}
+		}
+	}
+	if !valid {
+		apiError(w, 401, "Forkert brugernavn eller adgangskode")
 		return
 	}
 	b := make([]byte, 24)
@@ -321,12 +342,18 @@ func (a *App) login(w http.ResponseWriter, r *http.Request) {
 	}
 	id := hex.EncodeToString(b)
 	expire := now.Add(30 * 24 * time.Hour).UTC()
-	if e := a.db.Exec("INSERT INTO sessions(id,expires_at) VALUES(?,?)", sha(id), expire.Format(time.RFC3339)); e != nil {
+	if e := a.db.Exec("INSERT INTO sessions(id,expires_at,account_id) VALUES(?,?,?)", sha(id), expire.Format(time.RFC3339), accountID); e != nil {
 		apiError(w, 500, "Session kunne ikke gemmes")
 		return
 	}
 	a.cookie(w, id+"."+mac(a.key, id), expire)
-	writeJSON(w, 200, map[string]any{"authenticated": true, "csrf": mac(a.key, "csrf:"+id)})
+	user := identity{Username:"Administrator",Admin:true}
+	if accountID!="" {
+		rows, err := a.db.Query("SELECT username,person_id FROM accounts WHERE id=?",accountID)
+		if err!=nil || len(rows)==0 {apiError(w,500,"Brugeren blev ikke fundet");return}
+		user=identity{AccountID:accountID,Username:rows[0]["username"],PersonID:rows[0]["person_id"]}
+	}
+	writeJSON(w, 200, map[string]any{"authenticated": true, "csrf": mac(a.key, "csrf:"+id), "account":identityResponse(user)})
 }
 func (a *App) logout(w http.ResponseWriter, r *http.Request) {
 	if c, e := r.Cookie("fh_session"); e == nil {
@@ -340,11 +367,12 @@ func (a *App) logout(w http.ResponseWriter, r *http.Request) {
 }
 func (a *App) withAuth(h http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		id := a.sessionID(r)
-		if id == "" {
+		_, ok := a.accountIdentity(r)
+		if !ok {
 			apiError(w, 401, "Log ind for at fortsætte")
 			return
 		}
+		id := a.sessionID(r)
 		if r.Method != "GET" && r.Method != "HEAD" {
 			provided := r.Header.Get("X-CSRF-Token")
 			expected := mac(a.key, "csrf:"+id)
