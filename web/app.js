@@ -186,7 +186,7 @@
       if(active)link.setAttribute('aria-current','page');else link.removeAttribute('aria-current');
     });
     if(page==='opgaver')loadTasksPage().catch(function(err){$('tasksPageList').replaceChildren(el('p',{'class':'error'},'Kunne ikke hente opgaver: '+err.message))});
-    if(page==='indstillinger'){refreshSettingsData().catch(function(err){$('settingsList').replaceChildren(el('p',{'class':'error'},'Kunne ikke hente arkivet: '+err.message))});loadCalendarOwners();renderAccountSettings();loadAISettings()}
+    if(page==='indstillinger'){refreshSettingsData().catch(function(err){$('settingsList').replaceChildren(el('p',{'class':'error'},'Kunne ikke hente arkivet: '+err.message))});loadCalendarOwners();renderAccountSettings();loadAISettings();loadDirectCalendars();loadEmailSettings()}
   }
   function taskWeekStart(){return dayString(startWeek(S.taskFocus))}
   async function loadTasksPage(){
@@ -575,6 +575,124 @@
       }catch(e){status.textContent='Kunne ikke hente AI-forslag: '+e.message}
       b.disabled=false;
     });
+  });
+
+  async function loadDirectCalendars(){
+    var root=$('directCalendarList');root.replaceChildren();
+    if(!accountIsAdmin()){$('directCalendarPanel').classList.add('hidden');return}
+    $('directCalendarPanel').classList.remove('hidden');
+    try{
+      var sources=await api('/api/direct-calendars');
+      $('directCalendarStatus').textContent=sources.length?sources.length+' kalenderforbindelser':'Ingen direkte kalendere endnu.';
+      sources.forEach(function(source){
+        var row=el('div',{'class':'settings-item direct-calendar-item'});
+        var owner=el('i',{'class':'dot'});owner.style.background=colorOf(source.person_id);row.appendChild(owner);
+        var info=el('div',{'class':'settings-item-info'});
+        info.appendChild(el('strong',null,source.name));
+        var provider={google:'Google Kalender',microsoft:'Microsoft 365 / Outlook',icloud:'iCloud CalDAV',ics:'ICS-abonnement'}[source.provider]||source.provider;
+        info.appendChild(el('small',null,provider+' · '+(source.person_id?nameOf(source.person_id):'Fælles')+' · '+(source.connected?'Forbundet':'Afventer forbindelse')));
+        row.appendChild(info);
+        var buttons=el('div',{'class':'settings-item-actions'});
+        if(source.provider==='google'||source.provider==='microsoft'){
+          var connect=el('button',{'type':'button','class':'minor'},source.connected?'Forbind igen':'Forbind konto');
+          connect.addEventListener('click',async function(){
+            connect.disabled=true;
+            try{
+              var auth=await api('/api/direct-calendars/'+source.id+'/authorize','POST',{});
+              window.location.assign(auth.authorization_url);
+            }catch(e){$('directCalendarStatus').textContent='OAuth-fejl: '+e.message;connect.disabled=false}
+          });
+          buttons.appendChild(connect);
+        }
+        var del=el('button',{'class':'text-button settings-delete','type':'button'},'Fjern');
+        del.addEventListener('click',async function(){
+          if(!confirm('Fjern kalenderen "'+source.name+'"? Dine opgaver og lokale aftaler bliver ikke slettet.'))return;
+          try{await api('/api/direct-calendars/'+source.id,'DELETE');await loadDirectCalendars();await load()}
+          catch(e){$('directCalendarStatus').textContent=e.message}
+        });
+        buttons.appendChild(del);row.appendChild(buttons);root.appendChild(row);
+      });
+    }catch(e){$('directCalendarStatus').textContent='Kunne ikke hente kalenderforbindelser: '+e.message}
+  }
+  function openDirectCalendar(){
+    if(!accountIsAdmin())return;
+    var html='<form id="entryForm" class="form-grid">'+
+      field('Udbyder','<select name="provider" id="dcProvider"><option value="google">Google Kalender</option><option value="microsoft">Microsoft 365 / Outlook</option><option value="icloud">iCloud CalDAV</option><option value="ics">ICS (skrivebeskyttet)</option></select>')+
+      field('Visningsnavn','<input name="name" maxlength="80" required placeholder="Fx Antons kalender">')+
+      field('Standardperson / farve','<select name="person_id">'+personOptions('','Fælles / neutral')+'</select>')+
+      '<div id="dcURLField" class="field field-wide hidden"><label>Kalenderadresse (HTTPS)</label><input name="url" type="url" placeholder="https://.../calendar.ics eller /caldav/"></div>'+
+      '<div id="dcUsernameField" class="field hidden"><label>Apple ID / brugernavn</label><input name="username" autocomplete="off"></div>'+
+      '<div id="dcClientField" class="field hidden"><label>OAuth Client ID</label><input name="client_id" autocomplete="off" maxlength="300"></div>'+
+      '<div class="field" id="dcSecretField"><label id="dcSecretLabel">OAuth Client Secret</label><input name="secret" type="password" autocomplete="new-password" maxlength="4096"></div>'+
+      '<p id="dcHelp" class="muted field-wide"></p>'+
+      '<div class="form-actions"><button type="submit" class="primary">Opret forbindelse</button></div></form>';
+    openModal('Forbind kalender',html);
+    var f=$('entryForm').elements;
+    function update(){
+      var p=f.provider.value,oauth=p==='google'||p==='microsoft';
+      $('dcURLField').classList.toggle('hidden',oauth);
+      $('dcUsernameField').classList.toggle('hidden',p!=='icloud');
+      $('dcClientField').classList.toggle('hidden',!oauth);
+      $('dcSecretField').classList.toggle('hidden',p==='ics');
+      $('dcSecretLabel').textContent=p==='icloud'?'App-specifik adgangskode':'OAuth Client Secret';
+      $('dcHelp').textContent=oauth?'Opret en webapp i udbyderens udviklerportal. Registrér redirect URL: '+window.location.origin+'/api/direct-calendars/oauth/callback. Klik derefter Forbind konto på den oprettede forbindelse.':p==='icloud'?'Indtast den præcise CalDAV-kalenders HTTPS-adresse og en app-specifik adgangskode fra Apple. Ingen Apple ID-adgangskode her.':'Indsæt en privat eller offentlig HTTPS .ics-adresse. Dette er skrivebeskyttet.';
+      f.url.required=!oauth;f.client_id.required=oauth;f.secret.required=p!=='ics';f.username.required=p==='icloud';
+    }
+    f.provider.addEventListener('change',update);update();
+    $('entryForm').addEventListener('submit',async function(e){
+      e.preventDefault();
+      try{
+        var d={provider:f.provider.value,name:f.name.value,person_id:f.person_id.value,url:f.url.value,username:f.username.value,client_id:f.client_id.value,secret:f.secret.value};
+        await api('/api/direct-calendars','POST',d);
+        closeModal();await loadDirectCalendars();await load();
+      }catch(error){$('formError').textContent=error.message}
+    });
+  }
+  $('directCalendarAddBtn').addEventListener('click',openDirectCalendar);
+
+  async function loadEmailSettings(){
+    if(!accountIsAdmin()){$('emailSettingsPanel').classList.add('hidden');return}
+    $('emailSettingsPanel').classList.remove('hidden');
+    try{
+      var cfg=await api('/api/email/config');
+      $('smtpHost').value=cfg.host||'';
+      $('smtpPort').value=cfg.port||587;
+      $('smtpUsername').value=cfg.username||'';
+      $('smtpFrom').value=cfg.from||'';
+      $('smtpPassword').value='';$('smtpClearPassword').checked=false;
+      $('smtpStatus').textContent=cfg.secret_set?'SMTP-adgangskode er gemt krypteret.':'Ingen SMTP-adgangskode gemt.';
+      var root=$('smtpRecipients');root.replaceChildren();
+      S.people.forEach(function(p){
+        var row=el('div',{'class':'settings-item'});
+        var title=el('strong',null,p.name);row.appendChild(title);
+        var field=el('input',{'type':'email','placeholder':'Modtageradresse','aria-label':'E-mail til '+p.name});
+        var saved=(cfg.recipients||[]).find(function(x){return x.person_id===p.id});
+        field.value=saved?saved.email:'';
+        row.appendChild(field);
+        var button=el('button',{'type':'button','class':'minor'},'Gem adresse');
+        button.addEventListener('click',async function(){
+          button.disabled=true;
+          try{
+            await api('/api/email/recipient','PUT',{person_id:p.id,email:field.value.trim()});
+            $('smtpStatus').textContent='Modtager for '+p.name+' er gemt.';
+          }catch(e){$('smtpStatus').textContent=e.message}
+          button.disabled=false;
+        });row.appendChild(button);root.appendChild(row);
+      });
+    }catch(e){$('smtpStatus').textContent='Kunne ikke hente SMTP: '+e.message}
+  }
+  $('smtpSaveBtn').addEventListener('click',async function(){
+    var button=$('smtpSaveBtn');button.disabled=true;
+    try{
+      var cfg=await api('/api/email/config','PUT',{
+        host:$('smtpHost').value.trim(),port:Number($('smtpPort').value),username:$('smtpUsername').value.trim(),
+        from:$('smtpFrom').value.trim(),password:$('smtpPassword').value,
+        clear_password:$('smtpClearPassword').checked
+      });
+      $('smtpPassword').value='';$('smtpClearPassword').checked=false;
+      $('smtpStatus').textContent='SMTP-konfigurationen er gemt.'+(cfg.secret_set?' Adgangskoden er beskyttet.':'');
+    }catch(e){$('smtpStatus').textContent='Kunne ikke gemme SMTP: '+e.message}
+    button.disabled=false;
   });
   function loadBuild(){fetch('/api/version',{cache:'no-store',credentials:'same-origin'}).then(function(r){return r.json()}).then(function(v){var commit=(v.commit||'dev').substring(0,8);$('buildVersion').textContent=' · Build '+commit}).catch(function(){})}
   restoreDisplaySettings();

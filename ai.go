@@ -224,7 +224,7 @@ func (a *App) aiReminders(now time.Time,people map[string]Person){
  byPerson:=map[string][]aiPending{}
  for _,item:=range items {byPerson[item.PersonID]=append(byPerson[item.PersonID],item)}
  for personID,list:=range byPerson {
-  p,ok:=people[personID];if !ok||p.NotifyService==""{continue}
+  p,ok:=people[personID];if !ok{continue}
   day:=now.Format("2006-01-02")
   dedupe:="ai-overdue:"+personID+":"+day
   prior,e:=a.db.Query("SELECT reminder_key FROM reminders WHERE reminder_key=?",dedupe)
@@ -237,7 +237,7 @@ func (a *App) aiReminders(now time.Time,people map[string]Person){
    if e==nil{msg=result}
   }
   ctx,cancel:=context.WithTimeout(context.Background(),7*time.Second)
-  e=a.notify(ctx,p.NotifyService,"FamilieHub · Åbne opgaver",msg)
+  e=a.sendTaskNotification(ctx,p,"FamilieHub · Åbne opgaver",msg)
   cancel()
   if e==nil{_ = a.db.Exec("INSERT OR IGNORE INTO reminders(reminder_key,sent_at) VALUES(?,?)",dedupe,now.Format(time.RFC3339))}
  }

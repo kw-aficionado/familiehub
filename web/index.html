@@ -8,8 +8,8 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <title>FamilieHub</title>
 <link rel="icon" href="/icon.svg" type="image/svg+xml">
-<link rel="stylesheet" href="/style.css?v=ai-family-1">
-<script src="/app.js?v=ai-family-1" defer></script>
+<link rel="stylesheet" href="/style.css?v=direct-calendar-email-1">
+<script src="/app.js?v=direct-calendar-email-1" defer></script>
 </head>
 <body>
 <section id="login" class="login-screen hidden">
@@ -73,6 +73,28 @@
        <p id="accountSelfInfo" class="muted"></p>
        <button id="changeMyPasswordBtn" type="button" class="minor">Skift min adgangskode</button>
      </div>
+   </section>
+   <section class="settings-panel direct-calendar-panel" id="directCalendarPanel" aria-label="Kalenderforbindelser uden Home Assistant">
+     <div class="settings-panel-head"><div><h2>Direkte kalenderforbindelser</h2><p class="muted">Brug Google Kalender, Microsoft 365, iCloud eller et ICS-feed – Home Assistant er valgfrit.</p></div><button type="button" class="primary" id="directCalendarAddBtn">+ Forbind kalender</button></div>
+     <div id="directCalendarList" class="settings-list"></div>
+     <p id="directCalendarStatus" class="muted" role="status"></p>
+     <p class="muted">Google og Microsoft kræver en OAuth-app med klient-ID og klienthemmelighed. iCloud bruger en kalenderadresse (CalDAV) og en app-specifik adgangskode. Alle forbindelser er skrivebeskyttede.</p>
+   </section>
+   <section class="settings-panel direct-calendar-panel" id="emailSettingsPanel" aria-label="E-mailnotifikationer uden Home Assistant">
+     <h2>E-mailpåmindelser uden Home Assistant</h2>
+     <p class="muted">Tilføj en SMTP-server og mailadresser til familiemedlemmerne. Påmindelser sendes fra FamilieHubs server. Remote SMTP kræver krypteret forbindelse (STARTTLS eller TLS).</p>
+     <div class="display-form">
+       <label class="field">SMTP-server<input id="smtpHost" placeholder="smtp.example.com" maxlength="253" autocomplete="off"></label>
+       <label class="field">SMTP-port<input id="smtpPort" type="number" min="1" max="65535" value="587"></label>
+       <label class="field">SMTP-brugernavn<input id="smtpUsername" maxlength="200" autocomplete="off"></label>
+       <label class="field">SMTP-adgangskode (tomt = behold gemt)<input id="smtpPassword" type="password" autocomplete="new-password" maxlength="4096"></label>
+       <label class="field field-wide">Afsenderadresse<input id="smtpFrom" type="email" placeholder="familiehub@example.com"></label>
+       <label class="field ai-check"><input id="smtpClearPassword" type="checkbox"> Slet gemt SMTP-adgangskode</label>
+     </div>
+     <button id="smtpSaveBtn" class="primary" type="button">Gem SMTP</button>
+     <p id="smtpStatus" class="muted" role="status"></p>
+     <h3>Modtagere</h3><div id="smtpRecipients" class="settings-list"></div>
+     <p class="muted">Aktivér også “Send påmindelser” under AI og påmindelser. Der kræves ikke en AI-udbyder for at få almindelige e-mailpåmindelser.</p>
    </section>
    <section class="settings-panel ai-settings-panel" id="aiSettingsPanel" aria-label="AI og påmindelser">
      <h2>AI og påmindelser</h2>

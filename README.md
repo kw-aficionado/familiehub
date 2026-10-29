@@ -300,3 +300,35 @@ Fra opdateringen med `accounts.go` kan hvert familiemedlem bruge et separat brug
 **Rettigheder:** Administratoradgang til brugerkonti kræver `APP_PASSWORD`. Medlemskonti kan bruge familiekalenderen og opgaverne, men kan ikke oprette, slette eller nulstille loginoplysninger for andre brugere. Familiemedlemsprofiler og login-konti er separate; sletning af en login-konto sletter ikke opgaver eller kalenderaftaler. Delte aktiviteter er synlige for alle indloggede brugere; systemet er endnu ikke en privat kalender per bruger.
 
 **Sikkerhed:** Individuelle adgangskoder gemmes som saltede PBKDF2-HMAC-SHA256-hashes (600.000 iterationer) i SQLite under `/data`; læsbare adgangskoder gemmes ikke. HTTPS anbefales til alle enheder. Den eksisterende `APP_PASSWORD` fortsætter som administratornøgle, så den bør kun være kendt af administratoren. Der kræves ingen ny Rune; SQLite-migreringen er additiv og bevarer eksisterende sessioner.
+
+
+## Direkte kalendere – uden Home Assistant
+
+FamilieHub understøtter **flere kalendere direkte på samme dashboard**. Du kan fortsat bruge HA, men det er ikke nødvendigt for at synkronisere direkte kalendere. Forbindelser oprettes under **Indstillinger → Direkte kalenderforbindelser** og har en standardperson/farve. Eksplicitte hashtags som `#Alma` tilsidesætter standardpersonen.
+
+| Kilde | Godkendelse | Synkronisering | Opsætning |
+| --- | --- | --- | --- |
+| Google Kalender | OAuth 2.0, kalenderadgang (read-only) | Primær kalender, hændelser og gentagelser udvidet af Google | Opret en OAuth Web Application i Google Cloud Console |
+| Microsoft 365 / Outlook | Microsoft identity platform, OAuth 2.0 (delegated `Calendars.Read offline_access User.Read`) | Standardkalender via Microsoft Graph `calendarView` | Appregistrering, Microsoft Entra |
+| iCloud Kalender | CalDAV over HTTPS, Apple ID og app-specifik adgangskode | Aftaler fra den angivne kalenderkollektion | Brug en konkret CalDAV-kollektion-URL, ikke blot `icloud.com` |
+| ICS/iCal | HTTPS-URL, ingen login | Læs hændelser fra feed | Brug en offentlig/privat kalender-feed-URL uden serveradgangskode |
+
+**Tilslutning til Google/Microsoft:** Opret en OAuth-app hos udbyderen, konfigurer den som webapp og registrér **præcis denne redirect URI**:
+```text
+https://familiehub.yggdrasilpanel.com/api/direct-calendars/oauth/callback
+```
+Hvis du bruger et andet domæne, så erstat domænet med din eksterne `APP_URL`. Tilføj Client ID og Client Secret i FamilieHub, opret forbindelsen, og vælg **Forbind konto**. OAuth-appen skal have tilladelse til læsning af kalenderen. Tokenfornyelse gemmes krypteret.
+
+**iCloud:** Opret en app-specifik adgangskode på din Apple-konto. Angiv Apple ID og selve CalDAV-kalenderens HTTPS-URL. Dette er ikke Apple Sign in, og automatisk CalDAV-opdagelse er endnu ikke indbygget. Apples app-specifikke adgangskode er forskellig fra Apple ID's normale adgangskode.
+
+**Begrænsninger:** Google- og Microsoft-kalendere viser aktuelt kontoens primære/standardkalender. ICS og CalDAV læser almindelige VEVENT-poster; kompleks RRULE/undtagelseshåndtering i .ics behandles endnu ikke fuldt ud. Direkte kalendere er **skrivebeskyttede**: oprettelse/redigering af eksterne aftaler sker i udbyderens kalender. Kalenderen hentes ved visning; beskeder om en forbindelse, der fejler, er generiske og viser aldrig hemmelige nøgler.
+
+**Sikkerhed:** Kun administratoren kan tilføje og slette forbindelser. OAuth-tilstande er engangsbrug, knyttet til admins session og har 10 minutters udløb. Kalenderadresser kræver HTTPS og afviser lokal-IP-adresser; følg ikke omdirigeringer til ukendte hosts. Client Secrets, OAuth-access/refresh tokens og CalDAV-adgangskoder krypteres med FamilieHubs eksisterende servernøgle under `/data`. En almindelig medlemssession kan se de aftaler, administratoren har valgt at dele.
+
+### Påmindelser via e-mail uden Home Assistant
+
+Under **Indstillinger → E-mailpåmindelser** kan administratoren konfigurere en SMTP-server (typisk port 587/STARTTLS, eller 465/implicit TLS), afsenderadresse og en modtageradresse for hvert familiemedlem. SMTP-legitimationsoplysninger opbevares krypteret i SQLite. For ikke-lokale SMTP-servere kræves TLS.
+
+Under **AI og påmindelser** skal *Send påmindelser* aktiveres, uanset om der er valgt en AI-model. FamilieHub finder selv uafsluttede opgaver og sender højst én samlet besked pr. person om dagen. Hvis HA-notifikation er tilgængelig, foretrækkes den; ellers forsøges e-mail. Intet sendes, før funktionen er aktiveret.
+
+På **iPad Air 2** kan in-app-påmindelser og e-mail bruges. Moderne Web Push til hjemmeskærmsapps kræver iPadOS 16.4 eller nyere og virker ikke på iPad Air 2.

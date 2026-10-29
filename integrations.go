@@ -299,9 +299,6 @@ func (a *App) reminderLoop() {
 func (a *App) checkReminders() { a.checkRemindersAt(time.Now().In(a.loc)) }
 
 func (a *App) checkRemindersAt(now time.Time) {
-	if a.cfg.HAURL == "" || a.cfg.HAToken == "" {
-		return
-	}
 	evs, err := a.events(now.Add(-24*time.Hour), now.Add(24*time.Hour))
 	if err != nil {
 		return
@@ -316,6 +313,7 @@ func (a *App) checkRemindersAt(now time.Time) {
 	}
 	a.taskReminders(now, byID)
 	a.aiReminders(now, byID)
+	if a.cfg.HAURL == "" || a.cfg.HAToken == "" {return}
 	for _, ev := range evs {
 		if ev.PickupBy == "" || ev.Kind != "legeaftale" {
 			continue

@@ -185,6 +185,14 @@ func (a *App) routes() {
 	a.mux.HandleFunc("DELETE /api/accounts/{id}", a.withAdmin(a.accountDelete))
 	a.mux.HandleFunc("GET /api/state", a.withAuth(a.state))
 	a.mux.HandleFunc("GET /api/calendar-owners", a.withAuth(a.calendarOwnersGet))
+	a.mux.HandleFunc("GET /api/email/config", a.withAdmin(a.emailConfigGet))
+	a.mux.HandleFunc("PUT /api/email/config", a.withAdmin(a.emailConfigPut))
+	a.mux.HandleFunc("PUT /api/email/recipient", a.withAdmin(a.emailRecipientPut))
+	a.mux.HandleFunc("GET /api/direct-calendars", a.withAdmin(a.directCalendarsGet))
+	a.mux.HandleFunc("POST /api/direct-calendars", a.withAdmin(a.directCalendarsSave))
+	a.mux.HandleFunc("DELETE /api/direct-calendars/{id}", a.withAdmin(a.directCalendarsDelete))
+	a.mux.HandleFunc("POST /api/direct-calendars/{id}/authorize", a.withAdmin(a.directCalendarAuthorize))
+	a.mux.HandleFunc("GET /api/direct-calendars/oauth/callback", a.directCalendarOAuthCallback)
 	a.mux.HandleFunc("PUT /api/calendar-owners", a.withAuth(a.calendarOwnersPut))
 	a.mux.HandleFunc("GET /api/stream", a.withAuth(a.stream))
 	a.mux.HandleFunc("GET /api/integrations", a.withAuth(a.integrations))
@@ -415,6 +423,9 @@ func (a *App) state(w http.ResponseWriter, r *http.Request) {
    ev=append(ev,applyCalendarOwners(external,people,owners)...)
   }
  }
+ direct,issues:=a.directEvents(r.Context(),st,en,people)
+ ev=append(ev,direct...)
+ if len(issues)>0 {if warning!=""{warning+=" · "};warning+=strings.Join(issues," · ")}
  // Today's family panel must always use the actual Copenhagen calendar day,
  // independently of the date currently selected on the dashboard.
  now:=time.Now().In(a.loc)
@@ -437,6 +448,8 @@ func (a *App) state(w http.ResponseWriter, r *http.Request) {
     if warning=="" {warning="Home Assistant-kalendere: "+haFriendlyError(e)}
    } else {todayEvents=append(todayEvents,applyCalendarOwners(external,people,owners)...)}
   }
+  directToday,_:=a.directEvents(r.Context(),todayStart,todayEnd,people)
+  todayEvents=append(todayEvents,directToday...)
  }
  if todayEvents==nil {todayEvents=[]Event{}}
  writeJSON(w,200,map[string]any{"people":people,"events":ev,"today_events":todayEvents,"today_date":today,"tasks":tasks,"warning":warning})

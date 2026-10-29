@@ -272,3 +272,11 @@ html[data-theme="dark"] .settings-item-info small,html[data-theme="dark"] .calen
 .ai-assist-result{margin-top:13px;padding:16px;background:#edf5f3;border-radius:11px;color:#20404a;font-size:14px;line-height:1.6;white-space:pre-wrap;overflow-wrap:anywhere}
 html[data-theme="dark"] .ai-assist-result{background:#213a3d;color:#e2f0ef}
 @media(max-width:700px){.ai-settings-panel .display-form{grid-template-columns:1fr}.ai-settings-panel .field-wide{grid-column:1}.ai-actions button{flex:1}}
+
+/* Connected calendars and SMTP settings. */
+.direct-calendar-panel{margin-top:18px;max-width:1100px;min-height:0;padding:18px}
+.direct-calendar-item .settings-item-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+#smtpRecipients .settings-item{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+#smtpRecipients .settings-item input{min-width:210px;flex:1}
+#emailSettingsPanel h3{margin-top:22px;margin-bottom:10px;font-size:17px}
+@media(max-width:700px){.direct-calendar-item .settings-item-actions{width:100%}#smtpRecipients .settings-item input{min-width:100%}}
