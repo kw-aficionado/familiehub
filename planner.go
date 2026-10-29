@@ -87,9 +87,10 @@ func (a *App) planPreview(input PlannerRequest)(PlannerPreview,error){
  if start.Weekday()!=time.Monday{return p,fmt.Errorf("Startdato skal være en mandag")}
  people,err:=a.people();if err!=nil{return p,err}
  validPeople:=map[string]bool{};for _,person:=range people{validPeople[person.ID]=true}
+ selectedPeople:=map[string]bool{}
  for _,person:=range input.People{
-  if !validPeople[person]||p.Totals[person]!=0{return p,fmt.Errorf("Vælg forskellige eksisterende familiemedlemmer")}
-  p.Totals[person]=0;p.Minutes[person]=0;p.NextTotals[person]=0
+  if !validPeople[person]||selectedPeople[person]{return p,fmt.Errorf("Vælg forskellige eksisterende familiemedlemmer")}
+  selectedPeople[person]=true;p.Totals[person]=0;p.Minutes[person]=0;p.NextTotals[person]=0
  }
  rows,err:=a.db.Query("SELECT id,title,repeat_rule,points,minutes,times_per_week FROM task_templates")
  if err!=nil{return p,err}
