@@ -215,3 +215,14 @@ func (a *App) directAccessToken(ctx context.Context,row calendarRecord)(string,e
  if err:=a.db.Exec("UPDATE direct_calendars SET access_cipher=?,refresh_cipher=? WHERE id=?",encryptedAccess,encryptedRefresh,row.ID);err!=nil{return "",err}
  return access,nil
 }
+
+func (a *App) directCalendarTest(w http.ResponseWriter,r *http.Request){
+ row,err:=a.directCalendarByID(r.PathValue("id"))
+ if err!=nil{apiError(w,404,"Kalenderen findes ikke");return}
+ now:=time.Now().In(a.loc)
+ ctx,cancel:=context.WithTimeout(r.Context(),10*time.Second)
+ defer cancel()
+ ev,err:=a.fetchDirectCalendar(ctx,row,now,now.AddDate(0,0,7))
+ if err!=nil{apiError(w,502,"Forbindelsen fejlede. Kontrollér kalenderadresse, tilladelser eller OAuth-login.");return}
+ writeJSON(w,200,map[string]any{"ok":true,"count":len(ev)})
+}

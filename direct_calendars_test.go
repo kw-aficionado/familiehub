@@ -146,3 +146,14 @@ func TestICSRecurrenceCountAndDST(t *testing.T){
   if e!=nil||dt.In(loc).Hour()!=8{t.Fatalf("DST shifted the wall clock: %s",ev.Start)}
  }
 }
+
+func TestDirectCalendarHashtagOverridesOwner(t *testing.T){
+ row:=calendarRecord{CalendarConnection:CalendarConnection{ID:"direct",PersonID:"anton"}}
+ people:=[]Person{{ID:"anton",Name:"Anton"},{ID:"alma",Name:"Alma"}}
+ event:=externalEvent(row,"e1","#Alma #Sport Biograf","2026-10-29T18:00:00+01:00","2026-10-29T19:00:00+01:00","","")
+ event=decorateExternalEvent(event,people)
+ if event.PersonID!="alma"||len(event.PersonIDs)!=1||event.PersonIDs[0]!="alma"{
+  t.Fatalf("explicit owner tag did not override the calendar default: %+v",event)
+ }
+ if event.Title!="Biograf"||event.Category!="sport"{t.Fatalf("tags were not removed correctly: %+v",event)}
+}

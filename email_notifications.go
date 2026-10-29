@@ -148,3 +148,19 @@ func (a *App) sendTaskNotification(ctx context.Context,p Person,title,msg string
  if len(errs)>0{return errs[0]}
  return errors.New("Ingen notifikationskanal er konfigureret")
 }
+
+func (a *App) emailTest(w http.ResponseWriter,r *http.Request){
+ var v struct{PersonID string `json:"person_id"`}
+ if !readJSON(w,r,&v){return}
+ cfg,err:=a.emailSettings()
+ if err!=nil{apiError(w,500,"Kunne ikke læse SMTP-indstillinger");return}
+ recipient:=""
+ for _,item:=range cfg.Recipients{if item.PersonID==v.PersonID{recipient=item.Email;break}}
+ if recipient==""{apiError(w,400,"Personen har ingen e-mailadresse");return}
+ ctx,cancel:=context.WithTimeout(r.Context(),10*time.Second)
+ defer cancel()
+ if err:=a.sendEmail(ctx,recipient,"FamilieHub · Test","Denne e-mail er en test fra FamilieHub. E-mailpåmindelser virker.");err!=nil{
+  apiError(w,502,"Testmail kunne ikke sendes. Kontrollér SMTP og adgangskode.");return
+ }
+ writeJSON(w,200,map[string]bool{"ok":true})
+}

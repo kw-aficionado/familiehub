@@ -15,7 +15,7 @@ import (
 )
 
 func externalEvent(row calendarRecord,id,title,begin,end,location,notes string) Event {
- return Event{ID:"direct:"+row.ID+":"+sha(id+begin)[:16],Title:title,Start:begin,End:end,Kind:"kalender",External:true,SourceCalendar:"direct:"+row.ID,PersonID:row.PersonID,PersonIDs:func()[]string{if row.PersonID!=""{return []string{row.PersonID}};return nil}(),Location:location,Notes:notes}
+ return Event{ID:"direct:"+row.ID+":"+sha(id+begin)[:16],Title:title,Start:begin,End:end,Kind:"kalender",External:true,SourceCalendar:"direct:"+row.ID,PersonID:row.PersonID,Location:location,Notes:notes}
 }
 func (a *App) directEvents(ctx context.Context,from,to time.Time,people []Person)([]Event,[]string){
  out:=[]Event{}

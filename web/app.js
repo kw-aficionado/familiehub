@@ -307,7 +307,7 @@
   $('logoutBtn').addEventListener('click',async function(){try{await api('/api/logout','POST',{})}catch(e){}if(S.socket)S.socket.close();S.csrf='';S.account=null;hideSaver();scheduleSaver();hide('app');show('login')});
   $('dayBtn').addEventListener('click',function(){setView('day')});$('weekBtn').addEventListener('click',function(){setView('week')});
   $('prevBtn').addEventListener('click',function(){navigate(-1)});$('nextBtn').addEventListener('click',function(){navigate(1)});$('todayBtn').addEventListener('click',function(){S.focus=new Date();load()});
-  $('addEventBtn').addEventListener('click',function(){openEvent()});$('addTaskBtn').addEventListener('click',function(){openTask()});$('settingsPeopleBtn').addEventListener('click',openPeople);$('settingsHABtn').addEventListener('click',settings);$('settingsBtn').addEventListener('click',settings);
+  $('addEventBtn').addEventListener('click',function(){openEvent()});$('addTaskBtn').addEventListener('click',function(){openTask()});$('settingsPeopleBtn').addEventListener('click',openPeople);$('settingsHABtn').addEventListener('click',settings);$('settingsBtn').addEventListener('click',function(){location.hash='#indstillinger'});
   $('settingsAddBtn').addEventListener('click',function(){openTemplate()});
   $('settingsSearch').addEventListener('input',renderSettings);
   $('tasksAddBtn').addEventListener('click',function(){openTask()});
@@ -610,7 +610,16 @@
           try{await api('/api/direct-calendars/'+source.id,'DELETE');await loadDirectCalendars();await load()}
           catch(e){$('directCalendarStatus').textContent=e.message}
         });
-        buttons.appendChild(del);row.appendChild(buttons);root.appendChild(row);
+        var test=el('button',{'class':'minor','type':'button'},'Test');
+        test.addEventListener('click',async function(){
+          test.disabled=true;$('directCalendarStatus').textContent='Tester '+source.name+'…';
+          try{
+            var v=await api('/api/direct-calendars/'+source.id+'/test','POST',{});
+            $('directCalendarStatus').textContent=source.name+': forbindelsen virker ('+v.count+' aftaler fundet).';
+          }catch(e){$('directCalendarStatus').textContent=source.name+': '+e.message}
+          test.disabled=false;
+        });
+        buttons.appendChild(test);buttons.appendChild(del);row.appendChild(buttons);root.appendChild(row);
       });
     }catch(e){$('directCalendarStatus').textContent='Kunne ikke hente kalenderforbindelser: '+e.message}
   }
@@ -677,7 +686,14 @@
             $('smtpStatus').textContent='Modtager for '+p.name+' er gemt.';
           }catch(e){$('smtpStatus').textContent=e.message}
           button.disabled=false;
-        });row.appendChild(button);root.appendChild(row);
+        });row.appendChild(button);
+        var check=el('button',{'type':'button','class':'minor'},'Send testmail');
+        check.addEventListener('click',async function(){
+          check.disabled=true;$('smtpStatus').textContent='Sender testmail til '+p.name+'…';
+          try{await api('/api/email/test','POST',{person_id:p.id});$('smtpStatus').textContent='Testmail sendt til '+p.name+'.';}
+          catch(e){$('smtpStatus').textContent='Testmail fejlede: '+e.message}
+          check.disabled=false;
+        });row.appendChild(check);root.appendChild(row);
       });
     }catch(e){$('smtpStatus').textContent='Kunne ikke hente SMTP: '+e.message}
   }
