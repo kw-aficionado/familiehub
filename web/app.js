@@ -357,6 +357,10 @@
     var html='<form id="entryForm" class="form-grid">'+field('Opgave','<input name="title" maxlength="150" required value="'+esc(t?t.title:'')+'">')+
       field('Foreslået ansvarlig','<select name="assigned_to">'+personOptions(t?t.assigned_to:'','Fælles / vælg senere')+'</select>')+
       field('Gentagelse',repeatSelectHTML())+
+      field('Kategori','<input name="category" maxlength="40" value="'+esc(t?t.category:'Diverse')+'">')+
+      field('Tid pr. gang (minutter)','<input name="minutes" type="number" min="1" max="240" value="'+esc(t?t.minutes:15)+'">')+
+      field('Belastningspoint','<input name="points" type="number" min="1" max="20" value="'+esc(t?t.points:3)+'">')+
+      field('Gange pr. uge','<input name="times_per_week" type="number" min="1" max="7" value="'+esc(t?t.times_per_week:1)+'">')+
       '<p class="muted field-wide">Skabeloner opretter ikke automatisk opgaver. Vælg dem under + Opgave og angiv startdato.</p>'+
       '<div class="form-actions"><button type="submit" class="primary">Gem skabelon</button></div></form>';
     openModal(editing?'Redigér skabelon':'Ny skabelon',html);$('entryForm').elements.repeat_rule.value=t?t.repeat_rule:'none';
