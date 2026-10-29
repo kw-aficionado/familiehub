@@ -4,6 +4,30 @@ En selvhostet familietavle til iPad Air 2, nyere tablets og telefoner.
 
 **Status:** Kørbar MVP. Go + SQLite + indlejret HTML/CSS/JavaScript (ingen npm-afhængigheder). Designet med browserkompatibilitet til iPadOS 15. Docker-imaget bygges automatisk via GitHub Actions ved push til `main`. Runen kræver, at dette workflow er gennemført, og at GHCR-pakken er offentligt tilgængelig (eller Yggdrasil har registry-adgang).
 
+## Skærmbilleder
+
+> **Demo med fiktive data:** Billederne er browser-renderede UI-eksempler af FamilieHubs design, ikke optagelser fra en privat familieinstallation. Navne, aktiviteter og kalender-ID'er er opdigtede. Visningerne er illustrative og er ikke en automatisk ende-til-ende-test af appen.
+
+### Kalender og familieoverblik
+
+![FamilieHub ugekalender med personfarver, opgaver og familiens aftaler](docs/screenshots/kalender.webp)
+
+### Opgaver og indstillinger
+
+| Opgaver | Brugeradministration, kalenderfarver og nattilstand |
+| --- | --- |
+| ![Opgaveoversigt med opgaver fordelt på familiemedlemmer](docs/screenshots/opgaver.webp) | ![Indstillinger med individuelle logins og kalender-ejere](docs/screenshots/indstillinger.webp) |
+
+### iPhone – vandret navigation gennem hele ugen
+
+| Første ugedage | Sidste ugedage, inklusive søndag |
+| --- | --- |
+| ![FamilieHub på iPhone ved ugens begyndelse](docs/screenshots/iphone.webp) | ![FamilieHub på iPhone scrollet til lørdag og søndag](docs/screenshots/iphone-sondag.webp) |
+
+### Mørk pauseskærm
+
+![FamilieHubs indbyggede mørke pauseskærm med ur og næste aftale](docs/screenshots/nattilstand.webp)
+
 ## Funktioner i v0.1.1
 
 - Dag- og ugevisning, frem/tilbage, swipe på touchskærm og "I dag".
@@ -20,7 +44,7 @@ En selvhostet familietavle til iPad Air 2, nyere tablets og telefoner.
 
 - Google Kalender/iCloud skal i denne version være tilknyttet **Home Assistant** som `calendar.*`-entities. De vises kun i læsetilstand. Lokale FamilieHub-aftaler synkroniseres **ikke** tilbage til Google/iCloud.
 - Opgaver ligger foreløbig i FamilieHubs SQLite, ikke i ChoreOps. ChoreOps-adapteren er næste fase.
-- Der er ét delt FamilieHub-login for husstanden (ikke individuelle adgangsroller endnu).
+- Administratoren har fortsat et fælles adgangskodebaseret login, og familien kan oprette individuelle brugerkonti. Alle indloggede medlemmer kan stadig se den fælles kalender.
 - Ingen komplet Google Nest Hub-oplevelse; kompakt castskærm er planlagt.
 - Ingen PWA-offline-cache: appen kræver online forbindelse til backend.
 - Browserlayout er implementeret, men bør afprøves fysisk på den gamle iPad inden permanent opsætning.
