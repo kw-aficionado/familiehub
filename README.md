@@ -5,6 +5,23 @@ En selvhostet familietavle til iPad Air 2, nyere tablets og telefoner.
 **Status:** Kørbar MVP. Go + SQLite + indlejret HTML/CSS/JavaScript (ingen npm-afhængigheder). Designet med browserkompatibilitet til iPadOS 15. Docker-imaget bygges automatisk via GitHub Actions ved push til `main`. Runen kræver, at dette workflow er gennemført, og at GHCR-pakken er offentligt tilgængelig (eller Yggdrasil har registry-adgang).
 
 
+
+## AI Opgaveplanlægger (ny)
+
+Åbn **Opgaver → AI Opgaveplanlægger**. Funktionen genbruger FamilieHubs eksisterende login, AI-udbyder og API-nøgle.
+
+1. Vælg **Tilføj 15 forslag til opgavearkiv**. Dette opretter kun manglende skabeloner; eksisterende skabeloner og aktive opgaver bevares.
+2. Vælg **Lav en opgaveplan**, familiemedlemmer og de ønskede arkivopgaver.
+3. Justér hyppighed (1–7 gange pr. uge), eventuelle præferencer og rotation (ingen / 1 / 2 / 4 uger).
+4. Se en lokal beregning af point og minutter, og bed eventuelt AI om en kort vurdering.
+5. Vælg **Godkend og gem opgaveplan**. Før dette tidspunkt foretages ingen ændringer i opgavelisten.
+
+Opgavearkivet har nu kategori, minutter pr. gang, belastningspoint (1–20) og antal gange pr. uge. Disse tal er vejledende og kan ændres i redigeringen af en skabelon. Samme opgave får én ansvarlig for en given uge, og tilbagevendende opgaver roterer til næste familiemedlem efter det valgte antal uger. Ved to børn byttes de to pakker. Rotation beregnes af serveren, så den fungerer uden AI og over genstarter. Gamle opgaver og historiske afkrydsninger ændres ikke af databaseopgraderingen.
+
+Den deterministiske fordelingsmotor fungerer helt uden API-nøgle. AI-forklaringen sender kun opgavetitler, interne person-ID'er og point/minutter til den konfigurerede AI-udbyder, og AI har ikke skriveadgang til opgaver. Fejl/timeout fra AI betyder ikke, at planlægningen går i stå. Kun administratoren kan importere standardskabeloner og godkende/aktivere nye planer. Det er en guidet planlægningsassistent, ikke en autonom chat-agent.
+
+Bemærk: En plan opretter tilbagevendende opgaver. Kør ikke **Godkend og gem** to gange for den samme plan, da begge sæt ellers bliver oprettet. Vælg selv, hvilke eksisterende opgaver der skal indgå; planlæggeren sletter aldrig eksisterende opgaver.
+
 ## AI-familieassistent (frivillig)
 
 FamilieHub har en **frivillig AI-integration**, som kan formulere venlige påmindelser om opgaver, der ikke er afkrydset. Opgavedatoer, gentagelser og afkrydsninger beregnes altid deterministisk af FamilieHub – **AI bestemmer aldrig, om en opgave er overskredet, og kan ikke selv ændre data**.
