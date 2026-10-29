@@ -57,6 +57,7 @@ I **Opgaver → + Opgave → Gentagelse** kan du nu vælge:
 - **Hver uge (hele ugen)**: en ny opgave hver mandag, som kan løses én gang inden søndag.
 - **Hver anden uge (hele ugen)**: samme som ovenfor, men kun hver anden uge. Første aktive uge er ugen med den valgte startdato.
 - **Hver anden uge (én dag)**: gentages hver 14. dag på samme ugedag som startdatoen.
+- **Hverdage (mandag–fredag)**: vis opgaven hver mandag, tirsdag, onsdag, torsdag og fredag fra den valgte startdato; lørdag og søndag springes over. Hver hverdag har sin egen afkrydsning.
 - Tidligere **Hver uge (én dag)** og **Hver dag** er uændrede.
 
 Ved afkrydsning af en hel uge vises opgaven som udført på alle syv dage. Næste aktive uge starter med en frisk afkrydsning. Ugeopgaver giver en samlet påmindelse kl. 16 om søndagen, hvis de ikke er færdige. Eksisterende data bevares; SQLite-skemaet skal ikke migreres.

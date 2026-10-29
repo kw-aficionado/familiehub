@@ -180,3 +180,18 @@ func TestWeekTaskOverviewRequiresLoginAndRespectsCompletion(t *testing.T) {
  }
  if count["whole"]!=7||count["daily"]!=5{t.Fatalf("wrong weekly occurrences %+v",count)}
 }
+
+
+func TestWeekdaysTemplateAccepted(t *testing.T) {
+ app,_:=testApp(t)
+ srv:=httptest.NewServer(app.mux)
+ defer srv.Close()
+ cookie,csrf:=authenticated(t,srv)
+ status,tpl,_:=req(t,srv,"POST","/api/templates",`{"id":"","title":"Vande planter på hverdage","assigned_to":"","repeat_rule":"weekdays"}`,cookie,csrf)
+ if status!=200 || tpl["repeat_rule"]!="weekdays"{t.Fatalf("weekdays archive creation: %d %+v",status,tpl)}
+ id:=tpl["id"].(string)
+ status,items:=arrayRequest(t,srv,"/api/templates",cookie)
+ if status!=200||len(items)!=1||items[0]["repeat_rule"]!="weekdays"{t.Fatalf("weekdays archive retrieval: %d %+v",status,items)}
+ status,_,_=req(t,srv,"PUT","/api/templates/"+id,`{"id":"","title":"Opvask hverdage","assigned_to":"","repeat_rule":"weekdays"}`,cookie,csrf)
+ if status!=200{t.Fatalf("weekdays archive update: %d",status)}
+}

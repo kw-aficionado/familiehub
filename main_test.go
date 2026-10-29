@@ -525,3 +525,50 @@ func TestBuildVersionAndStaticCache(t *testing.T) {
 		}
 	}
 }
+
+
+func TestWeekdaysRecurrenceAndCompletion(t *testing.T) {
+ app, _ := testApp(t)
+ start, _ := time.Parse("2006-01-02", "2026-10-29") // Thursday
+ for _, tc := range []struct{ day string; active bool }{
+  {"2026-10-28",false}, // Before start
+  {"2026-10-29",true},
+  {"2026-10-30",true},
+  {"2026-10-31",false},
+  {"2026-11-01",false},
+  {"2026-11-02",true},
+  {"2026-11-03",true},
+  {"2026-11-07",false},
+  {"2026-11-09",true},
+ } {
+  day, _ := time.Parse("2006-01-02",tc.day)
+  visible,key:=taskOccurrence(start,day,"weekdays")
+  if visible!=tc.active {t.Fatalf("weekdays on %s: visible=%t want %t",tc.day,visible,tc.active)}
+  if visible && key!=tc.day {t.Fatalf("weekdays must complete per day, got %q for %s",key,tc.day)}
+ }
+ srv:=httptest.NewServer(app.mux)
+ defer srv.Close()
+ cookie,csrf:=authenticated(t,srv)
+ code,task,_:=req(t,srv,"POST","/api/tasks",`{"title":"Dække bord på hverdage","assigned_to":"","due_date":"2026-10-29","repeat_rule":"weekdays","done":false,"id":""}`,cookie,csrf)
+ if code!=200 {t.Fatalf("create weekdays task: %d %v",code,task)}
+ id:=task["id"].(string)
+ get:=func(day string)([]Task,error){return app.tasks(day)}
+ for _,day:=range []string{"2026-10-31","2026-11-01"}{
+  got,err:=get(day)
+  if err!=nil||len(got)!=0 {t.Fatalf("weekend %s should have no weekdays tasks: %+v %v",day,got,err)}
+ }
+ code,_,_=req(t,srv,"POST","/api/tasks/"+id+"/toggle",`{"day":"2026-10-31","done":true}`,cookie,csrf)
+ if code!=400 {t.Fatalf("weekend completion must be rejected, got %d",code)}
+ code,_,_=req(t,srv,"POST","/api/tasks/"+id+"/toggle",`{"day":"2026-10-29","done":true}`,cookie,csrf)
+ if code!=200 {t.Fatalf("weekday completion: %d",code)}
+ thursday,err:=get("2026-10-29")
+ if err!=nil||len(thursday)!=1||!thursday[0].Done{t.Fatalf("Thursday must be done: %+v, %v",thursday,err)}
+ friday,err:=get("2026-10-30")
+ if err!=nil||len(friday)!=1||friday[0].Done{t.Fatalf("Friday must remain unchecked: %+v, %v",friday,err)}
+ monday,err:=get("2026-11-02")
+ if err!=nil||len(monday)!=1||monday[0].Done{t.Fatalf("next Monday must remain unchecked: %+v, %v",monday,err)}
+ code,_,_=req(t,srv,"POST","/api/tasks/"+id+"/toggle",`{"day":"2026-10-29","done":false}`,cookie,csrf)
+ if code!=200{t.Fatalf("uncheck Thursday: %d",code)}
+ thursday,_=get("2026-10-29")
+ if thursday[0].Done{t.Fatal("Thursday remains completed after uncheck")}
+}

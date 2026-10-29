@@ -489,6 +489,10 @@ func taskOccurrence(due, target time.Time, rule string) (bool, string) {
 	switch rule {
 	case "daily":
 		return true, dayKey
+	case "weekdays":
+		// Each weekday is a separate occurrence and has its own completion.
+		// Saturday/Sunday are never due, even when the start date is a weekend.
+		return target.Weekday() >= time.Monday && target.Weekday() <= time.Friday, dayKey
 	case "weekly":
 		return days%7 == 0, dayKey
 	case "biweekly":

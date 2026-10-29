@@ -86,7 +86,7 @@
       items.forEach(function(e){column.appendChild(eventCard(e))});root.appendChild(column)
     })(addDays(start,i))}
   }
-  function repeatLabel(rule){return ({daily:'Hver dag',weekly:'Hver uge (én dag)',biweekly:'Hver anden uge (én dag)',once_week:'Én hel uge',weekly_window:'Hver uge (hele ugen)',biweekly_window:'Hver anden uge (hele ugen)'})[rule]||''}
+  function repeatLabel(rule){return ({daily:'Hver dag',weekdays:'Hverdage (mandag–fredag)',weekly:'Hver uge (én dag)',biweekly:'Hver anden uge (én dag)',once_week:'Én hel uge',weekly_window:'Hver uge (hele ugen)',biweekly_window:'Hver anden uge (hele ugen)'})[rule]||''}
   function renderTasks(){var root=$('taskList');root.replaceChildren();var tasks=S.tasks.filter(function(t){return !S.filter||t.assigned_to===S.filter}).sort(function(a,b){return Number(a.done)-Number(b.done)}).slice(0,4);if(!tasks.length){root.appendChild(el('p',{'class':'empty-state'},'Ingen opgaver på denne dag. Tryk “+ Opgave” for at oprette en.'));return}
     tasks.forEach(function(t){var row=el('div',{'class':'task-row'});row.style.borderLeft='4px solid '+colorOf(t.assigned_to);row.style.paddingLeft='9px';var check=el('input',{type:'checkbox','aria-label':'Fuldfør '+t.title});check.checked=t.done;check.addEventListener('change',async function(){try{await api('/api/tasks/'+t.id+'/toggle','POST',{day:dayString(S.focus),done:check.checked});load()}catch(e){check.checked=!check.checked;alert(e.message)}});row.appendChild(check);
       var text=el('div',{'class':'task-text'});var title=el('strong',{'class':t.done?'strike':''},t.title);text.appendChild(title);var meta=el('small');var owner=el('span',{'class':'task-person-label'},t.assigned_to?nameOf(t.assigned_to):'Fælles');owner.style.backgroundColor=tint(colorOf(t.assigned_to),0.13);owner.style.color=colorOf(t.assigned_to);meta.appendChild(owner);if(repeatLabel(t.repeat_rule))meta.appendChild(document.createTextNode(' · '+repeatLabel(t.repeat_rule)));text.appendChild(meta);row.appendChild(text);
@@ -128,7 +128,7 @@
       field('Ansvarlig','<select name="assigned_to">'+personOptions(t?t.assigned_to:'','Fælles')+'</select>')+
       field('Startdato / forfalder','<input name="due_date" type="date" required value="'+esc(t?t.due_date:dayString(S.focus))+'">')+
       field('Gentagelse',repeatSelectHTML())+
-      '<p class="muted field-wide">En opgave for hele ugen krydses kun af én gang. Vælg startdatoen for at bestemme, hvilke uger den skal gælde.</p>'+
+      '<p class="muted field-wide">Hverdage gentages mandag–fredag og afkrydses for hver dag. En opgave for hele ugen krydses kun af én gang. Vælg startdatoen for at bestemme, hvilke uger den skal gælde.</p>'+
       '<div class="form-actions">'+(editing?'<button type="button" id="deleteBtn" class="danger">Slet</button>':'')+
       '<button type="button" id="saveTemplateBtn" class="minor">Gem i arkiv</button><button type="submit" class="primary">Gem opgave</button></div></form>';
     openModal(editing?'Redigér opgave':'Ny opgave',html);
@@ -139,7 +139,7 @@
     $('saveTemplateBtn').addEventListener('click',async function(){var values=fromForm();try{await api('/api/templates','POST',{id:'',title:values.title,assigned_to:values.assigned_to,repeat_rule:values.repeat_rule});S.templates=await api('/api/templates');$('formError').textContent='Gemt i opgavearkivet. Du kan stadig gemme selve opgaven.';if(!editing){var old=$('templatePicker').value;$('templatePicker').innerHTML=templateOptions();$('templatePicker').value=old}}catch(err){$('formError').textContent=err.message}});
     if(editing)$('deleteBtn').addEventListener('click',function(){if(confirm('Slet denne opgave og dens afkrydsninger?'))saveOrError(async function(){await api('/api/tasks/'+t.id,'DELETE');if(S.settingsOpen)await refreshSettingsData()})});
   }
-  function repeatSelectHTML(){return '<select name="repeat_rule"><option value="none">En gang (valgt dag)</option><option value="daily">Hver dag</option><option value="weekly">Hver uge (én dag)</option><option value="biweekly">Hver anden uge (én dag)</option><option value="once_week">Én hel uge</option><option value="weekly_window">Hver uge (hele ugen)</option><option value="biweekly_window">Hver anden uge (hele ugen)</option></select>'}
+  function repeatSelectHTML(){return '<select name="repeat_rule"><option value="none">En gang (valgt dag)</option><option value="daily">Hver dag</option><option value="weekdays">Hverdage (mandag–fredag)</option><option value="weekly">Hver uge (én dag)</option><option value="biweekly">Hver anden uge (én dag)</option><option value="once_week">Én hel uge</option><option value="weekly_window">Hver uge (hele ugen)</option><option value="biweekly_window">Hver anden uge (hele ugen)</option></select>'}
   async function refreshSettingsData(){
     var data=await Promise.all([api('/api/templates'),api('/api/tasks/all')]);
     S.templates=data[0]||[];S.allTasks=data[1]||[];

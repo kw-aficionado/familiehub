@@ -17,7 +17,7 @@ type TaskTemplate struct {
 
 func validRepeatRule(rule string) bool {
 	switch rule {
-	case "none", "daily", "weekly", "biweekly", "once_week", "weekly_window", "biweekly_window":
+	case "none", "daily", "weekdays", "weekly", "biweekly", "once_week", "weekly_window", "biweekly_window":
 		return true
 	default:
 		return false
