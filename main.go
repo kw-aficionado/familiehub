@@ -216,7 +216,7 @@ func (a *App) routes() {
 	a.mux.HandleFunc("POST /api/planner/seed", a.withAdmin(a.plannerSeed))
 	a.mux.HandleFunc("POST /api/planner/preview", a.withAuth(a.plannerPreview))
 	a.mux.HandleFunc("POST /api/planner/advice", a.withAuth(a.plannerAdvice))
-	a.mux.HandleFunc("POST /api/planner/apply", a.withAdmin(a.plannerApply))
+	a.mux.HandleFunc("POST /api/planner/apply", a.withAuth(a.plannerApply))
 	a.mux.HandleFunc("GET /api/templates", a.withAuth(a.templates))
 	a.mux.HandleFunc("POST /api/templates", a.withAuth(a.templateSave))
 	a.mux.HandleFunc("PUT /api/templates/{id}", a.withAuth(a.templateSave))
