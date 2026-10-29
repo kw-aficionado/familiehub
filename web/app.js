@@ -294,15 +294,85 @@
       root.appendChild(card);
     });
   }
+
+  var plannerDraft=null;
+  async function openPlanner(){
+    try{S.templates=await api('/api/templates')}catch(e){$('plannerStatus').textContent=e.message;return}
+    if(!S.people.length||!S.templates.length){$('plannerStatus').textContent='Opret familiemedlemmer og tilføj opgaver til arkivet først.';return}
+    plannerDraft=null;
+    var html='<form id="plannerForm" class="form-grid">'+
+      '<div class="field field-wide"><strong>Hvilke børn skal dele opgaverne?</strong><div id="plannerPeople" class="planner-checks"></div></div>'+
+      field('Startdato (mandag)','<input name="start_date" type="date" required>')+
+      field('Hvor tit skal opgaverne byttes?','<select name="rotate_weeks"><option value="1">Hver uge</option><option value="2">Hver anden uge</option><option value="4">Hver fjerde uge</option><option value="0">Ingen automatisk rotation</option></select>')+
+      '<div class="field field-wide"><strong>Vælg opgaver og hyppighed</strong><p class="muted">Ret belastningspoint og minutter i Opgavearkiv. Hyppighed gælder antal gange pr. uge.</p><div id="plannerChoices" class="planner-checks"></div></div>'+
+      '<div class="field field-wide"><strong>Valgfri ønsker og begrænsninger</strong><div id="plannerPrefs"></div></div>'+
+      '<div class="form-actions"><button type="submit" class="primary">Beregn retfærdig fordeling</button></div></form><div id="plannerPreview" class="planner-preview"></div>';
+    openModal('AI Opgaveplanlægger',html);
+    var next=startWeek(new Date());if(next<localMidnight(new Date()))next=addDays(next,7);
+    $('plannerForm').elements.start_date.value=dayString(next);
+    S.people.forEach(function(p,i){
+      var line=el('label',{'class':'planner-choice'}),check=el('input',{'type':'checkbox','data-person':p.id});
+      check.checked=i<2;line.appendChild(check);line.appendChild(el('span',null,p.name));$('plannerPeople').appendChild(line);
+      var box=el('div',{'class':'planner-pref'});box.appendChild(el('strong',null,p.name));
+      var prefer=el('select',{'data-prefer':p.id}),avoid=el('select',{'data-avoid':p.id});
+      [prefer,avoid].forEach(function(select){select.appendChild(el('option',{value:''},select===prefer?'Ønsker (valgfrit)':'Undgå helst (valgfrit)'));S.templates.forEach(function(t){select.appendChild(el('option',{value:t.id},t.title))})});
+      box.appendChild(prefer);box.appendChild(avoid);$('plannerPrefs').appendChild(box);
+    });
+    S.templates.forEach(function(t){
+      var row=el('label',{'class':'planner-choice'});
+      var check=el('input',{'type':'checkbox','data-template':t.id});check.checked=true;
+      var name=el('span',null,t.title+' · '+(t.points||3)+' point · '+(t.minutes||15)+' min.');
+      var count=el('input',{'type':'number','min':'1','max':'7','data-times':t.id,'aria-label':'Antal gange om ugen for '+t.title});count.value=t.times_per_week||1;
+      row.appendChild(check);row.appendChild(name);row.appendChild(count);$('plannerChoices').appendChild(row);
+    });
+    $('plannerForm').addEventListener('submit',async function(event){
+      event.preventDefault();$('formError').textContent='';$('plannerPreview').replaceChildren();
+      var people=Array.from(document.querySelectorAll('[data-person]:checked')).map(function(e){return e.getAttribute('data-person')});
+      var choices=Array.from(document.querySelectorAll('[data-template]:checked')).map(function(e){var id=e.getAttribute('data-template');return {template_id:id,times_per_week:Number(document.querySelector('[data-times="'+id+'"]').value)}});
+      var preferences={},avoid={};
+      people.forEach(function(id){var p=document.querySelector('[data-prefer="'+id+'"]').value,a=document.querySelector('[data-avoid="'+id+'"]').value;preferences[id]=p?[p]:[];avoid[id]=a?[a]:[]});
+      plannerDraft={people:people,choices:choices,start_date:$('plannerForm').elements.start_date.value,rotate_weeks:Number($('plannerForm').elements.rotate_weeks.value),preferences:preferences,avoid:avoid};
+      try{
+        var preview=await api('/api/planner/preview','POST',plannerDraft),root=$('plannerPreview');
+        root.appendChild(el('h3',null,'Forslag til opgaveplan'));
+        preview.assignments.forEach(function(a){root.appendChild(el('p',null,nameOf(a.person_id)+' · '+a.title+' · '+a.points+' point · '+a.due_date))});
+        var summary=el('p',{'class':'muted'},people.map(function(id){return nameOf(id)+': '+preview.totals[id]+' point / '+preview.minutes[id]+' min. per uge'+(plannerDraft.rotate_weeks?' (efter skift: '+preview.next_totals[id]+' point)':'')}).join(' | '));root.appendChild(summary);
+        var aiButton=el('button',{'type':'button','class':'minor'},'Få AI-vurdering af fordelingen');root.appendChild(aiButton);
+        var aiResult=el('p',{'class':'muted'});root.appendChild(aiResult);
+        aiButton.addEventListener('click',async function(){
+          aiButton.disabled=true;aiResult.textContent='AI analyserer fordelingen…';
+          try{var advice=await api('/api/planner/advice','POST',plannerDraft);aiResult.textContent=advice.text}
+          catch(e){aiResult.textContent='AI kunne ikke kontaktes: '+e.message+'. Planen kan stadig gemmes.'}
+          aiButton.disabled=false;
+        });
+        var button=el('button',{'type':'button','class':'primary'},'Godkend og gem opgaveplan');root.appendChild(button);
+        button.addEventListener('click',async function(){
+          button.disabled=true;
+          try{var data=await api('/api/planner/apply','POST',plannerDraft);closeModal();$('plannerStatus').textContent='Plan gemt med '+data.created+' opgaver. Rotation sker automatisk.';await load();await loadTasksPage()}
+          catch(e){$('formError').textContent=e.message;button.disabled=false}
+        });
+      }catch(e){$('formError').textContent=e.message}
+    });
+  }
+  $('plannerOpenBtn').addEventListener('click',openPlanner);
+  $('plannerSeedBtn').addEventListener('click',async function(){
+    if(!confirm('Tilføj manglende standardopgaver til Opgavearkiv? Eksisterende skabeloner bevares.'))return;
+    try{var result=await api('/api/planner/seed','POST',{});$('plannerStatus').textContent=result.created+' nye skabeloner tilføjet. Åbn planlæggeren for at vælge dem.';S.templates=await api('/api/templates')}catch(e){$('plannerStatus').textContent=e.message}
+  });
+
   function openTemplate(t){
     var editing=!!t;
     var html='<form id="entryForm" class="form-grid">'+field('Opgave','<input name="title" maxlength="150" required value="'+esc(t?t.title:'')+'">')+
       field('Foreslået ansvarlig','<select name="assigned_to">'+personOptions(t?t.assigned_to:'','Fælles / vælg senere')+'</select>')+
       field('Gentagelse',repeatSelectHTML())+
+      field('Kategori','<input name="category" maxlength="40" value="'+esc(t?t.category:'Diverse')+'">')+
+      field('Tid pr. gang (minutter)','<input name="minutes" type="number" min="1" max="240" value="'+esc(t?t.minutes:15)+'">')+
+      field('Belastningspoint','<input name="points" type="number" min="1" max="20" value="'+esc(t?t.points:3)+'">')+
+      field('Gange pr. uge','<input name="times_per_week" type="number" min="1" max="7" value="'+esc(t?t.times_per_week:1)+'">')+
       '<p class="muted field-wide">Skabeloner opretter ikke automatisk opgaver. Vælg dem under + Opgave og angiv startdato.</p>'+
       '<div class="form-actions"><button type="submit" class="primary">Gem skabelon</button></div></form>';
     openModal(editing?'Redigér skabelon':'Ny skabelon',html);$('entryForm').elements.repeat_rule.value=t?t.repeat_rule:'none';
-    $('entryForm').addEventListener('submit',function(evt){evt.preventDefault();var f=evt.currentTarget.elements;saveOrError(async function(){await api(editing?'/api/templates/'+t.id:'/api/templates',editing?'PUT':'POST',{id:'',title:f.title.value,assigned_to:f.assigned_to.value,repeat_rule:f.repeat_rule.value});await refreshSettingsData()})});
+    $('entryForm').addEventListener('submit',function(evt){evt.preventDefault();var f=evt.currentTarget.elements;saveOrError(async function(){await api(editing?'/api/templates/'+t.id:'/api/templates',editing?'PUT':'POST',{id:'',title:f.title.value,assigned_to:f.assigned_to.value,repeat_rule:f.repeat_rule.value,category:f.category.value,minutes:Number(f.minutes.value),points:Number(f.points.value),times_per_week:Number(f.times_per_week.value)});await refreshSettingsData()})});
   }
   function openPeople(){var html='<p class="muted">Tilføj familiemedlemmer. Push er valgfri: find telefonens <code>notify.mobile_app_...</code> under HA → Udviklerværktøjer → Handlinger. Indtast kun <code>mobile_app_...</code>. En <code>device_tracker.*</code> kan ikke sende push.</p><div id="personRows"></div><button id="newPersonBtn" class="primary wide">+ Familiemedlem</button>';openModal('Familiemedlemmer',html);var root=$('personRows');S.people.forEach(function(p){var row=el('div',{'class':'person-row'});var dot=el('i',{'class':'dot'});dot.style.background=p.color;row.appendChild(dot);row.appendChild(el('strong',null,p.name));var b=el('button',{'class':'text-button'},'Redigér');b.addEventListener('click',function(){openPerson(p)});row.appendChild(b);root.appendChild(row)});$('newPersonBtn').addEventListener('click',function(){openPerson()})}
   function openPerson(p){var editing=!!p;var html='<form id="entryForm" class="form-grid">'+field('Navn','<input name="name" maxlength="60" required value="'+esc(p?p.name:'')+'">')+field('Farve','<input name="color" type="color" value="'+esc(p?p.color:'#2a8390')+'">')+field('HA notify-service (valgfri)','<input name="notify_service" placeholder="mobile_app_xxx" value="'+esc(p?p.notify_service:'')+'">')+
