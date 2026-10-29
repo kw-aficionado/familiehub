@@ -120,6 +120,8 @@ func (d *DB) Init() error {
 		`CREATE TABLE IF NOT EXISTS direct_oauth_states(state_hash TEXT PRIMARY KEY,calendar_id TEXT NOT NULL,session_hash TEXT NOT NULL,expires_at TEXT NOT NULL)`,
 		`CREATE TABLE IF NOT EXISTS smtp_settings(id INTEGER PRIMARY KEY CHECK(id=1),host TEXT NOT NULL DEFAULT '',port TEXT NOT NULL DEFAULT '587',username TEXT NOT NULL DEFAULT '',sender TEXT NOT NULL DEFAULT '',password_cipher TEXT NOT NULL DEFAULT '')`,
 		`CREATE TABLE IF NOT EXISTS smtp_recipients(person_id TEXT PRIMARY KEY,email TEXT NOT NULL)`,
+		`CREATE TABLE IF NOT EXISTS push_settings(id INTEGER PRIMARY KEY CHECK(id=1),public_key TEXT NOT NULL,private_cipher TEXT NOT NULL)`,
+		`CREATE TABLE IF NOT EXISTS push_subscriptions(id TEXT PRIMARY KEY,account_id TEXT NOT NULL,person_id TEXT NOT NULL,endpoint_hash TEXT NOT NULL UNIQUE,endpoint_cipher TEXT NOT NULL,p256dh TEXT NOT NULL,auth TEXT NOT NULL,created_at TEXT NOT NULL)`,
 		`CREATE TABLE IF NOT EXISTS completions(task_id TEXT NOT NULL,day TEXT NOT NULL,PRIMARY KEY(task_id,day),FOREIGN KEY(task_id) REFERENCES tasks(id) ON DELETE CASCADE)`,
 		`CREATE TABLE IF NOT EXISTS sessions(id TEXT PRIMARY KEY,expires_at TEXT NOT NULL)`,
 		`CREATE TABLE IF NOT EXISTS accounts(id TEXT PRIMARY KEY,username TEXT NOT NULL UNIQUE COLLATE NOCASE,password_hash TEXT NOT NULL,person_id TEXT NOT NULL DEFAULT '',enabled TEXT NOT NULL DEFAULT '1')`,

@@ -280,3 +280,8 @@ html[data-theme="dark"] .ai-assist-result{background:#213a3d;color:#e2f0ef}
 #smtpRecipients .settings-item input{min-width:210px;flex:1}
 #emailSettingsPanel h3{margin-top:22px;margin-bottom:10px;font-size:17px}
 @media(max-width:700px){.direct-calendar-item .settings-item-actions{width:100%}#smtpRecipients .settings-item input{min-width:100%}}
+
+/* Push settings: device-specific subscription controls. */
+#pushSettingsPanel .display-form{margin-top:12px;max-width:420px}
+#pushSettingsPanel .ai-actions{margin:12px 0}
+#pushStatus{overflow-wrap:anywhere}

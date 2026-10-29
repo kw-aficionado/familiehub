@@ -8,8 +8,9 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <title>FamilieHub</title>
 <link rel="icon" href="/icon.svg" type="image/svg+xml">
-<link rel="stylesheet" href="/style.css?v=direct-calendar-email-1">
-<script src="/app.js?v=direct-calendar-email-1" defer></script>
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="stylesheet" href="/style.css?v=direct-calendar-push-1">
+<script src="/app.js?v=direct-calendar-push-1" defer></script>
 </head>
 <body>
 <section id="login" class="login-screen hidden">
@@ -95,6 +96,14 @@
      <p id="smtpStatus" class="muted" role="status"></p>
      <h3>Modtagere</h3><div id="smtpRecipients" class="settings-list"></div>
      <p class="muted">Aktivér også “Send påmindelser” under AI og påmindelser. Der kræves ikke en AI-udbyder for at få almindelige e-mailpåmindelser.</p>
+   </section>
+   <section class="settings-panel direct-calendar-panel" id="pushSettingsPanel" aria-label="Direkte pushnotifikationer">
+     <h2>Pushnotifikationer på denne enhed</h2>
+     <p class="muted">På nyere iPhone/iPad kan FamilieHub sende påmindelser uden Home Assistant. På iOS/iPadOS kræves version 16.4 eller nyere og at FamilieHub er føjet til hjemmeskærmen.</p>
+     <div class="display-form"><label class="field">Modtagerens person<select id="pushPerson"></select></label></div>
+     <div class="ai-actions"><button type="button" id="pushEnableBtn" class="primary">Aktivér push på denne enhed</button><button type="button" id="pushDisableBtn" class="minor">Fjern abonnement</button></div>
+     <p id="pushStatus" class="muted" role="status"></p>
+     <p class="muted">iPad Air 2 understøtter ikke Web Push. Brug e-mailpåmindelser på den.</p>
    </section>
    <section class="settings-panel ai-settings-panel" id="aiSettingsPanel" aria-label="AI og påmindelser">
      <h2>AI og påmindelser</h2>

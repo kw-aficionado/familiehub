@@ -186,7 +186,7 @@
       if(active)link.setAttribute('aria-current','page');else link.removeAttribute('aria-current');
     });
     if(page==='opgaver')loadTasksPage().catch(function(err){$('tasksPageList').replaceChildren(el('p',{'class':'error'},'Kunne ikke hente opgaver: '+err.message))});
-    if(page==='indstillinger'){refreshSettingsData().catch(function(err){$('settingsList').replaceChildren(el('p',{'class':'error'},'Kunne ikke hente arkivet: '+err.message))});loadCalendarOwners();renderAccountSettings();loadAISettings();loadDirectCalendars();loadEmailSettings()}
+    if(page==='indstillinger'){refreshSettingsData().catch(function(err){$('settingsList').replaceChildren(el('p',{'class':'error'},'Kunne ikke hente arkivet: '+err.message))});loadCalendarOwners();renderAccountSettings();loadAISettings();loadDirectCalendars();loadEmailSettings();loadPushSettings()}
   }
   function taskWeekStart(){return dayString(startWeek(S.taskFocus))}
   async function loadTasksPage(){
@@ -693,6 +693,67 @@
       $('smtpStatus').textContent='SMTP-konfigurationen er gemt.'+(cfg.secret_set?' Adgangskoden er beskyttet.':'');
     }catch(e){$('smtpStatus').textContent='Kunne ikke gemme SMTP: '+e.message}
     button.disabled=false;
+  });
+
+  function canPush(){
+    return ('serviceWorker' in navigator)&&('PushManager' in window)&&('Notification' in window)&&window.isSecureContext;
+  }
+  function loadPushSettings(){
+    var select=$('pushPerson');
+    select.replaceChildren();
+    var account=S.account||{};
+    var choices=account.role==='admin'?S.people:S.people.filter(function(p){return p.id===account.person_id});
+    choices.forEach(function(p){
+      var opt=document.createElement('option');opt.value=p.id;opt.textContent=p.name;select.appendChild(opt);
+    });
+    if(account.person_id)select.value=account.person_id;
+    if(!canPush()){
+      $('pushStatus').textContent='Web Push understøttes ikke af denne browser eller dette iPadOS. Brug e-mailnotifikationer i stedet.';
+      $('pushEnableBtn').disabled=true;$('pushDisableBtn').disabled=true;return;
+    }
+    if(!choices.length){
+      $('pushStatus').textContent='En administrator skal knytte din login-konto til et familiemedlem, før du kan aktivere push.';
+      $('pushEnableBtn').disabled=true;return;
+    }
+    $('pushEnableBtn').disabled=false;
+    var installed=window.navigator.standalone||(window.matchMedia&&window.matchMedia('(display-mode: standalone)').matches);
+    $('pushStatus').textContent=installed?'Du kan aktivere pushnotifikationer på denne enhed.':'På iPhone/iPad skal du først vælge Del → Føj til hjemmeskærm og åbne FamilieHub derfra.';
+  }
+  function decodeVAPID(key){
+    var base64=key.replace(/-/g,'+').replace(/_/g,'/');
+    var padding='='.repeat((4-base64.length%4)%4);
+    var raw=atob(base64+padding);
+    return Uint8Array.from(raw,function(c){return c.charCodeAt(0)});
+  }
+  $('pushEnableBtn').addEventListener('click',async function(){
+    if(!canPush())return;
+    // Browser permission must be requested immediately in response to this click.
+    var permission=await Notification.requestPermission();
+    if(permission!=='granted'){$('pushStatus').textContent='Notifikationstilladelse blev ikke givet.';return}
+    var button=$('pushEnableBtn');button.disabled=true;
+    try{
+      var config=await api('/api/push/key');
+      var registration=await navigator.serviceWorker.register('/sw.js',{scope:'/'});
+      var ready=await navigator.serviceWorker.ready;
+      var old=await ready.pushManager.getSubscription();
+      var subscription=old||await ready.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:decodeVAPID(config.public_key)});
+      var info=subscription.toJSON();
+      await api('/api/push/subscribe','POST',{endpoint:info.endpoint,keys:info.keys,person_id:$('pushPerson').value});
+      $('pushStatus').textContent='Pushnotifikationer er aktive på denne enhed.';
+    }catch(e){$('pushStatus').textContent='Push kunne ikke aktiveres: '+e.message}
+    button.disabled=false;
+  });
+  $('pushDisableBtn').addEventListener('click',async function(){
+    if(!canPush())return;
+    try{
+      var ready=await navigator.serviceWorker.ready;
+      var subscription=await ready.pushManager.getSubscription();
+      if(subscription){
+        await api('/api/push/unsubscribe','POST',{endpoint:subscription.endpoint});
+        await subscription.unsubscribe();
+      }
+      $('pushStatus').textContent='Pushnotifikationer er slået fra på denne enhed.';
+    }catch(e){$('pushStatus').textContent='Push kunne ikke fjernes: '+e.message}
   });
   function loadBuild(){fetch('/api/version',{cache:'no-store',credentials:'same-origin'}).then(function(r){return r.json()}).then(function(v){var commit=(v.commit||'dev').substring(0,8);$('buildVersion').textContent=' · Build '+commit}).catch(function(){})}
   restoreDisplaySettings();

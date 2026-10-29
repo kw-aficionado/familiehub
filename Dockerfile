@@ -3,7 +3,7 @@ RUN apk add --no-cache gcc musl-dev sqlite-dev
 ARG TARGETARCH
 ARG SOURCE_COMMIT=dev
 WORKDIR /src
-COPY go.mod ./
+COPY go.mod go.sum ./
 # Include all root-level Go sources, including newly added API modules.
 COPY *.go ./
 COPY internal ./internal

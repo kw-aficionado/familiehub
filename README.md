@@ -332,3 +332,16 @@ Under **Indstillinger → E-mailpåmindelser** kan administratoren konfigurere e
 Under **AI og påmindelser** skal *Send påmindelser* aktiveres, uanset om der er valgt en AI-model. FamilieHub finder selv uafsluttede opgaver og sender højst én samlet besked pr. person om dagen. Hvis HA-notifikation er tilgængelig, foretrækkes den; ellers forsøges e-mail. Intet sendes, før funktionen er aktiveret.
 
 På **iPad Air 2** kan in-app-påmindelser og e-mail bruges. Moderne Web Push til hjemmeskærmsapps kræver iPadOS 16.4 eller nyere og virker ikke på iPad Air 2.
+
+
+### Web Push til nyere telefoner og tablets
+
+FamilieHub kan sende direkte Web Push uden Home Assistant, når browseren og enheden understøtter Push API. På **iOS/iPadOS 16.4+** skal FamilieHub tilføjes til hjemmeskærmen og åbnes som webapp. Under **Indstillinger → Pushnotifikationer på denne enhed** vælges den ansvarlige person og **Aktivér push**. Der vises en systemdialog, hvor brugeren selv giver tilladelse.
+
+En aktivering er knyttet til den indloggede bruger og enheden. Endpointet opbevares krypteret i SQLite; push-abonnementet kan fjernes fra samme enhed. Serverens VAPID-nøgle oprettes automatisk og opbevares krypteret i `/data`, så eksisterende abonnementer overlever genstart. Pushmodtagere og tilknyttede personer bestemmes af brugerlogin; en almindelig konto kan ikke vælge en anden persons modtager-id.
+
+Når en person har flere kanaler, forsøges Home Assistant først, derefter Web Push, derefter e-mail. Kun den første succesfulde kanal benyttes til en given daglig påmindelse.
+
+**iPad Air 2:** Understøtter ikke iPadOS 16.4 og kan derfor ikke modtage disse Web Push-notifikationer. Brug i stedet e-mailpåmindelser eller beskeder inde i FamilieHub. En webapp kan heller ikke forhindre iPadOS' egen skærmlåsning.
+
+Ved Web Push anvender FamilieHub det velafprøvede Go-bibliotek `github.com/SherClockHolmes/webpush-go` med kryptering og VAPID (v1.4.0). Udstyr og pushleverandører skal tillade udgående HTTPS fra FamilieHub-serveren.

@@ -137,6 +137,7 @@ func (a *App) sendTaskNotification(ctx context.Context,p Person,title,msg string
  if p.NotifyService!=""&&a.cfg.HAURL!=""&&a.cfg.HAToken!="" {
   if err:=a.notify(ctx,p.NotifyService,title,msg);err==nil{return nil}else{errs=append(errs,err)}
  }
+ if err:=a.sendPushForPerson(ctx,p,title,msg);err==nil{return nil}else{errs=append(errs,err)}
  cfg,err:=a.emailSettings()
  if err!=nil{return err}
  for _,r:=range cfg.Recipients {
