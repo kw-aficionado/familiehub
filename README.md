@@ -384,3 +384,16 @@ fortsat kalenderuger (mandag); datoen for første bytte vises inden godkendelse.
 
 Eksisterende opgaver ændres ikke. FamilieHubs hus-ikon bruges også som
 favicon (SVG + ICO) og Apple touch-ikon. Se docs/PLANNER-START.md.
+
+## Dag som forside og alle dagens opgaver
+
+Forsiden starter i **Dag**. **Uge** kan stadig vælges manuelt.
+Opgavesiden starter i **Dagens opgaver**, med både udestående og udførte opgaver.
+Forsidens **Se alle dagens opgaver** åbner den fulde tjekliste for den viste dag
+uden begrænsningen på fire kort. Hvis en anden dato er valgt i kalenderen, følger
+genvejen denne dato og hedder **Se alle opgaver denne dag**. Et valgt personfilter
+på forsiden følger med; et gammelt statusfilter på opgavesiden gør ikke.
+**Dagens opgaver** og datonavigationens **I dag** vender altid tilbage til den
+aktuelle dato i Europe/Copenhagen. **Denne uge** og **Alle opgaver** er stadig
+separate visninger. Ugeopgaver vises én gang i dagslisten, med de eksisterende
+afkrydsninger og gentagelser. Ingen opgaver eller data ændres ved opdatering.
