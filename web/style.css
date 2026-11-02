@@ -307,3 +307,9 @@ html[data-theme="dark"] .planner-choice{background:#213a3d;border-color:#365358}
 .planner-save-status.error{color:#af413c}
 html[data-theme="dark"] .planner-save-status{color:#c5e8e6}
 html[data-theme="dark"] .planner-save-status.error{color:#ffaca3}
+
+/* The complete daily checklist remains reachable on small tablet/phone screens. */
+.tasks-panel .panel-title{flex-wrap:wrap;align-items:flex-start}
+.tasks-panel .panel-title-actions{max-width:100%}
+#showDayTasksBtn{white-space:normal;text-align:left}
+#taskPreviewCount:not(:empty){padding-top:10px;font-size:12px}

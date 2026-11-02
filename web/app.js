@@ -1,10 +1,12 @@
 /* FamilieHub: zero-dependency, iPadOS 15-compatible frontend. */
 (function () {
   'use strict';
-  var S = {csrf:'', account:null, accounts:[], view:'week', focus:new Date(), filter:'', people:[], events:[], tasks:[], templates:[], allTasks:[], settingsOpen:false, settingsTab:'templates', settingsQuery:'', page:'kalender', taskPeriod:'week', taskFocus:new Date(), taskFilter:'', taskStatus:'open', weekEntries:[], todayEvents:[], todayDate:'', loading:0, socket:null};
+  var S = {csrf:'', account:null, accounts:[], view:'day', focus:familyToday(), filter:'', people:[], events:[], tasks:[], templates:[], allTasks:[], settingsOpen:false, settingsTab:'templates', settingsQuery:'', page:'kalender', taskPeriod:'today', taskFocus:familyToday(), taskFilter:'', taskStatus:'all', weekEntries:[], todayEvents:[], todayDate:'', loading:0, taskLoading:0, socket:null};
   var $ = function(id){return document.getElementById(id)};
   function el(tag,props,text){var x=document.createElement(tag);if(props)Object.keys(props).forEach(function(k){x.setAttribute(k,props[k])});if(text!==undefined)x.textContent=text;return x}
   function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})}
+  // Use the family's Copenhagen date, also when a device is in another timezone.
+  function familyToday(){return new Date(window.FamilyHubPlannerDates.today()+'T12:00:00')}
   function pad(n){return String(n).padStart(2,'0')}
   function dayString(d){return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())}
   function localMidnight(d){return new Date(d.getFullYear(),d.getMonth(),d.getDate())}
@@ -61,8 +63,16 @@
   }
   function listen(){if(S.socket)S.socket.close();S.socket=new EventSource('/api/stream');S.socket.addEventListener('changed',function(){load();if(S.page==='opgaver')loadTasksPage().catch(function(){});if(S.settingsOpen)refreshSettingsData().catch(function(){})});S.socket.onerror=function(){setOnline(false)};S.socket.addEventListener('connected',function(){setOnline(true)})}
   function navigate(n){S.focus=addDays(S.view==='week'?startWeek(S.focus):S.focus,(S.view==='week'?7:1)*n);load()}
-  function setView(v){S.view=v;$('dayBtn').classList.toggle('active',v==='day');$('weekBtn').classList.toggle('active',v==='week');load()}
+  function updateCalendarViewButtons(){
+    ['day','week'].forEach(function(view){
+      var button=$(view+'Btn'),active=S.view===view;
+      button.classList.toggle('active',active);
+      button.setAttribute('aria-pressed',String(active));
+    });
+  }
+  function setView(v){S.view=v;updateCalendarViewButtons();load()}
   function render(){
+    updateCalendarViewButtons();
     var r=range();$('currentDate').textContent=formatDate(S.focus,{weekday:'long',day:'numeric',month:'long',year:'numeric'}).toUpperCase();
     $('viewTitle').textContent=S.view==='week'?('Uge '+weekNumber(startWeek(S.focus))+' · '+formatDate(r.start,{month:'long',year:'numeric'})):'Dagsoverblik';
     $('taskDate').textContent='Opgaver for '+formatDate(S.focus,{weekday:'long',day:'numeric',month:'long'});
@@ -95,7 +105,15 @@
     })(addDays(start,i))}
   }
   function repeatLabel(rule){return ({daily:'Hver dag',weekdays:'Hverdage (mandag–fredag)',weekly:'Hver uge (én dag)',biweekly:'Hver anden uge (én dag)',once_week:'Én hel uge',weekly_window:'Hver uge (hele ugen)',biweekly_window:'Hver anden uge (hele ugen)'})[rule]||''}
-  function renderTasks(){var root=$('taskList');root.replaceChildren();var tasks=S.tasks.filter(function(t){return !S.filter||t.assigned_to===S.filter}).sort(function(a,b){return Number(a.done)-Number(b.done)}).slice(0,4);if(!tasks.length){root.appendChild(el('p',{'class':'empty-state'},'Ingen opgaver på denne dag. Tryk “+ Opgave” for at oprette en.'));return}
+  function renderTasks(){
+    var root=$('taskList');root.replaceChildren();
+    var tasks=S.tasks.filter(function(t){return !S.filter||t.assigned_to===S.filter}).sort(function(a,b){return Number(a.done)-Number(b.done)});
+    var today=dayString(S.focus)===window.FamilyHubPlannerDates.today();
+    $('showDayTasksBtn').textContent=today?'Se alle dagens opgaver':'Se alle opgaver denne dag';
+    $('showDayTasksBtn').setAttribute('aria-label','Se alle opgaver for '+formatDate(S.focus,{weekday:'long',day:'numeric',month:'long'}));
+    $('taskPreviewCount').textContent=tasks.length>4?'Viser 4 af '+tasks.length+' opgaver.':'';
+    tasks=tasks.slice(0,4);
+    if(!tasks.length){root.appendChild(el('p',{'class':'empty-state'},'Ingen opgaver på denne dag. Tryk “+ Opgave” for at oprette en.'));return}
     tasks.forEach(function(t){var row=el('div',{'class':'task-row'});row.style.borderLeft='4px solid '+colorOf(t.assigned_to);row.style.paddingLeft='9px';var check=el('input',{type:'checkbox','aria-label':'Fuldfør '+t.title});check.checked=t.done;check.addEventListener('change',async function(){try{await api('/api/tasks/'+t.id+'/toggle','POST',{day:dayString(S.focus),done:check.checked});load()}catch(e){check.checked=!check.checked;alert(e.message)}});row.appendChild(check);
       var text=el('div',{'class':'task-text'});var title=el('strong',{'class':t.done?'strike':''},t.title);text.appendChild(title);var meta=el('small');var owner=el('span',{'class':'task-person-label'},t.assigned_to?nameOf(t.assigned_to):'Fælles');owner.style.backgroundColor=tint(colorOf(t.assigned_to),0.13);owner.style.color=colorOf(t.assigned_to);meta.appendChild(owner);if(repeatLabel(t.repeat_rule))meta.appendChild(document.createTextNode(' · '+repeatLabel(t.repeat_rule)));text.appendChild(meta);row.appendChild(text);
       var edit=el('button',{'class':'text-button','type':'button'},'Redigér');edit.addEventListener('click',function(){openTask(t)});row.appendChild(edit);root.appendChild(row)
@@ -196,15 +214,29 @@
     if(page==='opgaver')loadTasksPage().catch(function(err){$('tasksPageList').replaceChildren(el('p',{'class':'error'},'Kunne ikke hente opgaver: '+err.message))});
     if(page==='indstillinger'){refreshSettingsData().catch(function(err){$('settingsList').replaceChildren(el('p',{'class':'error'},'Kunne ikke hente arkivet: '+err.message))});loadCalendarOwners();renderAccountSettings();loadAISettings();loadDirectCalendars();loadEmailSettings();loadPushSettings()}
   }
+  // Open the complete checklist for the day shown on the home page, not every task series.
+  function openDayTasks(){
+    S.taskPeriod='today';
+    S.taskFocus=new Date(S.focus.getTime());
+    S.taskFilter=S.filter;
+    S.taskStatus='all';
+    if(location.hash==='#opgaver')syncPage();else location.hash='#opgaver';
+  }
+  function selectTaskPeriod(period){
+    if(['today','week','all'].indexOf(period)===-1)return Promise.resolve();
+    S.taskPeriod=period;
+    if(period==='today')S.taskFocus=familyToday();
+    S.taskStatus=period==='today'?'all':'open';
+    return loadTasksPage();
+  }
   function taskWeekStart(){return dayString(startWeek(S.taskFocus))}
   async function loadTasksPage(){
     if(S.page!=='opgaver')return;
-    var data=await Promise.all([
-      api('/api/tasks/week?start='+encodeURIComponent(taskWeekStart())),
-      api('/api/tasks/all')
-    ]);
-    S.weekEntries=data[0].entries||[];
-    S.allTasks=data[1]||[];
+    var token=++S.taskLoading,all=S.taskPeriod==='all';
+    var data=await api(all?'/api/tasks/all':'/api/tasks/week?start='+encodeURIComponent(taskWeekStart()));
+    // A slow response from another day/period must not replace the current checklist.
+    if(token!==S.taskLoading||S.page!=='opgaver')return;
+    if(all)S.allTasks=data||[];else S.weekEntries=data.entries||[];
     renderTasksPage();
   }
   function renderTaskPeopleFilters(){
@@ -245,7 +277,7 @@
       return da.localeCompare(db)||a.title.localeCompare(b.title,'da');
     });
     var title=all?'Alle opgaver':period==='today'?
-      'Opgaver '+formatDate(S.taskFocus,{day:'numeric',month:'long'}):
+      (dayString(S.taskFocus)===window.FamilyHubPlannerDates.today()?'Dagens opgaver · ':'Opgaver ')+formatDate(S.taskFocus,{day:'numeric',month:'long'}):
       'Uge '+weekNumber(startWeek(S.taskFocus))+' · '+formatDate(startWeek(S.taskFocus),{month:'long',year:'numeric'});
     $('tasksPeriodTitle').textContent=title;
     $('tasksCount').textContent=entries.length+' '+(entries.length===1?'opgave':'opgaver');
@@ -443,16 +475,17 @@
   $('loginForm').addEventListener('submit',async function(ev){ev.preventDefault();$('loginError').textContent='';try{var d=await api('/api/login','POST',{username:$('username').value.trim(),password:$('password').value});S.csrf=d.csrf;S.account=d.account||{role:'admin',username:'Administrator'};$('password').value='';hide('login');show('app');await load();syncPage();listen();scheduleSaver()}catch(e){$('loginError').textContent=e.message}});
   $('logoutBtn').addEventListener('click',async function(){try{await api('/api/logout','POST',{})}catch(e){}if(S.socket)S.socket.close();S.csrf='';S.account=null;hideSaver();scheduleSaver();hide('app');show('login')});
   $('dayBtn').addEventListener('click',function(){setView('day')});$('weekBtn').addEventListener('click',function(){setView('week')});
-  $('prevBtn').addEventListener('click',function(){navigate(-1)});$('nextBtn').addEventListener('click',function(){navigate(1)});$('todayBtn').addEventListener('click',function(){S.focus=new Date();load()});
+  $('prevBtn').addEventListener('click',function(){navigate(-1)});$('nextBtn').addEventListener('click',function(){navigate(1)});$('todayBtn').addEventListener('click',function(){S.focus=familyToday();load()});
   $('addEventBtn').addEventListener('click',function(){openEvent()});$('addTaskBtn').addEventListener('click',function(){openTask()});$('settingsPeopleBtn').addEventListener('click',openPeople);$('settingsHABtn').addEventListener('click',settings);$('settingsBtn').addEventListener('click',function(){location.hash='#indstillinger'});
   $('settingsAddBtn').addEventListener('click',function(){openTemplate()});
   $('settingsSearch').addEventListener('input',renderSettings);
+  $('showDayTasksBtn').addEventListener('click',openDayTasks);
   $('tasksAddBtn').addEventListener('click',function(){openTask()});
-  document.querySelectorAll('[data-period]').forEach(function(button){button.addEventListener('click',function(){S.taskPeriod=button.getAttribute('data-period');S.taskStatus='open';loadTasksPage()})});
+  document.querySelectorAll('[data-period]').forEach(function(button){button.addEventListener('click',function(){selectTaskPeriod(button.getAttribute('data-period')).catch(function(err){$('tasksPageList').replaceChildren(el('p',{'class':'error'},err.message))})})});
   document.querySelectorAll('[data-status]').forEach(function(button){button.addEventListener('click',function(){S.taskStatus=button.getAttribute('data-status');renderTasksPage()})});
   $('tasksPrevBtn').addEventListener('click',function(){S.taskFocus=addDays(S.taskFocus,S.taskPeriod==='week'?-7:-1);loadTasksPage()});
   $('tasksNextBtn').addEventListener('click',function(){S.taskFocus=addDays(S.taskFocus,S.taskPeriod==='week'?7:1);loadTasksPage()});
-  $('tasksCurrentBtn').addEventListener('click',function(){S.taskFocus=new Date();loadTasksPage()});
+  $('tasksCurrentBtn').addEventListener('click',function(){selectTaskPeriod('today').catch(function(err){$('tasksPageList').replaceChildren(el('p',{'class':'error'},err.message))})});
   window.addEventListener('hashchange',syncPage);
   $('closeModal').addEventListener('click',closeModal);$('modal').addEventListener('click',function(e){if(e.target.hasAttribute('data-close'))closeModal()});
   document.addEventListener('keydown',function(e){if(e.key==='Escape')closeModal()});
