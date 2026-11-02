@@ -523,22 +523,34 @@
   }
 
   // Each display has independent light/dark and idle-screen preferences.
-  var displayPrefs={theme:'auto',nightFrom:'21:00',nightTo:'07:00',saverDelay:10};
-  var saverTimer=null,saverVisible=false;
-  function validClock(value){return typeof value==='string'&&/^\d\d:\d\d$/.test(value)&&Number(value.slice(0,2))<24&&Number(value.slice(3))<60}
+  var saverRules=window.FamilyHubSaverSchedule;
+  var displayPrefs=saverRules.normalize();
+  var saverTimer=null,saverVisible=false,saverManual=false,saverLastActivity=Date.now();
+  function validClock(value){return saverRules.validClock(value)}
+  function saverSettingsStatus(message,error){
+    $('saverScheduleStatus').textContent=message;
+    $('saverScheduleStatus').classList.toggle('error',!!error);
+  }
+  function updateSaverSettingsControls(){
+    var scheduled=$('saverMode').value==='scheduled';
+    ['saverFromField','saverToField'].forEach(function(id){$(id).classList.toggle('hidden',!scheduled)});
+    var message=displayPrefs.saverDelay===0?'Automatisk pausesk\u00e6rm er sl\u00e5et fra.':
+      'Pausesk\u00e6rm efter '+displayPrefs.saverDelay+' minutters inaktivitet '+
+      (displayPrefs.saverMode==='always'?'hele d\u00f8gnet.':'kun kl. '+displayPrefs.saverFrom+'\u2013'+displayPrefs.saverTo+' (dansk tid).');
+    saverSettingsStatus(message+' Indstillingerne gemmes automatisk p\u00e5 denne enhed.',false);
+  }
   function restoreDisplaySettings(){
-    try{
-      var saved=JSON.parse(localStorage.getItem('familiehub-display-v1')||'{}');
-      if(['auto','light','dark'].indexOf(saved.theme)!==-1)displayPrefs.theme=saved.theme;
-      if(validClock(saved.nightFrom))displayPrefs.nightFrom=saved.nightFrom;
-      if(validClock(saved.nightTo))displayPrefs.nightTo=saved.nightTo;
-      if([0,5,10,20,30].indexOf(Number(saved.saverDelay))!==-1)displayPrefs.saverDelay=Number(saved.saverDelay);
-    }catch(e){}
+    var saved={};
+    try{saved=JSON.parse(localStorage.getItem('familiehub-display-v1')||'{}')}catch(e){}
+    displayPrefs=saverRules.normalize(saved);
     $('themeMode').value=displayPrefs.theme;
     $('nightFrom').value=displayPrefs.nightFrom;
     $('nightTo').value=displayPrefs.nightTo;
     $('saverDelay').value=String(displayPrefs.saverDelay);
-    applyTheme();scheduleSaver();
+    $('saverMode').value=displayPrefs.saverMode;
+    $('saverFrom').value=displayPrefs.saverFrom;
+    $('saverTo').value=displayPrefs.saverTo;
+    updateSaverSettingsControls();applyTheme();scheduleSaver();
   }
   function applyTheme(){
     var dark=displayPrefs.theme==='dark';
@@ -552,45 +564,66 @@
     var meta=document.querySelector('meta[name="theme-color"]');if(meta)meta.setAttribute('content',dark?'#10181b':'#182d39');
   }
   function saveDisplaySettings(){
-    displayPrefs.theme=$('themeMode').value;
-    displayPrefs.nightFrom=validClock($('nightFrom').value)?$('nightFrom').value:'21:00';
-    displayPrefs.nightTo=validClock($('nightTo').value)?$('nightTo').value:'07:00';
-    displayPrefs.saverDelay=Number($('saverDelay').value);
-    try{localStorage.setItem('familiehub-display-v1',JSON.stringify(displayPrefs))}catch(e){}
-    applyTheme();scheduleSaver();
+    var from=$('saverFrom').value,to=$('saverTo').value,mode=$('saverMode').value;
+    if(mode==='scheduled'&&(!validClock(from)||!validClock(to)||from===to)){
+      saverSettingsStatus('V\u00e6lg to forskellige, gyldige klokkesl\u00e6t. Brug Hele d\u00f8gnet for ingen tidsbegr\u00e6nsning.',true);return;
+    }
+    displayPrefs=saverRules.normalize({theme:$('themeMode').value,nightFrom:$('nightFrom').value,
+      nightTo:$('nightTo').value,saverDelay:$('saverDelay').value,saverMode:mode,saverFrom:from,saverTo:to});
+    updateSaverSettingsControls();
+    try{localStorage.setItem('familiehub-display-v1',JSON.stringify(displayPrefs))}catch(e){
+      saverSettingsStatus('Indstillingerne virker nu, men browseren kunne ikke gemme dem til n\u00e6ste bes\u00f8g.',true);
+    }
+    hideSaver();saverLastActivity=Date.now();applyTheme();scheduleSaver();
   }
   function updateSaver(){
     var now=new Date();
     $('saverClock').textContent=formatDate(now,{hour:'2-digit',minute:'2-digit',hour12:false,timeZone:'Europe/Copenhagen'});
     $('saverDate').textContent=formatDate(now,{weekday:'long',day:'numeric',month:'long',timeZone:'Europe/Copenhagen'});
     var next=S.todayEvents.filter(function(e){return new Date(e.end_at)>now}).sort(function(a,b){return a.start_at.localeCompare(b.start_at)})[0];
-    $('saverNext').textContent=next?next.title+' · '+clock(next.start_at):'Ingen flere aftaler i dag';
+    $('saverNext').textContent=next?next.title+' \u00b7 '+clock(next.start_at):'Ingen flere aftaler i dag';
   }
-  function showSaver(){
-    if(!S.csrf||!$('login').classList.contains('hidden')||!$('modal').classList.contains('hidden')){scheduleSaver();return}
-    saverVisible=true;updateSaver();show('screensaver');
+  function showSaver(manual){
+    manual=manual===true;
+    if(!S.csrf||document.hidden||!$('login').classList.contains('hidden')||!$('modal').classList.contains('hidden'))return false;
+    var now=new Date();
+    if(!manual&&(!saverRules.allowed(now,displayPrefs)||now.getTime()-saverLastActivity<displayPrefs.saverDelay*60000))return false;
+    saverVisible=true;saverManual=manual;updateSaver();show('screensaver');return true;
   }
   function hideSaver(){
+    saverManual=false;
     if(saverVisible){saverVisible=false;hide('screensaver')}
   }
   function scheduleSaver(){
     if(saverTimer!==null)clearTimeout(saverTimer);
     saverTimer=null;
-    if(displayPrefs.saverDelay>0&&S.csrf&&!document.hidden&&!saverVisible){
-      saverTimer=setTimeout(showSaver,displayPrefs.saverDelay*60000);
+    if(!S.csrf||document.hidden||!$('login').classList.contains('hidden')){hideSaver();return}
+    var now=new Date(),allowed=saverRules.allowed(now,displayPrefs);
+    // End an automatic screensaver at the end of its window, even without a touch.
+    if(saverVisible&&!saverManual&&!allowed)hideSaver();
+    if(saverManual||displayPrefs.saverDelay===0)return;
+    // Recheck on clock-minute boundaries: allows 20:00 activation, midnight and DST,
+    // and a prompt wake-up at 07:00. Rechecks never reset the inactivity deadline.
+    var wait=60000-(now.getTime()%60000);
+    if(!saverVisible&&allowed){
+      var remaining=displayPrefs.saverDelay*60000-Math.max(0,now.getTime()-saverLastActivity);
+      if(remaining<=0)showSaver(false);else wait=Math.min(wait,remaining);
     }
+    saverTimer=setTimeout(scheduleSaver,Math.max(100,wait));
   }
   function activity(){
-    if(saverVisible)hideSaver();
-    scheduleSaver();
+    saverLastActivity=Date.now();hideSaver();scheduleSaver();
   }
-  ['themeMode','nightFrom','nightTo','saverDelay'].forEach(function(id){$(id).addEventListener('change',saveDisplaySettings)});
-  $('saverPreviewBtn').addEventListener('click',showSaver);
+  ['themeMode','nightFrom','nightTo','saverDelay','saverMode','saverFrom','saverTo'].forEach(function(id){$(id).addEventListener('change',saveDisplaySettings)});
+  // Manual preview is explicitly allowed outside automatic hours (also when disabled).
+  $('saverPreviewBtn').addEventListener('click',function(){if(showSaver(true))scheduleSaver()});
   $('screensaver').addEventListener('click',activity);
   $('screensaver').addEventListener('touchstart',activity,{passive:true});
   document.addEventListener('keydown',activity);
   document.addEventListener('pointerdown',activity,{passive:true});
   document.addEventListener('wheel',activity,{passive:true});
+  // Returning to the tab starts a new idle period; a suspended timer cannot cover it immediately.
+  document.addEventListener('visibilitychange',activity);
   setInterval(function(){applyTheme();if(saverVisible)updateSaver()},60000);
 
   function accountIsAdmin(){return !!S.account&&S.account.role==='admin'}
