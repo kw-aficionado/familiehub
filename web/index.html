@@ -13,7 +13,8 @@
 <link rel="manifest" href="/manifest.webmanifest">
 <link rel="stylesheet" href="/style.css?v=day-home-1">
 <script src="/planner-dates.js?v=start-date-1" defer></script>
-<script src="/app.js?v=day-home-1" defer></script>
+<script src="/saver-schedule.js?v=1" defer></script>
+<script src="/app.js?v=saver-schedule-1" defer></script>
 </head>
 <body>
 <section id="login" class="login-screen hidden">
@@ -144,9 +145,14 @@
         <label class="field">Tema<select id="themeMode"><option value="auto">Automatisk</option><option value="light">Lys</option><option value="dark">Mørk</option></select></label>
         <label class="field">Nat starter<input id="nightFrom" type="time" value="21:00"></label>
         <label class="field">Dag starter<input id="nightTo" type="time" value="07:00"></label>
-        <label class="field">Pauseskærm efter<select id="saverDelay"><option value="5">5 minutter</option><option value="10">10 minutter</option><option value="20">20 minutter</option><option value="30">30 minutter</option><option value="0">Aldrig</option></select></label>
+        <label class="field">Pauseskærmens tidsrum<select id="saverMode"><option value="scheduled">Kun i det valgte tidsrum</option><option value="always">Hele døgnet</option></select></label>
+        <label class="field" id="saverFromField">Aktiv fra<input id="saverFrom" type="time" value="20:00" aria-describedby="saverScheduleStatus"></label>
+        <label class="field" id="saverToField">Aktiv indtil<input id="saverTo" type="time" value="07:00" aria-describedby="saverScheduleStatus"></label>
+        <label class="field">Pauseskærm efter inaktivitet<select id="saverDelay"><option value="5">5 minutter</option><option value="10">10 minutter</option><option value="20">20 minutter</option><option value="30">30 minutter</option><option value="0">Aldrig</option></select></label>
        </div>
+       <p id="saverScheduleStatus" class="muted" role="status" aria-live="polite"></p>
        <button type="button" class="minor" id="saverPreviewBtn">Afprøv pauseskærmen</button>
+       <p class="muted">Tidsrummet følger dansk tid og er uafhængigt af mørkt tema. Vælg Aldrig for at slå automatisk pauseskærm fra. Afprøv virker også uden for tidsrummet.</p>
        <p class="muted">Pauseskærmen skjuler FamilieHub uden at låse iPad'en. Den ændrer ikke iPad'ens fysiske lysstyrke.</p>
      </section>
    </div>
