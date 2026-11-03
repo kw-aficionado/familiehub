@@ -8,7 +8,7 @@ En selvhostet familietavle til iPad Air 2, nyere tablets og telefoner.
 
 ## AI Opgaveplanlægger (ny)
 
-Åbn **Opgaver → AI Opgaveplanlægger**. Funktionen genbruger FamilieHubs eksisterende login, AI-udbyder og API-nøgle.
+Åbn **Indstillinger**, og find **AI Opgaveplanlægger** lige under **Opgavearkiv**. Funktionen genbruger FamilieHubs eksisterende login, AI-udbyder og API-nøgle.
 
 1. Vælg **Tilføj 15 forslag til opgavearkiv**. Dette opretter kun manglende skabeloner; eksisterende skabeloner og aktive opgaver bevares.
 2. Vælg **Lav en opgaveplan**, familiemedlemmer og de ønskede arkivopgaver.

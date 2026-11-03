@@ -328,6 +328,23 @@
   }
 
   var plannerDraft=null;
+  // Keep the receipt beside the planner in Settings. Open the saved week only
+  // when requested, without replacing the ordinary daily-task shortcut.
+  function showSavedPlannerPlan(saved,draft){
+    var startDate=saved.start_date||draft.start_date;
+    closeModal();
+    $('plannerStatus').textContent='Opgaveplan gemt: '+saved.created+' opgaver fra '+startDate+'.';
+    var link=$('plannerViewPlanLink');
+    link.onclick=function(){
+      S.taskFocus=new Date(startDate+'T12:00:00');
+      S.taskPeriod='week';
+      S.taskFilter='';
+      S.taskStatus='all';
+      if(location.hash==='#opgaver')syncPage();
+    };
+    show('plannerViewPlanLink');
+    $('plannerStatus').scrollIntoView({block:'nearest'});
+  }
   async function openPlanner(){
     try{S.templates=await api('/api/templates')}catch(e){$('plannerStatus').textContent=e.message;return}
     if(!S.people.length||!S.templates.length){$('plannerStatus').textContent='Opret familiemedlemmer og tilføj opgaver til arkivet først.';return}
@@ -417,21 +434,8 @@
             button.disabled=false;
             return;
           }
-          // A successful write must never be mistaken for failure if refreshing the list fails.
-          var startDate=saved.start_date||draft.start_date;
-          closeModal();
-          S.taskFocus=new Date(startDate+'T12:00:00');
-          S.taskPeriod='week';
-          S.taskFilter='';
-          S.taskStatus='all';
-          $('plannerStatus').textContent='Opgaveplan gemt: '+saved.created+' opgaver fra '+startDate+'. Viser startugen nedenfor.';
-          try{
-            await loadTasksPage();
-            await load();
-          }catch(e){
-            $('plannerStatus').textContent='Opgaveplanen blev gemt ('+saved.created+' opgaver), men listen kunne ikke opdateres: '+e.message+'. Genindlæs Opgaver; gem ikke igen.';
-          }
-          $('plannerStatus').scrollIntoView({block:'nearest'});
+          showSavedPlannerPlan(saved,draft);
+          await load();
         });
       }catch(e){$('formError').textContent=e.message}
     });
@@ -448,7 +452,7 @@
   $('plannerOpenBtn').addEventListener('click',openPlanner);
   $('plannerSeedBtn').addEventListener('click',async function(){
     if(!confirm('Tilføj manglende standardopgaver til Opgavearkiv? Eksisterende skabeloner bevares.'))return;
-    try{var result=await api('/api/planner/seed','POST',{});$('plannerStatus').textContent=result.created+' nye skabeloner tilføjet. Åbn planlæggeren for at vælge dem.';S.templates=await api('/api/templates')}catch(e){$('plannerStatus').textContent=e.message}
+    try{var result=await api('/api/planner/seed','POST',{});$('plannerStatus').textContent=result.created+' nye skabeloner tilføjet. Åbn planlæggeren for at vælge dem.';await refreshSettingsData()}catch(e){$('plannerStatus').textContent=e.message}
   });
 
   function openTemplate(t){
