@@ -20,7 +20,9 @@ Opgavearkivet har nu kategori, minutter pr. gang, belastningspoint (1–20) og a
 
 Den deterministiske fordelingsmotor fungerer helt uden API-nøgle. AI-forklaringen sender kun opgavetitler, interne person-ID'er og point/minutter til den konfigurerede AI-udbyder, og AI har ikke skriveadgang til opgaver. Fejl/timeout fra AI betyder ikke, at planlægningen går i stå. Kun administratoren kan importere standardskabeloner. Alle indloggede familiemedlemmer, der allerede kan oprette almindelige opgaver, kan også godkende og gemme en foreslået opgaveplan. Det er en guidet planlægningsassistent, ikke en autonom chat-agent.
 
-Efter godkendelse åbner FamilieHub automatisk **startugen** og viser en kvittering med antallet af gemte opgaver. Hvis gemning fejler, står fejlen synligt direkte ved knappen. Planen kan godt starte i næste uge og derfor mangle i visningen **I dag**.\n\nBemærk: En plan opretter tilbagevendende opgaver. Kør ikke **Godkend og gem** to gange for den samme plan, da begge sæt ellers bliver oprettet. Vælg selv, hvilke eksisterende opgaver der skal indgå; planlæggeren sletter aldrig eksisterende opgaver.
+Efter godkendelse bliver du i **Indstillinger** og ser en kvittering med antallet af gemte opgaver. Klik **Se den gemte opgaveplan** for at åbne planens **startuge** under Opgaver. Hvis gemning fejler, står fejlen synligt direkte ved knappen. Planen kan godt starte i næste uge og derfor mangle i visningen **I dag**.
+
+Bemærk: En plan opretter tilbagevendende opgaver. Kør ikke **Godkend og gem** to gange for den samme plan, da begge sæt ellers bliver oprettet. Vælg selv, hvilke eksisterende opgaver der skal indgå; planlæggeren sletter aldrig eksisterende opgaver.
 
 ## AI-familieassistent (frivillig)
 
