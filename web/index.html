@@ -52,12 +52,6 @@
    <div class="tasks-filters"><div id="taskPeopleFilters" class="filters" aria-label="Filtrer efter ansvarlig"></div><div id="taskStatusFilters" class="task-status-filters" role="group" aria-label="Opgavestatus"><button type="button" data-status="open">Udestående</button><button type="button" data-status="all">Alle</button><button type="button" data-status="done">Udførte</button></div></div>
    <div class="tasks-summary"><h2 id="tasksPeriodTitle">Dagens opgaver</h2><span class="muted" id="tasksCount"></span></div>
    <section id="tasksPageList" class="tasks-page-list" aria-live="polite"></section>
-   <section class="settings-panel ai-assist-panel" id="plannerPanel" aria-label="AI Opgaveplanlægger">
-<h2>AI Opgaveplanlægger</h2>
-<p class="muted">Vælg familiemedlemmer, opgaver og rotation. FamilieHub beregner en fair fordeling, også uden AI-forbindelse. Se forslaget, før du gemmer.</p>
-<div class="ai-actions"><button type="button" id="plannerOpenBtn" class="primary">Lav en opgaveplan</button><button type="button" id="plannerSeedBtn" class="minor">Tilføj 15 forslag til opgavearkiv</button></div>
-<p id="plannerStatus" class="muted" role="status"></p>
-</section>
 <section class="settings-panel ai-assist-panel" aria-label="AI-hjælp til opgaver">
      <h2>AI-familieassistent</h2>
      <p class="muted">Få et kort overblik, ugens prioriteringer eller idéer til at komme videre. AI ændrer aldrig opgaver automatisk.</p>
@@ -73,6 +67,13 @@
      <label class="settings-search"><span class="sr-only">Søg i opgaver</span><input id="settingsSearch" type="search" autocomplete="off" placeholder="Søg efter en opgave…"></label>
      <div id="settingsList" class="settings-list" aria-live="polite"></div>
    </div>
+   <section class="settings-panel ai-assist-panel" id="plannerPanel" aria-label="AI Opgaveplanlægger">
+   <h2>AI Opgaveplanlægger</h2>
+   <p class="muted">Vælg familiemedlemmer, opgaver og rotation. FamilieHub beregner en fair fordeling, også uden AI-forbindelse. Se forslaget, før du gemmer.</p>
+   <div class="ai-actions"><button type="button" id="plannerOpenBtn" class="primary">Lav en opgaveplan</button><button type="button" id="plannerSeedBtn" class="minor">Tilføj 15 forslag til opgavearkiv</button></div>
+   <p id="plannerStatus" class="muted" role="status"></p>
+   <a id="plannerViewPlanLink" class="text-button hidden" href="#opgaver">Se den gemte opgaveplan →</a>
+   </section>
    <section class="settings-panel accounts-panel" aria-label="Brugerkonti">
      <div class="settings-panel-head"><div><h2>Brugere og login</h2><p class="muted">Hvert familiemedlem kan logge ind fra sin egen telefon eller tablet.</p></div><button type="button" id="accountsAddBtn" class="primary">+ Opret bruger</button></div>
      <div id="accountsAdmin">
