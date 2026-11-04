@@ -2,8 +2,14 @@
 .env.*
 !sample.env
 /data/
+/data-dev/
 /familiehub
 *.sqlite
 *.sqlite-journal
+*.sqlite-wal
+*.sqlite-shm
+session.key
+/.venv-screenshots/
+__pycache__/
 *.zip
 .DS_Store

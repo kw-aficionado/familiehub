@@ -1,0 +1,102 @@
+{
+  "schema_version": 1,
+  "captured_at": "2026-11-04T11:04:35.128448+00:00",
+  "fixture_date": "2026-11-04",
+  "timezone": "Europe/Copenhagen",
+  "fixture_kind": "fictional family in a new temporary SQLite database",
+  "backend": "real Go app, loopback only, no external integrations",
+  "browser": "Chromium 143.0.7499.4",
+  "source_hashes": {
+    "accounts.go": "9ad2b93d3cc5c4402b9dc5f5aecca7e4f77302df3df92767997bb4213e62e0a0",
+    "accounts_test.go": "ed22062b85f5460eaac0e849a4b47c91076394c6f62f55118ef8183b4d82f4cd",
+    "ai.go": "84942cd1a0fc27c89936d3d2cf385aa4512b0744b29bc22a5af66362aede1581",
+    "ai_test.go": "1deb7919861e4d87f0c84a7b55fe15548881a7944016b18e2e5b33d6f17e0671",
+    "calendar_owners.go": "ca6035a840a6c0dc296a481dacaefd4ae49403f61fb7fe3de7b572b3a27200a2",
+    "calendar_owners_test.go": "98af1fc2e64e280a9b71166884314d983eb5c8bffede589937610741912a2b65",
+    "chore_templates.go": "2f541936891d20881bf642975e601da62557e1bae02831efacbac3fe8332861e",
+    "chore_templates_test.go": "6ab3475ad8fc18cdd08e1166a33b41ef4ceab404f3d70b362c06a80c3a79e8ae",
+    "direct_calendar_fetch.go": "708acda7c02a1c66542a25d4033b1fd733203cf0abc5f9d2a844125647ae6af4",
+    "direct_calendars.go": "508e4723c1d489fa5956610a98d69059b3a1dc0006de3cff9b58822ce6dc041e",
+    "direct_calendars_test.go": "31677529916b47ae3ffe29ccb63753819a7b858df7e62e6a3cdcd89f08495876",
+    "email_notifications.go": "300d6a807fe508276bd987c79fd1c63f87f2472e4758f58b6533a2e73f6ce2a6",
+    "email_notifications_test.go": "d1d9e7da63e590d3b3e95eee0488336c31e38c7e554380d8c632ad623961140d",
+    "integrations.go": "a595401e629f75311d3e9b7e172033186640a126af2eb6e6093d8309f032cb08",
+    "internal/mcpaccess/oauth.go": "ec67460df76f48d336d8ce9a5ed7ab0e91e9c48f573bf67da4744bba4eb18c2f",
+    "internal/mcpaccess/pages.go": "6befd891f9cd7ecfb43b5e584c9972b8022768d0d27f402c1b82f4993f5a3047",
+    "internal/mcpaccess/server.go": "84e6facc86514bf201aef128040582db2f3e952ab76668093d49516f2470e997",
+    "internal/mcpaccess/server_test.go": "34c885a9a82aa6da34162cc3473f776497aada5fd442ea339d62d31c7e4a7608",
+    "internal/mcpaccess/start_date_test.go": "6088c7b5d31074b8f97909e68283c159965b423628689d5f7710814ed135b3c2",
+    "internal/mcpaccess/tools.go": "2a183f72248000c9dae388c859e0504fc49dc3b64c4b63759871de2959695027",
+    "internal/store/sqlite.go": "26273cccaf462f702c2c7c2bdd07444717d968283745b8a75b718134513e41ae",
+    "internal/store/transaction.go": "e56bed4c5d0754f261670b1d02caaef1f5f26191094762c221b6fe3c64dd9fef",
+    "main.go": "4b4284394983da8f0c3fb2c33ba9336da3c5dca6f5ffeac34ad1e788f429bbc4",
+    "main_test.go": "c354a29c5d39ee5a0797e94244c2e739ada9f0c2a287c809c00b79f94ba9b7af",
+    "mcp_integration.go": "f0824409a395fb00709121b6470cfc7061578d1b181673ec98a04323aa779555",
+    "mcp_integration_test.go": "fa21890321b5f3509abb091bab84e9d4b098baa980dc8374eff7c82764df19ba",
+    "planner.go": "044481b3dedf2317431f939fc643a5a81423f46003f9c3ef87d7cf5d41dce60b",
+    "planner_start_date.go": "93ddeb148a8dcad87286b513f2ae08aa5fb1b58d374d38915f64cfba90a8857b",
+    "planner_start_date_test.go": "c4ce50d6abe0052064514d4a40d9329bff5f9574ac8b592ea2ddbd289491eb4a",
+    "planner_test.go": "03a45523c951f251e19ce7a3dc80b76e7c688f171fdb1be7a8c2ad7a32653df3",
+    "push_notifications.go": "a1d03681fc3622644344ad37da8ef77cd8886ccf1954013819cac3c57e6c1dda",
+    "push_notifications_test.go": "69e3d4387d88cbb30c806e778358062448a660286b61fced4c234640c4243dc7",
+    "web/app.js": "5df377224c15b16537a282758e1598f1e50f60368557f4b2b433f31c467c42f8",
+    "web/apple-touch-icon.png": "a78732e32b55886e477ccfb3c6c1e1b0f22785fb7a44830649decbf68555b5aa",
+    "web/favicon.ico": "18304a300797311175ff87ce2df6b3b251a23293e22a6d16916092a6efa6ecfc",
+    "web/icon.svg": "73f5d01c8a70e6cf7d28baa5eb0fbd8a96d62c23ae24abf10b38801e3e0e73a4",
+    "web/index.html": "f5d1e13cfce3ec7810ce71cf79ea592669eefc528700c2224afeae9ff81c28e4",
+    "web/manifest.webmanifest": "faf08f3ec4a1fe91ba8e01fd2fc35581aeccc2cd1d0276059531acaa14142fb4",
+    "web/mcp-ui.css": "7fa0cee3701987c79cca7e67ce077584b22b071ae105de00c5216d9302e323ae",
+    "web/mcp-ui.js": "52b0f32b20c86aae5b3fc15a5f5ea39c9fd71e7066bf90cc919d22bbe0c19f06",
+    "web/planner-dates.js": "7ada02f13d3162b3dff127fb7939f4283d6ba5a481bd741cb897a514ee713453",
+    "web/saver-schedule.js": "917be6c32de7ee4dd8515e65420195e9f18ba2c94a6d529d7b714802ad170b8a",
+    "web/style.css": "3de2b44f9a7351a352939f65f96519b8eeaa378a18869cd81cde4f39080b7711",
+    "web/sw.js": "54a6e13ebeca4b9a459955059ae205e7ede64a8dcfb278dedee6a14f7f8f7938"
+  },
+  "images": {
+    "kalender.webp": {
+      "width": 1280,
+      "height": 1000,
+      "sha256": "a8eaed283daa29a0aef3529a9b8695f151eb5086cf05b4688e6e99475e9d7d2e"
+    },
+    "opgaver.webp": {
+      "width": 1280,
+      "height": 1000,
+      "sha256": "1012352f6170a59d71c73c02cce9315bfd58de445a9cda681dc0543dc13e6b15"
+    },
+    "indstillinger.webp": {
+      "width": 1280,
+      "height": 1000,
+      "sha256": "0cf8c9f2cf26925891d02a22ee699917eeff5ce5bd9e9e432e947cbcd3018f7c"
+    },
+    "planlaegger.webp": {
+      "width": 550,
+      "height": 920,
+      "sha256": "d09e3bb108f34de90cc765ecd1a490437750ab574cff0985bc0b8c0df2e5348f"
+    },
+    "planforslag.webp": {
+      "width": 550,
+      "height": 920,
+      "sha256": "e1a744a86b067e8c3dba565e894e6dbfe240f50904436cd3fa9253f70160b9a2"
+    },
+    "skaermindstillinger.webp": {
+      "width": 518,
+      "height": 642,
+      "sha256": "c49df008509e1e72f0b3edb0298b38b065bbe299adf48617906ddc9d5f2895c7"
+    },
+    "nattilstand.webp": {
+      "width": 1280,
+      "height": 1000,
+      "sha256": "ac3557e55efab693c86361b3710ade11089758f37629819a2e073181df88054d"
+    },
+    "iphone.webp": {
+      "width": 390,
+      "height": 844,
+      "sha256": "812c9c2c90981b85709fa636c08ff27af2e6483805e7968db0f318140fe87bd2"
+    },
+    "iphone-sondag.webp": {
+      "width": 390,
+      "height": 844,
+      "sha256": "7e835d261bdd98098b0edbda5555811bfa6e1b25d59b4edde7fa29511ddcbc49"
+    }
+  }
+}

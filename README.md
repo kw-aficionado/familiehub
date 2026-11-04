@@ -1,401 +1,206 @@
-# FamilieHub v0.1.1 – familiekalender som Yggdrasil Rune
+# FamilieHub
 
-En selvhostet familietavle til iPad Air 2, nyere tablets og telefoner.
+En selvhostet familiekalender og opgavetavle til tablet, iPad og telefon.
+**Go + SQLite + almindelig HTML/CSS/JavaScript**, pakket som én Docker-container til Yggdrasil.
+Frontend er udviklet med iPadOS 15 som kompatibilitetsmål; der er ingen produktionsafhængighed af Node eller npm.
 
-**Status:** Kørbar MVP. Go + SQLite + indlejret HTML/CSS/JavaScript (ingen npm-afhængigheder). Designet med browserkompatibilitet til iPadOS 15. Docker-imaget bygges automatisk via GitHub Actions ved push til `main`. Runen kræver, at dette workflow er gennemført, og at GHCR-pakken er offentligt tilgængelig (eller Yggdrasil har registry-adgang).
+[![Verificering](https://github.com/kw-aficionado/familiehub/actions/workflows/ci.yml/badge.svg)](https://github.com/kw-aficionado/familiehub/actions/workflows/ci.yml)
+[![Docker-publicering](https://github.com/kw-aficionado/familiehub/actions/workflows/release.yml/badge.svg)](https://github.com/kw-aficionado/familiehub/actions/workflows/release.yml)
 
+**Dokumentation gennemgået 4. november 2026.** Appens versionsetiket og den eksisterende Rune bruger fortsat `0.1.1`; det konkrete build identificeres af Git-committen i footeren og `/api/version`.
 
+[Kom i gang](#kom-i-gang) · [Skærmbilleder](#skærmbilleder) · [Arbejd videre i Codex](docs/CODEX.md) · [MCP](docs/MCP.md) · [Pauseskærm](docs/SCREENSAVER.md)
 
-## AI Opgaveplanlægger (ny)
+## Funktioner og navigation
 
-Åbn **Indstillinger**, og find **AI Opgaveplanlægger** lige under **Opgavearkiv**. Funktionen genbruger FamilieHubs eksisterende login, AI-udbyder og API-nøgle.
-
-1. Vælg **Tilføj 15 forslag til opgavearkiv**. Dette opretter kun manglende skabeloner; eksisterende skabeloner og aktive opgaver bevares.
-2. Vælg **Lav en opgaveplan**, familiemedlemmer og de ønskede arkivopgaver.
-3. Justér hyppighed (1–7 gange pr. uge), eventuelle præferencer og rotation (ingen / 1 / 2 / 4 uger).
-4. Se en lokal beregning af point og minutter, og bed eventuelt AI om en kort vurdering.
-5. Vælg **Godkend og gem opgaveplan**. Før dette tidspunkt foretages ingen ændringer i opgavelisten.
-
-Opgavearkivet har nu kategori, minutter pr. gang, belastningspoint (1–20) og antal gange pr. uge. Disse tal er vejledende og kan ændres i redigeringen af en skabelon. Samme opgave får én ansvarlig for en given uge, og tilbagevendende opgaver roterer til næste familiemedlem efter det valgte antal uger. Ved to børn byttes de to pakker. Rotation beregnes af serveren, så den fungerer uden AI og over genstarter. Gamle opgaver og historiske afkrydsninger ændres ikke af databaseopgraderingen.
-
-Den deterministiske fordelingsmotor fungerer helt uden API-nøgle. AI-forklaringen sender kun opgavetitler, interne person-ID'er og point/minutter til den konfigurerede AI-udbyder, og AI har ikke skriveadgang til opgaver. Fejl/timeout fra AI betyder ikke, at planlægningen går i stå. Kun administratoren kan importere standardskabeloner. Alle indloggede familiemedlemmer, der allerede kan oprette almindelige opgaver, kan også godkende og gemme en foreslået opgaveplan. Det er en guidet planlægningsassistent, ikke en autonom chat-agent.
-
-Efter godkendelse bliver du i **Indstillinger** og ser en kvittering med antallet af gemte opgaver. Klik **Se den gemte opgaveplan** for at åbne planens **startuge** under Opgaver. Hvis gemning fejler, står fejlen synligt direkte ved knappen. Planen kan godt starte i næste uge og derfor mangle i visningen **I dag**.
-
-Bemærk: En plan opretter tilbagevendende opgaver. Kør ikke **Godkend og gem** to gange for den samme plan, da begge sæt ellers bliver oprettet. Vælg selv, hvilke eksisterende opgaver der skal indgå; planlæggeren sletter aldrig eksisterende opgaver.
-
-## AI-familieassistent (frivillig)
-
-FamilieHub har en **frivillig AI-integration**, som kan formulere venlige påmindelser om opgaver, der ikke er afkrydset. Opgavedatoer, gentagelser og afkrydsninger beregnes altid deterministisk af FamilieHub – **AI bestemmer aldrig, om en opgave er overskredet, og kan ikke selv ændre data**.
-
-### Udbydere og indstilling
-
-Åbn **Indstillinger → AI og påmindelser** som administrator. Vælg:
-
-| Udbyder | Hvad der skal indtastes |
+| Område | Det kan du |
 | --- | --- |
-| **Ingen AI** | Påmindelser skrives i fast tekst – uden API-kald. |
-| **OpenAI API** | API-modelnavn og API-nøgle fra OpenAI-platformen. |
-| **Claude / Anthropic API** | Modelnavn og API-nøgle fra Anthropic Console. |
-| **OpenAI-kompatibel API** | API-baseadresse (slut fx på `/v1`), modelnavn og eventuel nøgle. Kan bruges med Ollama eller andre kompatible servere. |
+| **Kalender** | Forsiden starter i **Dag**. Vælg også Uge, skift dato, filtrér på familiemedlem, og opret lokale aftaler med eventuel afhentningsansvarlig. |
+| **Dagens opgaver** | Forsiden viser op til fire opgaver. **Se alle dagens opgaver** åbner den fulde liste for den viste dag — ikke alle opgaveserier på tværs af datoer. Personfilteret følger med. |
+| **Opgaver** | Vælg **Dagens opgaver**, **Denne uge** eller **Alle opgaver**. Dag og uge understøtter afkrydsning og filtre for udestående/udførte opgaver. |
+| **Opgavearkiv** | Genbrugelige skabeloner med kategori, minutter, belastningspoint, gentagelse og hyppighed. Arkivet ligger under **Indstillinger**. |
+| **AI Opgaveplanlægger** | Ligger **lige under Opgavearkiv i Indstillinger**. Fordel pligter efter arbejdsbyrde, vælg startdato og rotation, se forslaget, og godkend før lagring. |
+| **AI-familieassistent** | På Opgaver: dagens overblik, ugens prioriteringer og idéer. Bruger den konfigurerede AI-udbyder; opgaver ændres ikke af et AI-svar. |
+| **Skærm** | Lyst/mørkt tema og pauseskærm med eget tidsrum. Standard: automatisk pauseskærm kl. **20.00–07.00**, efter inaktivitet. Gemmes pr. enhed. |
+| **Konti og integrationer** | Individuelle logins, Home Assistant, direkte kalenderforbindelser, e-mail, Web Push og valgfri scoped MCP-adgang. |
 
-Eksempel på lokal Ollama-baseadresse: `http://192.168.1.10:11434/v1` (skal være tilgængelig fra Yggdrasil-serveren, ikke kun fra iPad'en). Eksempel på HTTPS-udbyder: `https://example.net/v1`. Remote HTTP uden TLS afvises.
+### Kalender og dagens opgaver
 
-En **ChatGPT Plus- eller Claude Pro-konto giver ikke automatisk adgang til de respektive API'er**: API-nøgler og eventuelt separat fakturering kræves.
+**Familien i dag** bruger den faktiske dato i `Europe/Copenhagen`, også når en anden kalenderdag vises.
+Hvis en anden dag er valgt på forsiden, hedder opgavegenvejen **Se alle opgaver denne dag** og følger den valgte dag. Dagslisten har ikke forsides begrænsning på fire kort.
+**Dagens opgaver** og **I dag** vender tilbage til familiens aktuelle dato. Ugevisningen og kataloget **Alle opgaver** kan fortsat vælges særskilt.
 
-Nøglen gemmes med **AES-256-GCM-kryptering** i SQLite under `/data`, afledt af den eksisterende vedvarende `session.key`. GET-endpointet viser kun, om en nøgle er konfigureret, aldrig selve nøglen. Blank nøgle i formularen bevarer den gemte nøgle; vælg **Slet gemt API-nøgle** for at fjerne den. Ved tab af `session.key` kan en tidligere gemt API-nøgle ikke dekrypteres.
+Gentagelser omfatter én dag, dagligt, hverdage, hver uge, hver anden uge samt opgaver, der kan løses i løbet af en hel uge. En hele-uge-opgave afkrydses én gang for den pågældende uge. Daglige forekomster har hver deres afkrydsning.
 
-### Automatiske påmindelser
+### Planlæg pligter
 
-Påmindelser er **slået fra som standard**, indtil administratoren vælger **Send påmindelser via Home Assistant** og et tidspunkt (standard kl. **18.00**).
+Åbn **Indstillinger**, og find **AI Opgaveplanlægger** lige under **Opgavearkiv**.
 
-- Opgaver gennemgås for de seneste syv dage og den aktuelle dag. Kun uafsluttede forekomster med en ansvarlig person kan sendes.
-- Daglige opgaver og **Hverdage** registreres hver for sig; hele-uge-opgaver betragtes først som overskredet efter ugens sidste dag.
-- Hver person får **højst én opsummeret påmindelse pr. dag**, med deduplikering i SQLite over genstarter.
-- Modtageren skal allerede have en gyldig Home Assistant `notify`-service konfigureret i **Familiemedlemmer**.
-- AI formulerer teksten i en positiv tone. Hvis AI ikke er tilgængelig, bruges altid den almindelige tekst. Er ingen udbyder valgt, virker påmindelser stadig.
-- FamilieHub sender **kun personens navn og opgavernes titler/datoer** til AI. Ingen kalenderaftaler, adgangskoder, API-nøgler eller hele familiedatabasen sendes med.
-- Der kan være omkostninger pr. API-anmodning; vær især opmærksom på dette, hvis I bruger en ekstern AI-udbyder.
+1. Tilføj eventuelt **15 forslag til opgavearkiv**. Eksisterende skabeloner bevares.
+2. Vælg **Lav en opgaveplan**, familiemedlemmer, pligter og hyppighed. Point og minutter kan redigeres i arkivet.
+3. Vælg **Hvornår skal planen starte?** Standard er i dag. Genveje: I dag, I morgen og Næste mandag. Alle ugedage accepteres.
+4. Vælg rotation: ingen, hver uge, hver anden uge eller hver fjerde uge. Vælg eventuelt en foretrukken og en mindre ønsket opgave pr. person.
+5. Beregn og gennemgå forslaget; bed eventuelt AI om en vurdering. Vælg derefter **Godkend og gem opgaveplan**.
 
-### Hjælp direkte på opgavesiden
+Efter gemning bliver du i Indstillinger med en kvittering og linket **Se den gemte opgaveplan**, som åbner startugen.
+En start midt i ugen giver en kortere første uge; belastning og første opgavebytte vises særskilt.
+Ingen forekomster, afkrydsninger eller påmindelser gælder før planens start. Rotation følger kalenderuger med bytte om mandagen. Se [startdatoens præcise regler](docs/PLANNER-START.md).
 
-Under **Opgaver → AI-familieassistent** findes tre manuelle værktøjer:
+Fordelingen beregnes af almindelig kode og virker uden AI-forbindelse. AI forklarer forslaget; den har ikke fri skriveadgang til databasen. Belastningspoint er familiens justerbare skøn, ikke en objektiv måling.
+Kun administratoren importerer standardskabeloner; indloggede familiemedlemmer kan gemme planer ligesom almindelige opgaver.
 
-- **Dagens overblik:** Opsummér uafsluttede opgaver i en kort, overskuelig tekst.
-- **Prioritér ugen:** Forslag til rækkefølge og opdeling af ugens opgaver.
-- **Giv idéer:** Tre konkrete forslag til at få opgaverne klaret.
+**Undgå dubletter:** En ny godkendelse af en nyoprettet plan kan oprette endnu et sæt tilbagevendende opgaver. Kontrollér eksisterende planer før gentagen oprettelse. Planlæggeren sletter ikke gamle opgaver automatisk.
 
-Forslagene ændrer ikke opgaver, familiemedlemmer eller gentagelser. Kald er begrænset med en kort pause for at forebygge utilsigtede API-udgifter. Hverken lokal eller fjern AI kan afkrydse opgaver på brugerens vegne.
+### Pauseskærm og ikon
 
-**Drift:** Ingen Rune-opdatering er påkrævet; `ai_settings` oprettes ved SQLite-migrering, og eksisterende data bevares. API-nøgler bør aldrig indsættes i GitHub, skærmbilleder eller logfiler.
+Under **Indstillinger → Skærm og nattilstand** kan du vælge pauseskærmens tidsrum, **Aktiv fra**, **Aktiv indtil** og inaktivitetstid. Standardtidsrummet er **20.00–07.00 dansk tid**; på nye enheder er forsinkelsen 10 minutter. Vælg **Hele døgnet** eller **Aldrig** efter behov.
+Eksisterende indstillinger bevares, også en deaktiveret pauseskærm. Temaets nattetider er uafhængige. **Afprøv pauseskærmen** er manuel og virker også uden for tidsrummet. Se [pauseskærmsvejledningen](docs/SCREENSAVER.md).
+
+Hus-ikonet bruges som SVG-favicon, ICO-fallback og 180 × 180 Apple touch-ikon. Pauseskærmen ændrer ikke enhedens fysiske lysstyrke eller iPadOS' egen skærmlås.
 
 ## Skærmbilleder
 
-> **Demo med fiktive data:** Billederne er browser-renderede UI-eksempler af FamilieHubs design, ikke optagelser fra en privat familieinstallation. Navne, aktiviteter og kalender-ID'er er opdigtede. Visningerne er illustrative og er ikke en automatisk ende-til-ende-test af appen.
+**Rigtige browseroptagelser af denne apps frontend og Go-backend med fiktive demodata i en ny, midlertidig SQLite-database.** Ingen private familiedata, kalenderforbindelser eller API-nøgler er brugt. Footeren viser derfor `Build demo`.
+Optagelserne er ikke et bevis på drift af eksterne integrationer eller fysisk Safari på en iPad.
+Dato, kildefilernes hashværdier, browser og billedhashes fremgår af [manifestet](docs/screenshots/manifest.json). [Sådan genoptages billederne](docs/SCREENSHOTS.md).
 
-### Kalender og familieoverblik
+### Forside i Dag
 
-![FamilieHub ugekalender med personfarver, opgaver og familiens aftaler](docs/screenshots/kalender.webp)
+![FamilieHub med Dag valgt, familiens aftaler og genvejen til alle dagens opgaver](docs/screenshots/kalender.webp)
 
-### Opgaver og indstillinger
+### Dagens fulde opgaveliste
 
-| Opgaver | Brugeradministration, kalenderfarver og nattilstand |
+![Dagens opgaver med både udførte og udestående pligter og uden forsides fire-kortsgrænse](docs/screenshots/opgaver.webp)
+
+### Opgavearkiv og planlægger under Indstillinger
+
+Arkivet er her filtreret på **bord**, så placeringen af planlæggeren umiddelbart under arkivet er synlig.
+
+![Indstillinger med filtreret Opgavearkiv og AI Opgaveplanlægger direkte nedenunder](docs/screenshots/indstillinger.webp)
+
+### Planens startdato og godkendelse
+
+| Vælg startdato og opgaver | Gennemgå fordelingen før lagring |
 | --- | --- |
-| ![Opgaveoversigt med opgaver fordelt på familiemedlemmer](docs/screenshots/opgaver.webp) | ![Indstillinger med individuelle logins og kalender-ejere](docs/screenshots/indstillinger.webp) |
+| ![AI Opgaveplanlægger med eksplicit startdato og datogenveje](docs/screenshots/planlaegger.webp) | ![Planforslag med opgavefordeling og belastningsoversigt](docs/screenshots/planforslag.webp) |
 
-### iPhone – vandret navigation gennem hele ugen
+### Pauseskærmens indstillinger
 
-| Første ugedage | Sidste ugedage, inklusive søndag |
+![Indstillinger for pauseskærm med særskilt tidsrum fra 20.00 til 07.00](docs/screenshots/skaermindstillinger.webp)
+
+![Manuel afprøvning af FamilieHubs mørke pauseskærm](docs/screenshots/nattilstand.webp)
+
+### Telefon
+
+| Dag som startvisning | Ugevisning rullet til søndag |
 | --- | --- |
-| ![FamilieHub på iPhone ved ugens begyndelse](docs/screenshots/iphone.webp) | ![FamilieHub på iPhone scrollet til lørdag og søndag](docs/screenshots/iphone-sondag.webp) |
+| ![FamilieHub dagsvisning i en smal mobilbrowser](docs/screenshots/iphone.webp) | ![FamilieHub ugekalender med søndag synlig på telefon](docs/screenshots/iphone-sondag.webp) |
 
-### Mørk pauseskærm
+## Integrationer og adgang
 
-![FamilieHubs indbyggede mørke pauseskærm med ur og næste aftale](docs/screenshots/nattilstand.webp)
+### Kalender
 
-## Funktioner i v0.1.1
+Home Assistant er **valgfri**, ikke et krav for alle eksterne kalendere.
+**Indstillinger → Direkte kalenderforbindelser** understøtter Google Kalender, Microsoft 365, iCloud/CalDAV og ICS-feeds. Google/Microsoft kræver egen OAuth-konfiguration; iCloud bruger en kalenderadresse og en app-specifik adgangskode. Eksterne forbindelser er skrivebeskyttede. Lokale FamilieHub-aftaler skrives ikke tilbage til Google/iCloud/Microsoft.
 
-- Dag- og ugevisning, frem/tilbage, swipe på touchskærm og "I dag".
-- Opret, redigér og slet lokale aftaler, inkl. legeaftaler og afhentningsansvar.
-- Familiemedlemmer med farvekoder; filtrering efter person.
-- Opret opgaver til én dag, én hel uge, hver uge eller hver anden uge. Opgaver som gælder en hel uge afkrydses én gang for hele ugen (mandag–søndag).
-- Home Assistant REST-integration til læsning af konfigurerede kalender-entities.
-- Push-notifikationstest via HA `notify`-service og automatiske afhentningspåmindelser 30 min. før en lokal legeaftale slutter.
-- Adgangskode, sessionscookies, CSRF-beskyttelse, rate limit på login, sikkerhedsheaders.
-- SQLite-database og sessionsnøgle i `/data`.
-- Server-Sent Events mellem åbne FamilieHub-skærme; fallback refresh hver 60. sekund.
+Home Assistant kan bruges via `HA_URL`, `HA_TOKEN` og `HA_CALENDARS`. Forbindelsen skal virke fra **FamilieHub-serveren**, ikke kun fra brugerens telefon eller browser. Brug en privat forbindelse til HA frem for at eksponere HA direkte.
 
-**Begrænsninger:**
+Kalendere kan knyttes til en standardperson. Person-tags i aftaletitler, fx `#Maja #Sport Træning`, kan angive farve/tilhørsforhold; flere personer kan få en delt farvestribe. Kategorier omfatter Sport, Skole, Arbejde, Hjemme, Familie, Fritid, Privat og Legeaftale. Tags ændrer ikke den eksterne kalender.
 
-- Google Kalender/iCloud skal i denne version være tilknyttet **Home Assistant** som `calendar.*`-entities. De vises kun i læsetilstand. Lokale FamilieHub-aftaler synkroniseres **ikke** tilbage til Google/iCloud.
-- Opgaver ligger foreløbig i FamilieHubs SQLite, ikke i ChoreOps. ChoreOps-adapteren er næste fase.
-- Administratoren har fortsat et fælles adgangskodebaseret login, og familien kan oprette individuelle brugerkonti. Alle indloggede medlemmer kan stadig se den fælles kalender.
-- Ingen komplet Google Nest Hub-oplevelse; kompakt castskærm er planlagt.
-- Ingen PWA-offline-cache: appen kræver online forbindelse til backend.
-- Browserlayout er implementeret, men bør afprøves fysisk på den gamle iPad inden permanent opsætning.
+### AI og påmindelser
 
-## Opgaver for hele uger og hver anden uge
+Konfigurér frivilligt OpenAI API, Claude/Anthropic eller en OpenAI-kompatibel server under **Indstillinger → AI og påmindelser**. Indtast udbyderens API-modelnavn og eventuel nøgle; et chatabonnement er ikke i sig selv en API-nøgle.
+Planlægning og gentagelser fungerer uden AI. Ved fejl i AI-påmindelser bruges almindelig tekst. Start ikke fejlfinding ved at slette familiens data.
 
-I **Opgaver → + Opgave → Gentagelse** kan du nu vælge:
+Personlige beskeder kan bruge Home Assistant, Web Push eller e-mail. SMTP konfigureres under Indstillinger; remote SMTP kræver kryptering. Web Push afhænger af browser/enhed og tilladelser. iPad Air 2 understøtter ikke den nyere iOS Web Push-funktion; e-mail er et alternativ.
+Påmindelser kan aktiveres med et valgt tidspunkt og deduplikeres over genstarter. Hele-uge-opgaver håndteres som én forekomst; daglige opgaver hver for sig. Lokale legeaftaler kan desuden have en afhentningspåmindelse.
 
-- **Én hel uge**: vis opgaven fra mandag til søndag i den uge, du vælger under startdato, og afkryds kun én gang.
-- **Hver uge (hele ugen)**: en ny opgave hver mandag, som kan løses én gang inden søndag.
-- **Hver anden uge (hele ugen)**: samme som ovenfor, men kun hver anden uge. Første aktive uge er ugen med den valgte startdato.
-- **Hver anden uge (én dag)**: gentages hver 14. dag på samme ugedag som startdatoen.
-- **Hverdage (mandag–fredag)**: vis opgaven hver mandag, tirsdag, onsdag, torsdag og fredag fra den valgte startdato; lørdag og søndag springes over. Hver hverdag har sin egen afkrydsning.
-- Tidligere **Hver uge (én dag)** og **Hver dag** er uændrede.
+### Logins og MCP
 
-Ved afkrydsning af en hel uge vises opgaven som udført på alle syv dage. Næste aktive uge starter med en frisk afkrydsning. Ugeopgaver giver en samlet påmindelse kl. 16 om søndagen, hvis de ikke er færdige. Eksisterende data bevares; SQLite-skemaet skal ikke migreres.
+Administrator bruger `APP_PASSWORD` og tomt brugernavn eller `admin`. Under **Brugere og login** kan administrator oprette individuelle konti, deaktivere dem og nulstille koder. Medlemmer kan skifte egen kode. Alle indloggede familiemedlemmer har adgang til den fælles familievisning; det er ikke en flerlejerløsning med privat kalender pr. konto.
 
-**Opdatering uden ny Rune:** Dette udviklingsspor genbruger bevidst Docker-tagget `0.1.1` fra den eksisterende Rune. Yggdrasil trækker den senest publicerede version af dette tag på **Restart**, når GitHub Actions er grønt. Det er et bevidst mutable tag til løbende opdateringer; for reproducerbare udgivelser anbefales et fast versions-tag senere.
+[MCP-adgang](docs/MCP.md) er slået fra som standard. Administrator kan oprette OAuth-klienter med PKCE og begrænsede scopes, godkende og tilbagekalde adgang. Værktøjerne læser familie-/opgaveoplysninger og kan med skriverettighed forhåndsvise og anvende en godkendt planflytning. De giver ikke vilkårlig SQL- eller hemmelighedsadgang.
+Planflytning bevarer opgave-id'er og rotation, afviser afkrydset historik og beskytter mod gentagne kald. Den kan også udføres direkte i appens administrative side uden ekstern MCP-klient.
 
+## Kom i gang
 
-## Opgavearkiv og overblik (ny)
+### Lokal udvikling og Codex
 
-- Brug tandhjulet **Indstillinger** øverst til højre for en separat indstillingsside med fanerne **Opgavearkiv** og **Alle opgaver**.
-- **Opgavearkiv**: opret, redigér og slet skabeloner med opgavenavn, standardansvarlig og gentagelse. En skabelon er ikke en aktiv opgave. Skabeloner lagres i SQLite under `/data`.
-- **Alle opgaver**: samlet søgbar liste over aktive/oprettede opgaver, også dem der ikke gælder den valgte kalenderdag. Redigér eller slet herfra.
-- På forsiden: vælg **+ Opgave → Fra opgavearkivet**, og en skabelon udfylder navn, ansvarlig og gentagelse. Du vælger stadig selv startdatoen. Knappen **Gem i arkiv** kan gemme en ny skabelon direkte fra en opgave.
-- Kalenderens kort er gjort lavere; pilen for eksterne kalenderaftaler vises ved siden af tidspunktet.
-- Migrering er additiv (`CREATE TABLE IF NOT EXISTS task_templates`), så eksisterende opgaver, afkrydsninger og aftaler bevares.
-- Runen og GHCR-tagget `0.1.1` er uændrede; efter et **grønt build** kræves kun genstart af Yggdrasil-serveren. Kontroller build-nummeret nederst på forsiden.
+Krav: **Go 1.23+**, CGO, C-compiler, SQLite-developmentpakke og **Node 22+** til browserregressionstests. Python/Playwright er kun nødvendige til screenshots.
 
-## 1. Byg lokalt (Linux)
-
-Forudsætninger: Go 1.23+, gcc og SQLite3 development headers.
-
-```bash
-go test ./...
+```sh
+git clone https://github.com/kw-aficionado/familiehub.git
+cd familiehub
+sh scripts/setup-dev.sh
+sh scripts/check.sh
 go build -o familiehub .
-mkdir -p data
-APP_PASSWORD='VAELG-ET-SIKKERT-PASSWORD-PA-MINDST-12-TEGN' \
- APP_URL='http://localhost:8080' DATA_DIR='./data' \
- ./familiehub -listen 127.0.0.1:8080
 ```
 
-Åbn `http://localhost:8080`. Data gemmes i `./data`.
+Angiv en stærk adgangskode i det lokale miljø, og start med en **separat udviklingsdatamappe**:
 
-## 2. Byg Docker-imaget
+```sh
+APP_URL=http://localhost:8080 DATA_DIR=./data-dev ./familiehub -listen 127.0.0.1:8080
+```
 
-Denne app er en enkelt Docker-container, ikke en Docker Compose stack.
+`APP_PASSWORD` skal allerede være sat i miljøet (mindst 12 tegn). Commit aldrig adgangskoden, data eller `session.key`.
+Se [Codex-overdragelsen](docs/CODEX.md) og [projektreglerne](AGENTS.md) for arbejdsgang, projektbeslutninger og første prompt.
+Tilføj den eksisterende repositorymappe som projekt i Codex; der skal ikke oprettes et nyt FamilieHub-repository eller flyttes produktionsdata.
 
-```bash
-docker build -t ghcr.io/kw-aficionado/familiehub:0.1.1 .
-docker run --rm -p 8080:8080 \
-  -e APP_PASSWORD='VAELG-ET-SIKKERT-PASSWORD-PA-MINDST-12-TEGN' \
-  -e APP_URL='http://localhost:8080' \
+### Docker og Yggdrasil
+
+Eksisterende image: **`ghcr.io/kw-aficionado/familiehub:0.1.1`**. Rune: [`rune/familiehub.yaml`](rune/familiehub.yaml).
+Dette er én container, ikke en Docker Compose-stack.
+
+```sh
+docker run -d --name familiehub -p 8080:8080 \
+  -e APP_PASSWORD \
+  -e APP_URL=http://localhost:8080 \
   -v familiehub-data:/data \
   ghcr.io/kw-aficionado/familiehub:0.1.1
 ```
 
-Bygningen er opsat til både AMD64 og ARM64; buildx/GitHub Actions kan bygge begge.
+Forudsætning: `APP_PASSWORD` er eksporteret i shellens miljø. Brug HTTPS og en passende `APP_URL` ved ekstern adgang.
+GHCR-pakken skal kunne hentes offentligt, eller Yggdrasil skal have registry-adgang.
+I Yggdrasil importeres repository `kw-aficionado/familiehub`, mappen `rune`, branch `main`.
+Opret serveren én gang med vedvarende `/data`, angiv indstillingerne, og aktivér ønsket netværk/HTTPS og autostart.
 
-## 3. GitHub / GHCR-publicering
+| Variabel | Formål |
+| --- | --- |
+| `APP_PASSWORD` | Administratoradgangskode, mindst 12 tegn. Hemmelig. |
+| `APP_URL` | Den faktiske adresse, som bruges til appen; HTTPS ved ekstern adgang. |
+| `DATA_DIR` | Datamappe; Docker bruger `/data`. |
+| `HA_URL` | Valgfri Home Assistant-baseadresse, tilgængelig fra serveren. |
+| `HA_TOKEN` | Valgfri HA-hemmelighed; aldrig i frontend eller Git. |
+| `HA_CALENDARS` | Valgfri kommasepareret liste af `calendar.*`-entities. |
 
-Repository: https://github.com/kw-aficionado/familiehub
+### Opdatering og backup
 
-1. GitHub Actions-workflowet `.github/workflows/release.yml` bygges automatisk ved push til `main` og på semver-tags.
-2. Kontrollér bygningen under **Actions** i repositoryet. Et grønt workflow er nødvendigt, før Yggdrasil kan hente imaget.
-3. Image-adressen for første version er `ghcr.io/kw-aficionado/familiehub:0.1.1`.
-4. Gør GHCR-pakken **public**, eller tilføj registry-credentials under Yggdrasils **Settings → Container registries**. Et offentligt repository gør ikke automatisk alle GHCR-pakker offentlige.
-5. I Yggdrasil: **Runes → Browse GitHub** og angiv repository `kw-aficionado/familiehub`, folder `rune`, branch `main`. Du kan også uploade Rune-YAML direkte.
+Push til `main` starter både test og Docker-publicering. **Kontrollér publiceringens grønne resultat**, ikke kun testjobbet, før opdatering.
+`0.1.1` er i det eksisterende udviklingsflow et mutable tag. Opdatér/træk imaget og genstart **den eksisterende server**, og kontrollér build-hashen nederst i appen eller via `/api/version`.
+En lokal test eller GitHub-merge er ikke bevis på, at produktionsserveren allerede kører den nye kode.
 
-Opdateringer: En ny version bør få et nyt semver-tag og en Rune med opdateret `docker.image`-tag og `version`-felt. `0.1.0` fra `main` fungerer som første offentliggørelse; undgå at bruge det tag som en permanent rullende kanal.
+**Behold samme datavolumen. Brug ikke Wipe.** Backup skal indeholde både `familiehub.sqlite` og `session.key`. Sessionsnøglen bruges også til beskyttede integrationsoplysninger; tab af nøglen kan gøre dem ulæselige.
+Stop appen før en almindelig filbaseret SQLite-backup/restore for at få en konsistent kopi. Brug kun en understøttet SQLite-backupmetode til hot-backup.
 
-## 4. Installér som Yggdrasil Rune
+## Test og dokumentation
 
-Rune: `rune/familiehub.yaml`
-
-1. I Yggdrasil Panel: **Runes → Carve a rune (upload)**. Upload YAML-filen.
-2. Opret en server fra **FamilieHub**-Runen.
-3. Angiv en stærk `APP_PASSWORD` (min. 12 tegn).
-4. Hvis du ønsker HA-integration: udfyld `HA_URL`, `HA_TOKEN` og `HA_CALENDARS`.
-5. Slå serverens **Auto-forward fra**, hvis du eksponerer via NPM eller Cloudflare Tunnel.
-6. Sæt serverens subdomæne til f.eks. `familie` og aktivér HTTPS i Yggdrasil-domæneintegrationen.
-7. Start serveren. Yggdrasil publicerer containerens interne port 8080 på en automatisk valgt hostport.
-8. Aktivér **Autostart** på serveren i Yggdrasil, så den starter efter en genstart.
-9. Åbn subdomænet, log ind, og opret familiemedlemmer, opgaver og aftaler.
-
-Runens `docker.data_path` er `/data`. Yggdrasil monterer her serverens persistente dataområde. På Yggdrasil overstyrer panelen typisk image-USER til sin servicekonto; dette passer, fordi den også ejer serverens dataområde.
-
-## Opgradering fra 0.1.0
-
-1. Kontrollér at GitHub Actions har publiceret GHCR `0.1.1` med status success, og at container-imaget kan hentes fra Yggdrasil.
-2. Under Yggdrasil → Runes: vælg `kw-aficionado/familiehub`, `rune`, `main` og importér Runen igen (`version: 2`).
-3. Genstart den **eksisterende FamilieHub-server** i Yggdrasil, så den benytter det nye Docker-image. Opret ikke en ny server og brug ikke Wipe; behold `/data`.
-4. Åbn FamilieHub → Integrationer (ikonet med sky) for at se API-status og kalendertest separat.
-
-**Fejlretninger i 0.1.1:** Home Assistant kalendere returnerer start/slut som objekter med `dateTime` eller `date` (heldag). Begge understøttes nu, og det tidligere strengformat accepteres fortsat. Integrationer viser specifikke og sanitiserede fejl (401, 403, DNS, timeout, TLS og ugyldig kalender). Personformularen forklarer forskellen mellem en `device_tracker` og et HA `notify.mobile_app_*`-kald.
-
-## 5. Forbind eksisterende Home Assistant
-
-Opret en separat HA-bruger til integrationen. Generér et long-lived access token og udfyld Rune-variablerne:
-
-| Variabel | Eksempel | Forklaring |
-|---|---|---|
-| `HA_URL` | `http://192.168.1.20:8123` | LAN- eller VPN-adresse fra *Yggdrasil-serveren* til HA |
-| `HA_TOKEN` | `...` | Secret, kun i backend |
-| `HA_CALENDARS` | `calendar.familie,calendar.skole` | HA-kalendere, som dashboardet skal læse |
-| `APP_URL` | `https://familie.example.dk` | Brug offentlig HTTPS-adresse |
-
-Tilføj Google Kalender eller CalDAV/iCloud til HA separat. Kalender-entities kan herefter vises i FamilieHub, hvis HA's REST calendar API er aktiveret og brugerens rettigheder tillader adgang.
-
-For personlige notifikationer:
-
-1. Installér Home Assistant Companion App på modtagerens telefon.
-2. Find telefonens notify-service i HA, f.eks. `notify.mobile_app_mors_iphone`.
-3. I FamilieHub: **Familiemedlemmer → Redigér**. Skriv **kun** service-delen, f.eks. `mobile_app_mors_iphone`.
-4. Brug **Test push**.
-5. Lokale legeaftaler med valgt `Hvem henter?` udløser notifikation **30 minutter før aftalens sluttid**. Appen sender desuden en samlet påmindelse om uafsluttede opgaver kl. 16:00. Scheduleren forsøger afsendelse i et 10-minutters vindue efter påmindelsestidspunktet.
-
-**Sikkerhed:** Hvis Yggdrasil er en ekstern VPS, brug en privat VPN-forbindelse til HA. Udsæt ikke HA's port 8123 direkte mod internettet. APP_PASSWORD er fælles for husstanden, så del den kun med familien. Den offentlige FamilieHub skal altid have HTTPS.
-
-## 6. Backup og restore
-
-SQLite-filen og sessionsnøglen er under `/data` (`familiehub.sqlite` og `session.key`).
-
-Rune-backup bruger `include: ["."]`, så hele dataområdet kommer med. For en **konsistent backup** af SQLite anbefales at stoppe FamilieHub-serveren i Yggdrasil før en backup og genstarte bagefter. Ved restore bør serveren også være stoppet. Løbende hot-backup bør senere udføres via SQLite Backup API for at undgå inkonsistent kopiering under skrivninger.
-
-## 7. Kør verificering
-
-```bash
-go test ./...
-go test -race ./...
-node --check web/app.js
+```sh
+sh scripts/check.sh
 ```
 
-Lokal `go test` dækker login, CSRF, CRUD, gentagelseslogik, HA-kalenderdata, pushkald og persistens. Docker-build, Yggdrasil-installasjon, fysisk Safari på iPadOS 15 og ægte Google/HA-forbindelser er endnu **ikke** end-to-end-verificeret.
+Kommandoen kører Go-tests, race-tests, alle Node-regressionstests, syntakskontrol af alle browser-JavaScriptfiler og et midlertidigt build.
+Skærmbilleder kan regenereres med [det isolerede demoscript](docs/SCREENSHOTS.md).
 
-## Referencer
+- [Codex og udvikleroverdragelse](docs/CODEX.md)
+- [MCP, OAuth og planflytning](docs/MCP.md)
+- [Startdato og rotation](docs/PLANNER-START.md)
+- [Pauseskærmens tidsrum](docs/SCREENSAVER.md)
+- [Skærmbilleder og proveniens](docs/SCREENSHOTS.md)
+- [Roadmap](ROADMAP.md)
 
-- [Yggdrasil Rune Schema](https://github.com/kristianwind/yggdrasil/blob/main/docs/reference/rune-schema.md)
-- [Yggdrasil Runes](https://github.com/kristianwind/yggdrasil/blob/main/docs/guides/runes.md)
-- [Yggdrasil Networking](https://github.com/kristianwind/yggdrasil/blob/main/docs/guides/networking.md)
-- [Yggdrasil Runes with an LLM](https://github.com/kristianwind/yggdrasil/blob/main/docs/guides/runes-with-an-llm.md)
+### Afgrænsninger
 
-## Farvekoder og tags i Google Kalender
-
-Fra oktober 2026 kan den eksisterende Home Assistant kalenderintegration farvelægge aftaler med hashtags i **titlen**. Eksempler:
-
-- `#Anton #Sport Badminton` viser **Badminton** med Antons personfarve og en diskret sportsetiket.
-- `#Alma #Skole Terminsprøve` viser **Terminsprøve** med Almas farve.
-- `#Anton #Alma Biograf` får en todelt farvestribe og vises under begge personfiltre.
-- `#Sport Fodboldkamp` får sportens kategorifarve, når der ikke er person-tags.
-
-Person-tags matcher eksisterende familiemedlemmer (uden forskel på store/små bogstaver).
-Et navn med mellemrum kan bruges samlet (`Anne Marie` → `#AnneMarie`).
-Understøttede kategorier: `#Sport`, `#Skole`, `#Arbejde`, `#Hjemme`, `#Familie`,
-`#Fritid`, `#Privat` og `#Legeaftale`. Ukendte hashtags bevares i titlen.
-Aftaler uden tags bevarer den neutrale farve. Tags ændrer **aldrig** noget i Google Kalender.
-Google Kalenders egne eventfarver kan ikke læses via den nuværende Home Assistant REST-integration.
-
-Farver hentes fra personprofiler i FamilieHub. Tjek at personnavnet svarer til hashtagget.
-De nye metadata bruges også i personfiltre. For at filtrere på Anton trykkes på `Anton` øverst.
-
-### Undgå cachede opdateringer
-
-Appens HTML/JS/CSS sendes med `Cache-Control: no-store`. Desuden kan `/api/version`
-bruges til at se `commit` og version (også uden login). Build-hashen vises i footeren,
-så det kan verificeres, at Yggdrasil startede det nyeste Docker-image.
-Ved genstart henter Yggdrasil normalt imaget igen. Hvis hash ikke ændres: kontrollér
-Yggdrasils serverlog og hvilken Docker-image-tag der er knyttet til serverens Rune.
-Runen er ikke ændret; GHCR-tagget `0.1.1` bliver genudgivet ved push til `main`.
-
-## iPad Air 2 (portraet)
-
-Header og kalendernavigation har mindre lodret padding. Kalenderkortene bruger igen 12 px for titler og 11 px for klokkeslet, saa skriften ikke skaleres ned for at rumme alle syv dage. I 701-900 px bredde viser ugevisningen hoejst to linjer af hvert aftalenavn; tryk paa aftalen for at se hele titlen. Alle syv ugedage beholdes i samme overblik, og brugerskabte opgaver bevares uforandret.
-
-## Navigation og opgaver (ny hovedside)
-
-- Tryk på FamilieHub-logoet eller titlen for at komme til #kalender. Tre hovedfaner: #kalender, #opgaver og #indstillinger; browserens tilbageknap fungerer.
-- Kalenderforsiden viser højst fire opgaver, med udestående først. **Se alle →** åbner den fulde opgaveside.
-- Opgavesiden har visningerne I dag, Denne uge og Alle opgaver, personfilter samt statusfilter. Ugevisningen bruger det autentificerede API `GET /api/tasks/week?start=YYYY-MM-DD` til at vise korrekt gentagelse og afkrydsning.
-- Hele-uge-opgaver vises som ét kort pr. aktiv uge, mens daglige opgaver vises pr. dag. Opgaver kan afkrydses direkte.
-- Samme farver som i kalenderen bruges på opgavekortene og personnavnene. Fællesopgaver får neutral farve.
-- Opgavearkivet, familiemedlemmer og HA-integration er samlet under Indstillinger.
-- Ingen databasemigrering eller ændring af Rune-filen er nødvendig.
-
-## iPhone-scroll, dagens aftaler, nattema og kalenderfarver
-
-- På iPhone kan ugekalenderen scrolles vandret fra mandag til søndag uden automatisk at skifte uge. Brug pilene til at skifte uge.
-- **Familien i dag** viser den faktiske dato i `Europe/Copenhagen`, også når den valgte kalenderuge er en anden uge. Serverens `/api/state` leverer nu `today_date` og `today_events`.
-- **Indstillinger → Kalendere og farver:** hver HA-kalender kan knyttes til en standardperson og dermed dennes farve. Overskriv standarden med `#Alma` eller flere person-tags i en bestemt aftaletitel. Ukendte hashtags bevares, og Home Assistant er fortsat skrivebeskyttet.
-- Koblingen mellem HA-kalender og standardperson gemmes i `/data/familiehub.sqlite` i en ny `calendar_owners`-tabel. Migrationen er additiv.
-- **Indstillinger → Skærm og nattilstand:** automatisk tema mellem 21:00 og 07:00, manuelt lys/mørkt eller ændrede klokkeslæt. Gemmes lokalt i browseren på den enkelte enhed.
-- Indbygget mørk **pauseskærm** ved inaktivitet, standard 10 minutter; valgfrit 5/20/30 minutter eller slået fra. Et tryk viser appen igen. Browserens pauseskærm hindrer ikke iPadOS i at låse skærmen, hvis iPadOS automatisk låsning er slået til; den ændrer ikke fysisk skærmlysstyrke.
-- Nye endpoints: `GET /api/calendar-owners`, `PUT /api/calendar-owners`, begge kræver en gyldig FamilieHub-session; PUT kræver CSRF-token.
-- Eksisterende Rune og Docker-tag `0.1.1` er uændret. Flere HA-kalendere kræver blot, at deres entity-ID er medtaget i `HA_CALENDARS`.
-
-## Flere brugerlogins på familiens egne enheder
-
-Fra opdateringen med `accounts.go` kan hvert familiemedlem bruge et separat brugernavn og en individuel adgangskode på egen telefon eller tablet.
-
-1. Log ind som administrator med den oprindelige adgangskode i `APP_PASSWORD` (brugernavnet kan være tomt eller `admin`).
-2. Gå til **Indstillinger → Brugere og login → + Opret bruger**.
-3. Indtast et brugernavn (fx `anton`), vælg eventuelt tilknyttet familiemedlem, og tildel en individuel kode på 12–128 tegn. Giv koden til vedkommende via en privat kanal.
-4. Brugeren besøger den samme HTTPS-adresse på egen enhed, indtaster sit brugernavn og sin kode og får en separat session.
-5. Brugere kan selv ændre kode under **Indstillinger → Skift min adgangskode**. Administratoren kan redigere, deaktivere, slette og nulstille loginoplysninger. Nulstilling/deaktivering annullerer tidligere sessioner.
-
-**Rettigheder:** Administratoradgang til brugerkonti kræver `APP_PASSWORD`. Medlemskonti kan bruge familiekalenderen og opgaverne, men kan ikke oprette, slette eller nulstille loginoplysninger for andre brugere. Familiemedlemsprofiler og login-konti er separate; sletning af en login-konto sletter ikke opgaver eller kalenderaftaler. Delte aktiviteter er synlige for alle indloggede brugere; systemet er endnu ikke en privat kalender per bruger.
-
-**Sikkerhed:** Individuelle adgangskoder gemmes som saltede PBKDF2-HMAC-SHA256-hashes (600.000 iterationer) i SQLite under `/data`; læsbare adgangskoder gemmes ikke. HTTPS anbefales til alle enheder. Den eksisterende `APP_PASSWORD` fortsætter som administratornøgle, så den bør kun være kendt af administratoren. Der kræves ingen ny Rune; SQLite-migreringen er additiv og bevarer eksisterende sessioner.
-
-
-## Direkte kalendere – uden Home Assistant
-
-FamilieHub understøtter **flere kalendere direkte på samme dashboard**. Du kan fortsat bruge HA, men det er ikke nødvendigt for at synkronisere direkte kalendere. Forbindelser oprettes under **Indstillinger → Direkte kalenderforbindelser** og har en standardperson/farve. Eksplicitte hashtags som `#Alma` tilsidesætter standardpersonen.
-
-| Kilde | Godkendelse | Synkronisering | Opsætning |
-| --- | --- | --- | --- |
-| Google Kalender | OAuth 2.0, kalenderadgang (read-only) | Primær kalender, hændelser og gentagelser udvidet af Google | Opret en OAuth Web Application i Google Cloud Console |
-| Microsoft 365 / Outlook | Microsoft identity platform, OAuth 2.0 (delegated `Calendars.Read offline_access User.Read`) | Standardkalender via Microsoft Graph `calendarView` | Appregistrering, Microsoft Entra |
-| iCloud Kalender | CalDAV over HTTPS, Apple ID og app-specifik adgangskode | Aftaler fra den angivne kalenderkollektion | Brug en konkret CalDAV-kollektion-URL, ikke blot `icloud.com` |
-| ICS/iCal | HTTPS-URL, ingen login | Læs hændelser fra feed | Brug en offentlig/privat kalender-feed-URL uden serveradgangskode |
-
-**Tilslutning til Google/Microsoft:** Opret en OAuth-app hos udbyderen, konfigurer den som webapp og registrér **præcis denne redirect URI**:
-```text
-https://familiehub.yggdrasilpanel.com/api/direct-calendars/oauth/callback
-```
-Hvis du bruger et andet domæne, så erstat domænet med din eksterne `APP_URL`. Tilføj Client ID og Client Secret i FamilieHub, opret forbindelsen, og vælg **Forbind konto**. OAuth-appen skal have tilladelse til læsning af kalenderen. Tokenfornyelse gemmes krypteret.
-
-**iCloud:** Opret en app-specifik adgangskode på din Apple-konto. Angiv Apple ID og selve CalDAV-kalenderens HTTPS-URL. Dette er ikke Apple Sign in, og automatisk CalDAV-opdagelse er endnu ikke indbygget. Apples app-specifikke adgangskode er forskellig fra Apple ID's normale adgangskode.
-
-**Begrænsninger:** Google- og Microsoft-kalendere viser aktuelt kontoens primære/standardkalender. ICS og CalDAV understøtter almindelige RRULE-gentagelser (dagligt, ugentligt, månedligt og årligt) samt EXDATE. Komplekse serier med RECURRENCE-ID og avancerede BYSETPOS-regler understøttes endnu ikke fuldt ud. Direkte kalendere er **skrivebeskyttede**: oprettelse/redigering af eksterne aftaler sker i udbyderens kalender. Kalenderen hentes ved visning; beskeder om en forbindelse, der fejler, er generiske og viser aldrig hemmelige nøgler.
-
-**Sikkerhed:** Kun administratoren kan tilføje og slette forbindelser. OAuth-tilstande er engangsbrug, knyttet til admins session og har 10 minutters udløb. Kalenderadresser kræver HTTPS og afviser lokal-IP-adresser; følg ikke omdirigeringer til ukendte hosts. Client Secrets, OAuth-access/refresh tokens og CalDAV-adgangskoder krypteres med FamilieHubs eksisterende servernøgle under `/data`. En almindelig medlemssession kan se de aftaler, administratoren har valgt at dele.
-
-### Påmindelser via e-mail uden Home Assistant
-
-Under **Indstillinger → E-mailpåmindelser** kan administratoren konfigurere en SMTP-server (typisk port 587/STARTTLS, eller 465/implicit TLS), afsenderadresse og en modtageradresse for hvert familiemedlem. SMTP-legitimationsoplysninger opbevares krypteret i SQLite. For ikke-lokale SMTP-servere kræves TLS.
-
-Under **AI og påmindelser** skal *Send påmindelser* aktiveres, uanset om der er valgt en AI-model. FamilieHub finder selv uafsluttede opgaver og sender højst én samlet besked pr. person om dagen. Hvis HA-notifikation er tilgængelig, foretrækkes den; ellers forsøges e-mail. Intet sendes, før funktionen er aktiveret.
-
-På **iPad Air 2** kan in-app-påmindelser og e-mail bruges. Moderne Web Push til hjemmeskærmsapps kræver iPadOS 16.4 eller nyere og virker ikke på iPad Air 2.
-
-
-### Web Push til nyere telefoner og tablets
-
-FamilieHub kan sende direkte Web Push uden Home Assistant, når browseren og enheden understøtter Push API. På **iOS/iPadOS 16.4+** skal FamilieHub tilføjes til hjemmeskærmen og åbnes som webapp. Under **Indstillinger → Pushnotifikationer på denne enhed** vælges den ansvarlige person og **Aktivér push**. Der vises en systemdialog, hvor brugeren selv giver tilladelse.
-
-En aktivering er knyttet til den indloggede bruger og enheden. Endpointet opbevares krypteret i SQLite; push-abonnementet kan fjernes fra samme enhed. Serverens VAPID-nøgle oprettes automatisk og opbevares krypteret i `/data`, så eksisterende abonnementer overlever genstart. Pushmodtagere og tilknyttede personer bestemmes af brugerlogin; en almindelig konto kan ikke vælge en anden persons modtager-id.
-
-Når en person har flere kanaler, forsøges Home Assistant først, derefter Web Push, derefter e-mail. Kun den første succesfulde kanal benyttes til en given daglig påmindelse.
-
-**iPad Air 2:** Understøtter ikke iPadOS 16.4 og kan derfor ikke modtage disse Web Push-notifikationer. Brug i stedet e-mailpåmindelser eller beskeder inde i FamilieHub. En webapp kan heller ikke forhindre iPadOS' egen skærmlåsning.
-
-Ved Web Push anvender FamilieHub det velafprøvede Go-bibliotek `github.com/SherClockHolmes/webpush-go` med kryptering og VAPID (v1.4.0). Udstyr og pushleverandører skal tillade udgående HTTPS fra FamilieHub-serveren.
-
-### Fejlfinding: Lokal AI via Tailscale
-
-En OpenAI-kompatibel server skal kunne besvare `POST /v1/chat/completions` med almindelig JSON i `choices[0].message.content`. Et browserbesøg på `/v1` tester ikke chat-endpointet. Brug serverens `GET /v1/models` til at kontrollere det præcise modelnavn.
-
-Til langsomme lokale modeller venter AI-integrationen nu op til **45 sekunder** og arver ikke den almindelige 8-sekunders HTTP-timeout. FamilieHub sender `stream: false` og viser statuskoden fra proxyfejl (fx HTTP 502/504) i stedet for den upræcise besked `Ugyldigt serversvar`. Tailscale-adresser virker kun, når **selve FamilieHub-serveren** har adgang til Tailscale-nettet. Hvis en reverse proxy afbryder inden 45 sekunder, skal dens timeout kontrolleres særskilt.
-
-### OpenAI GPT-6 Luna og langsomme AI-forespørgsler
-
-Til `gpt-6-luna` bruger FamilieHub nu `reasoning_effort: none` på Chat Completions, fordi modellen ellers starter med medium ræsonnering. Påmindelser og korte AI-opsummeringer har ikke brug for denne ekstra betænkningstid. Outputgrænsen er 384 tokens. OpenAI-kald afbrydes efter 23 sekunder, så reverse proxy normalt kan returnere en brugbar JSON-fejl før sin egen timeout; lokale kompatible LLM'er beholder 45 sekunder. En HTTP 401 betyder forkert API-nøgle, 403/404 kan betyde manglende modeladgang, og 429 kan skyldes kvote eller hastighedsgrænse. API-nøglen vises aldrig i fejlteksten.
-
-
-## Valgfri startdato i AI Opgaveplanlægger
-
-Vælg **Hvornår skal planen starte?**; standarden er i dag i Europe/Copenhagen.
-Genveje: **I dag**, **I morgen**, **Næste mandag**. Alle ugedage kan vælges.
-Opgaver starter aldrig før den valgte dato. En start midt i ugen giver en kortere
-første uge, som vises separat i forhåndsvisningen. Ugentligt opgavebytte følger
-fortsat kalenderuger (mandag); datoen for første bytte vises inden godkendelse.
-
-Eksisterende opgaver ændres ikke. FamilieHubs hus-ikon bruges også som
-favicon (SVG + ICO) og Apple touch-ikon. Se docs/PLANNER-START.md.
-
-## Dag som forside og alle dagens opgaver
-
-Forsiden starter i **Dag**. **Uge** kan stadig vælges manuelt.
-Opgavesiden starter i **Dagens opgaver**, med både udestående og udførte opgaver.
-Forsidens **Se alle dagens opgaver** åbner den fulde tjekliste for den viste dag
-uden begrænsningen på fire kort. Hvis en anden dato er valgt i kalenderen, følger
-genvejen denne dato og hedder **Se alle opgaver denne dag**. Et valgt personfilter
-på forsiden følger med; et gammelt statusfilter på opgavesiden gør ikke.
-**Dagens opgaver** og datonavigationens **I dag** vender altid tilbage til den
-aktuelle dato i Europe/Copenhagen. **Denne uge** og **Alle opgaver** er stadig
-separate visninger. Ugeopgaver vises én gang i dagslisten, med de eksisterende
-afkrydsninger og gentagelser. Ingen opgaver eller data ændres ved opdatering.
+Appen kræver forbindelse til backend; der er ingen komplet offline-cache.
+Eksterne kalendere er læsning, ikke tovejssynkronisering. Der er ingen færdig ChoreOps-adapter eller dedikeret Nest Hub-castskærm.
+Aldersstyret planlægning, fraværsstyring og en fuld samtalebaseret agent er ikke færdige funktioner i denne udgave.
+Chromium-regressionstests og screenshots erstatter ikke fysisk afprøvning på iPadOS 15, ægte pushlevering eller godkendelse hos eksterne kalender-/AI-udbydere.
