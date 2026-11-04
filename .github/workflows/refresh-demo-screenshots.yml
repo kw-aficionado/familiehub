@@ -10,7 +10,7 @@ permissions:
   contents: write
 jobs:
   capture:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
@@ -45,6 +45,13 @@ jobs:
           PY
       - name: Capture the real app with temporary fictional data
         run: python scripts/capture-screenshots.py
+      - name: Retain images for visual review
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: documentation-preview
+          path: docs/screenshots/
+          retention-days: 7
       - name: Verify tests, screenshot provenance, docs and build
         run: |
           sh scripts/check.sh
