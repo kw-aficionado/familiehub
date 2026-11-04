@@ -34,7 +34,7 @@ Gentagelser omfatter én dag, dagligt, hverdage, hver uge, hver anden uge samt o
 
 ### Planlæg pligter
 
-Åbn **Indstillinger → AI Opgaveplanlægger**, direkte under **Opgavearkiv**.
+Åbn **Indstillinger**, og find **AI Opgaveplanlægger** lige under **Opgavearkiv**.
 
 1. Tilføj eventuelt **15 forslag til opgavearkiv**. Eksisterende skabeloner bevares.
 2. Vælg **Lav en opgaveplan**, familiemedlemmer, pligter og hyppighed. Point og minutter kan redigeres i arkivet.
