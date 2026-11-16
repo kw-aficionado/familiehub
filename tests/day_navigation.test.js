@@ -230,3 +230,33 @@ test('other selected calendar days are clearly labelled and an empty day is empt
   assert.equal(node('tasksCount').textContent, '0 opgaver');
   assert.equal(cards(node('tasksPageList')).length, 0);
 });
+
+test('custom family week start changes calendar and task week consistently', () => {
+  const {app} = boot();
+  app.S.view = 'week';
+  app.S.weekStart = 0;
+  assert.equal(app.dayString(app.range().start), '2026-11-01');
+  app.S.weekStart = 3;
+  assert.equal(app.dayString(app.range().start), '2026-10-28');
+});
+
+test('mixed legacy week boundaries keep distinct completion windows in a weekly view', () => {
+  const {app, node} = boot();
+  app.S.taskPeriod = 'week';
+  app.S.weekEntries = [
+    task('shared', today, {repeat_rule:'weekly_window', occurrence_key:'2026-11-01'}),
+    task('shared', tomorrow, {repeat_rule:'weekly_window', occurrence_key:'2026-11-01'}),
+    task('shared', '2026-11-08', {repeat_rule:'weekly_window', occurrence_key:'2026-11-08'})
+  ];
+  app.renderTasksPage();
+  assert.equal(cards(node('tasksPageList')).length, 2);
+});
+
+test('stopped series are not presented as active catalogue duplicates', () => {
+  const {app, node} = boot();
+  app.S.taskPeriod = 'all';
+  app.S.allTasks = [task('stopped', today, {inactive_from:today}), task('active', today)];
+  app.renderTasksPage();
+  assert.equal(cards(node('tasksPageList')).length, 1);
+  assert.ok(!node('tasksPageList').textContent.includes('stopped'));
+});

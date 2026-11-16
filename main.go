@@ -65,6 +65,15 @@ type Task struct {
 	DueDate    string `json:"due_date"`
 	RepeatRule string `json:"repeat_rule"`
 	Done       bool   `json:"done"`
+ BaseAssignedTo string `json:"base_assigned_to,omitempty"`
+ RotationMembers []string `json:"rotation_members,omitempty"`
+ RotationStart string `json:"rotation_start,omitempty"`
+ RotationWeeks int `json:"rotation_weeks,omitempty"`
+ WeekStart int `json:"week_start"`
+ PlanID string `json:"plan_id,omitempty"`
+ TemplateID string `json:"template_id,omitempty"`
+ InactiveFrom string `json:"inactive_from,omitempty"`
+ OccurrenceKey string `json:"occurrence_key,omitempty"`
 }
 type Config struct {
 	AppURL, Password, HAURL, HAToken string
@@ -214,7 +223,13 @@ func (a *App) routes() {
 	a.mux.HandleFunc("DELETE /api/events/{id}", a.withAuth(a.eventDelete))
 	a.mux.HandleFunc("GET /api/tasks/all", a.withAuth(a.allTasks))
 	a.mux.HandleFunc("GET /api/tasks/week", a.withAuth(a.tasksWeek))
-	a.mux.HandleFunc("POST /api/planner/seed", a.withAdmin(a.plannerSeed))
+	a.mux.HandleFunc("GET /api/schedule/settings", a.withAuth(a.scheduleSettingsGet))
+ a.mux.HandleFunc("PUT /api/schedule/settings", a.withAdmin(a.scheduleSettingsPut))
+ a.mux.HandleFunc("POST /api/quickstart/preview", a.withAuth(a.quickstartPreview))
+ a.mux.HandleFunc("POST /api/quickstart/apply", a.withAuth(a.quickstartApply))
+ a.mux.HandleFunc("GET /api/planner/diagnostics", a.withAuth(a.plannerDiagnostics))
+ a.mux.HandleFunc("POST /api/tasks/retire", a.withAdmin(a.retireTasks))
+ a.mux.HandleFunc("POST /api/planner/seed", a.withAdmin(a.plannerSeed))
 	a.mux.HandleFunc("POST /api/planner/preview", a.withAuth(a.plannerPreview))
 	a.mux.HandleFunc("POST /api/planner/advice", a.withAuth(a.plannerAdvice))
 	a.mux.HandleFunc("POST /api/planner/apply", a.withAuth(a.plannerApply))
@@ -462,7 +477,9 @@ func (a *App) state(w http.ResponseWriter, r *http.Request) {
   todayEvents=append(todayEvents,directToday...)
  }
  if todayEvents==nil {todayEvents=[]Event{}}
- writeJSON(w,200,map[string]any{"people":people,"events":ev,"today_events":todayEvents,"today_date":today,"tasks":tasks,"warning":warning})
+ settings,se:=scheduleSettings(a.db)
+ if se!=nil{apiError(w,500,"Ugestart kunne ikke hentes");return}
+ writeJSON(w,200,map[string]any{"week_start":settings.WeekStart,"people":people,"events":ev,"today_events":todayEvents,"today_date":today,"tasks":tasks,"warning":warning})
 }
 func mustTime(s string) time.Time { t, _ := time.Parse(time.RFC3339, s); return t }
 func (a *App) people() ([]Person, error) {
@@ -530,7 +547,7 @@ func taskOccurrence(due, target time.Time, rule string) (bool, string) {
 }
 
 func (a *App) tasks(day string) ([]Task, error) {
-	rows, err := a.db.Query("SELECT id,title,assigned_to,due_date,repeat_rule,rotation_members,rotation_start,rotation_weeks FROM tasks ORDER BY title")
+	rows, err := a.db.Query("SELECT "+taskColumns+" FROM tasks ORDER BY title,id")
 	if err != nil {
 		return nil, err
 	}
@@ -544,8 +561,8 @@ func (a *App) tasks(day string) ([]Task, error) {
 		if err != nil {
 			continue
 		}
-		if !plannerTaskHasStarted(r["rotation_start"],day) {continue}
-		visible, completionKey := taskOccurrence(due, target, r["repeat_rule"])
+		if !plannerTaskHasStarted(r["rotation_start"],day)||taskIsStopped(r,day) {continue}
+		visible, completionKey := taskOccurrenceOn(due, target, r["repeat_rule"],parseNumber(r["week_start"],1))
 		if !visible {
 			continue
 		}
@@ -554,8 +571,9 @@ func (a *App) tasks(day string) ([]Task, error) {
 			return nil, err
 		}
 		weeks,_:=strconv.Atoi(r["rotation_weeks"])
-		owner:=rotatedOwner(r["assigned_to"],r["rotation_members"],r["rotation_start"],weeks,day)
-		out = append(out, Task{ID: r["id"], Title: r["title"], AssignedTo: owner, DueDate: r["due_date"], RepeatRule: r["repeat_rule"], Done: len(completed) > 0})
+		owner:=rotatedOwnerOn(r["assigned_to"],r["rotation_members"],r["rotation_start"],weeks,day,parseNumber(r["week_start"],1))
+        task:=taskFromRow(r);task.AssignedTo=owner;task.Done=len(completed)>0;task.OccurrenceKey=completionKey
+        out=append(out,task)
 	}
 	return out, nil
 }
@@ -676,14 +694,18 @@ func (a *App) taskSave(w http.ResponseWriter, r *http.Request) {
 	var e error
 	if r.Method == "POST" {
 		t.ID = newID()
-		e = a.db.Exec("INSERT INTO tasks(id,title,assigned_to,due_date,repeat_rule) VALUES(?,?,?,?,?)", t.ID, t.Title, t.AssignedTo, t.DueDate, t.RepeatRule)
+		settings,se:=scheduleSettings(a.db);if se!=nil{apiError(w,500,"Ugestart kunne ikke læses");return}
+        e = a.db.Exec("INSERT INTO tasks(id,title,assigned_to,due_date,repeat_rule,week_start) VALUES(?,?,?,?,?,?)", t.ID, t.Title, t.AssignedTo, t.DueDate, t.RepeatRule, strconv.Itoa(settings.WeekStart))
 	} else {
 		t.ID = r.PathValue("id")
 		if !validID(t.ID) {
 			apiError(w, 400, "Ugyldigt ID")
 			return
 		}
-		e = a.db.Exec("UPDATE tasks SET title=?,assigned_to=?,due_date=?,repeat_rule=? WHERE id=?", t.Title, t.AssignedTo, t.DueDate, t.RepeatRule, t.ID)
+		rows,err:=a.db.Query("SELECT rotation_members FROM tasks WHERE id=?",t.ID)
+        if err!=nil{apiError(w,500,"Opgaven kunne ikke læses");return}
+        if len(rows)>0&&rows[0]["rotation_members"]!=""{apiError(w,409,"Brug Quickstart til at ændre en turnus fra en ny dato");return}
+        e = a.db.Exec("UPDATE tasks SET title=?,assigned_to=?,due_date=?,repeat_rule=? WHERE id=?", t.Title, t.AssignedTo, t.DueDate, t.RepeatRule, t.ID)
 	}
 	if e != nil {
 		apiError(w, 500, "Kunne ikke gemme opgaven")
@@ -722,40 +744,27 @@ func (a *App) toggle(w http.ResponseWriter, r *http.Request) {
 		apiError(w, 400, "Ugyldig dato")
 		return
 	}
-	rows, err := a.db.Query("SELECT due_date,repeat_rule,rotation_start FROM tasks WHERE id=?", id)
-	if err != nil {
-		apiError(w, 500, "Kunne ikke læse opgaven")
-		return
-	}
-	if len(rows) == 0 {
-		apiError(w, 404, "Opgaven findes ikke")
-		return
-	}
-	due, err := time.Parse("2006-01-02", rows[0]["due_date"])
-	if err != nil {
-		apiError(w, 500, "Ugyldig startdato for opgaven")
-		return
-	}
-	selected, _ := time.Parse("2006-01-02", v.Day)
-	if !plannerTaskHasStarted(rows[0]["rotation_start"],v.Day) {
-		apiError(w,400,"Opgaven er ikke startet på den valgte dato")
-		return
-	}
-	visible, completionKey := taskOccurrence(due, selected, rows[0]["repeat_rule"])
-	if !visible {
-		apiError(w, 400, "Opgaven er ikke aktiv på den valgte dag")
-		return
-	}
-	if v.Done {
-		if err := a.db.Exec("INSERT OR IGNORE INTO completions(task_id,day) VALUES(?,?)", id, completionKey); err != nil {
-			apiError(w, 500, "Opgaven kunne ikke afsluttes")
-			return
+	// Serialize completion with plan retirement/replacement. Neither operation
+	// may commit after validating a stale active/history snapshot.
+	err := a.db.Transaction(func(tx *store.Tx) error {
+		rows, err := tx.Query("SELECT due_date,repeat_rule,rotation_start,week_start,inactive_from FROM tasks WHERE id=?", id)
+		if err != nil { return err }
+		if len(rows) == 0 { return badPlan(404, "Opgaven findes ikke") }
+		due, err := time.Parse("2006-01-02", rows[0]["due_date"])
+		if err != nil { return err }
+		selected, _ := time.Parse("2006-01-02", v.Day)
+		if !plannerTaskHasStarted(rows[0]["rotation_start"], v.Day) || taskIsStopped(rows[0], v.Day) {
+			return badPlan(400, "Opgaven er ikke aktiv på den valgte dato")
 		}
-	} else {
-		if err := a.db.Exec("DELETE FROM completions WHERE task_id=? AND day=?", id, completionKey); err != nil {
-			apiError(w, 500, "Opgaven kunne ikke genåbnes")
-			return
-		}
+		visible, completionKey := taskOccurrenceOn(due, selected, rows[0]["repeat_rule"], parseNumber(rows[0]["week_start"], 1))
+		if !visible { return badPlan(400, "Opgaven er ikke aktiv på den valgte dag") }
+		if v.Done { return tx.Exec("INSERT OR IGNORE INTO completions(task_id,day) VALUES(?,?)", id, completionKey) }
+		return tx.Exec("DELETE FROM completions WHERE task_id=? AND day=?", id, completionKey)
+	})
+	if err != nil {
+		var invalid *planError
+		if errors.As(err, &invalid) { apiError(w, invalid.code, invalid.message) } else { apiError(w, 500, "Afkrydsningen kunne ikke gemmes") }
+		return
 	}
 	a.broadcast()
 	writeJSON(w, 200, map[string]bool{"ok": true})

@@ -14,7 +14,9 @@
 <link rel="stylesheet" href="/style.css?v=day-home-1">
 <script src="/planner-dates.js?v=start-date-1" defer></script>
 <script src="/saver-schedule.js?v=1" defer></script>
-<script src="/app.js?v=saver-schedule-1" defer></script>
+<script src="/planning-tools.js?v=shared-turnus-1" defer></script>
+<script src="/settings-folders.js?v=1" defer></script>
+<script src="/app.js?v=shared-turnus-1" defer></script>
 </head>
 <body>
 <section id="login" class="login-screen hidden">
@@ -61,6 +63,7 @@
  </section>
  <section id="settingsPage" class="settings-page hidden" aria-label="Indstillinger">
    <div class="settings-heading"><div><p class="eyebrow">FAMILIEHUB</p><h1>Indstillinger</h1><p class="muted">Administrér opgavearkiv, familiemedlemmer og integrationer.</p></div><a class="minor" href="#kalender" id="backToCalendar">‹ Tilbage til kalender</a></div>
+   <div class="settings-collapse-actions"><button type="button" id="settingsCollapseAll" class="minor">Fold alle sammen</button><button type="button" id="settingsExpandAll" class="minor">Åbn alle sektioner</button></div>
    <div class="settings-shortcuts"><button type="button" id="settingsPeopleBtn" class="minor">♧ Familiemedlemmer</button><button type="button" id="settingsHABtn" class="minor">⌂ Home Assistant</button><a class="minor" href="#opgaver">Alle opgaver →</a></div><nav class="settings-tabs" aria-label="Opgaveindstillinger"><span class="settings-tab active">Opgavearkiv</span></nav>
    <div class="settings-panel">
      <div class="settings-panel-head"><div><h2 id="settingsSectionTitle">Opgavearkiv</h2><p id="settingsDescription" class="muted">Lav genbrugelige skabeloner til opgaver.</p></div><button id="settingsAddBtn" type="button" class="primary">+ Ny skabelon</button></div>
@@ -73,6 +76,15 @@
    <div class="ai-actions"><button type="button" id="plannerOpenBtn" class="primary">Lav en opgaveplan</button><button type="button" id="plannerSeedBtn" class="minor">Tilføj 15 forslag til opgavearkiv</button></div>
    <p id="plannerStatus" class="muted" role="status"></p>
    <a id="plannerViewPlanLink" class="text-button hidden" href="#opgaver">Se den gemte opgaveplan →</a>
+   </section>
+   <section class="settings-panel" id="quickstartPanel" aria-label="Quickstart og turnus">
+     <h2>Quickstart og turnus</h2>
+     <p class="muted">Vælg en opgave, hvem der deler den, og hvem der starter. Eller opret en personlig opgave til hver deltager. Se de første fire uger før godkendelse.</p>
+     <div class="ai-actions"><button type="button" id="quickstartOpenBtn" class="primary">Quickstart – del opgaver</button><button type="button" id="taskDiagnosticsBtn" class="minor">Gennemgå opgaveserier / mulige dubletter</button></div>
+     <div class="display-form"><label class="field">Familiens uge starter<select id="familyWeekStart"></select></label></div>
+     <button type="button" id="weekStartSave" class="minor">Gem ugestart</button>
+     <p class="muted">Gælder kalenderens ugevisning og som standard for nye planer. Eksisterende turnusser beholder deres ugestart og afkrydsningshistorik. Quickstart kan stoppe udvalgte gamle serier fra den nye startdato uden at slette historikken.</p>
+     <p id="quickstartStatus" class="muted" role="status"></p>
    </section>
    <section class="settings-panel accounts-panel" aria-label="Brugerkonti">
      <div class="settings-panel-head"><div><h2>Brugere og login</h2><p class="muted">Hvert familiemedlem kan logge ind fra sin egen telefon eller tablet.</p></div><button type="button" id="accountsAddBtn" class="primary">+ Opret bruger</button></div>
@@ -135,6 +147,7 @@
    <div class="settings-extra">
      <section class="settings-panel settings-extra-card" aria-label="Kalenderfarver">
        <h2>Kalendere og farver</h2>
+       <p class="muted">Kilde: Home Assistant. Direkte ICS-/Google-forbindelser findes i deres egen sektion. Brug kun én kilde til samme kalender for at undgå dobbelte aftaler.</p>
        <p class="muted">Vælg standardperson for hver kalender fra Home Assistant. #Alma eller #Anton i en aftaletitel tilsidesætter altid standarden.</p>
        <div id="calendarOwnerList" class="calendar-owner-list"></div>
        <p id="calendarOwnerError" class="error" role="status"></p>

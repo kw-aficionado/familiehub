@@ -1,7 +1,8 @@
 /* FamilieHub: zero-dependency, iPadOS 15-compatible frontend. */
 (function () {
   'use strict';
-  var S = {csrf:'', account:null, accounts:[], view:'day', focus:familyToday(), filter:'', people:[], events:[], tasks:[], templates:[], allTasks:[], settingsOpen:false, settingsTab:'templates', settingsQuery:'', page:'kalender', taskPeriod:'today', taskFocus:familyToday(), taskFilter:'', taskStatus:'all', weekEntries:[], todayEvents:[], todayDate:'', loading:0, taskLoading:0, socket:null};
+  var S = {csrf:'', account:null, accounts:[], view:'day', weekStart:1, focus:familyToday(), filter:'', people:[], events:[], tasks:[], templates:[], allTasks:[], settingsOpen:false, settingsTab:'templates', settingsQuery:'', page:'kalender', taskPeriod:'today', taskFocus:familyToday(), taskFilter:'', taskStatus:'all', weekEntries:[], todayEvents:[], todayDate:'', loading:0, taskLoading:0, socket:null};
+  var planningTools=null;
   var $ = function(id){return document.getElementById(id)};
   function el(tag,props,text){var x=document.createElement(tag);if(props)Object.keys(props).forEach(function(k){x.setAttribute(k,props[k])});if(text!==undefined)x.textContent=text;return x}
   function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})}
@@ -11,7 +12,7 @@
   function dayString(d){return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())}
   function localMidnight(d){return new Date(d.getFullYear(),d.getMonth(),d.getDate())}
   function addDays(d,n){return new Date(d.getFullYear(),d.getMonth(),d.getDate()+n)}
-  function startWeek(d){var w=d.getDay();return addDays(d,-((w+6)%7))}
+  function startWeek(d){var w=d.getDay(),first=S&&Number.isInteger(S.weekStart)?S.weekStart:1;return addDays(d,-((w-first+7)%7))}
   function formatDate(d,opt){return new Intl.DateTimeFormat('da-DK',opt).format(d)}
   function clock(s){return formatDate(new Date(s),{hour:'2-digit',minute:'2-digit',hour12:false,timeZone:'Europe/Copenhagen'})}
   function dateTimeInput(d){return dayString(d)+'T'+pad(d.getHours())+':'+pad(d.getMinutes())}
@@ -57,7 +58,7 @@
   async function load(){
     var token=++S.loading,r=range(),day=dayString(S.focus);
     try{var p=new URLSearchParams({start:r.start.toISOString(),end:r.end.toISOString(),day:day});var data=await api('/api/state?'+p.toString());if(token!==S.loading)return;
-      S.people=data.people||[];S.events=data.events||[];S.todayEvents=data.today_events||[];S.todayDate=data.today_date||dayString(new Date());S.tasks=data.tasks||[];render();setOnline(true);
+      var priorWeekStart=S.weekStart;S.weekStart=Number.isInteger(data.week_start)?data.week_start:1;if(S.view==='week'&&priorWeekStart!==S.weekStart){load();return}S.people=data.people||[];S.events=data.events||[];S.todayEvents=data.today_events||[];S.todayDate=data.today_date||dayString(new Date());S.tasks=data.tasks||[];render();setOnline(true);
       $('warning').textContent=data.warning||'';data.warning?show('warning'):hide('warning');$('updated').textContent='Opdateret '+formatDate(new Date(),{hour:'2-digit',minute:'2-digit'});
     }catch(e){setOnline(false);$('warning').textContent='Kunne ikke hente data: '+e.message;show('warning')}
   }
@@ -74,7 +75,7 @@
   function render(){
     updateCalendarViewButtons();
     var r=range();$('currentDate').textContent=formatDate(S.focus,{weekday:'long',day:'numeric',month:'long',year:'numeric'}).toUpperCase();
-    $('viewTitle').textContent=S.view==='week'?('Uge '+weekNumber(startWeek(S.focus))+' · '+formatDate(r.start,{month:'long',year:'numeric'})):'Dagsoverblik';
+    $('viewTitle').textContent=S.view==='week'?('Ugeoverblik · '+formatDate(r.start,{day:'numeric',month:'short'})+' – '+formatDate(addDays(r.start,6),{day:'numeric',month:'short',year:'numeric'})):'Dagsoverblik';
     $('taskDate').textContent='Opgaver for '+formatDate(S.focus,{weekday:'long',day:'numeric',month:'long'});
     renderFilters();renderCalendar();renderTasks();renderToday();
   }
@@ -113,7 +114,7 @@
     $('showDayTasksBtn').setAttribute('aria-label','Se alle opgaver for '+formatDate(S.focus,{weekday:'long',day:'numeric',month:'long'}));
     $('taskPreviewCount').textContent=tasks.length>4?'Viser 4 af '+tasks.length+' opgaver.':'';
     tasks=tasks.slice(0,4);
-    if(!tasks.length){root.appendChild(el('p',{'class':'empty-state'},'Ingen opgaver på denne dag. Tryk “+ Opgave” for at oprette en.'));return}
+    if(!tasks.length){root.appendChild(el('p',{'class':'empty-state'},S.filter?'Ingen opgaver til '+nameOf(S.filter)+' på denne dag. Vælg Alle for hele familien.':'Ingen opgaver på denne dag. Tryk “+ Opgave” for at oprette en.'));return}
     tasks.forEach(function(t){var row=el('div',{'class':'task-row'});row.style.borderLeft='4px solid '+colorOf(t.assigned_to);row.style.paddingLeft='9px';var check=el('input',{type:'checkbox','aria-label':'Fuldfør '+t.title});check.checked=t.done;check.addEventListener('change',async function(){try{await api('/api/tasks/'+t.id+'/toggle','POST',{day:dayString(S.focus),done:check.checked});load()}catch(e){check.checked=!check.checked;alert(e.message)}});row.appendChild(check);
       var text=el('div',{'class':'task-text'});var title=el('strong',{'class':t.done?'strike':''},t.title);text.appendChild(title);var meta=el('small');var owner=el('span',{'class':'task-person-label'},t.assigned_to?nameOf(t.assigned_to):'Fælles');owner.style.backgroundColor=tint(colorOf(t.assigned_to),0.13);owner.style.color=colorOf(t.assigned_to);meta.appendChild(owner);if(repeatLabel(t.repeat_rule))meta.appendChild(document.createTextNode(' · '+repeatLabel(t.repeat_rule)));text.appendChild(meta);row.appendChild(text);
       var edit=el('button',{'class':'text-button','type':'button'},'Redigér');edit.addEventListener('click',function(){openTask(t)});row.appendChild(edit);root.appendChild(row)
@@ -128,7 +129,7 @@
   function personOptions(selected,emptyText){return '<option value="">'+esc(emptyText||'Ingen')+'</option>'+S.people.map(function(p){return '<option value="'+esc(p.id)+'"'+(selected===p.id?' selected':'')+'>'+esc(p.name)+'</option>'}).join('')}
   function field(label,html){return '<label class="field">'+esc(label)+html+'</label>'}
   async function saveOrError(fn){try{await fn();closeModal();await load();if(S.page==='opgaver')await loadTasksPage()}catch(e){$('formError').textContent=e.message}}
-  function openEvent(e){var editing=!!e;if(e&&e.external){openModal('Kalenderaftale','<p><strong>'+esc(e.title)+'</strong></p><p>'+esc(formatDate(new Date(e.start_at),{weekday:'long',day:'numeric',month:'long',hour:'2-digit',minute:'2-digit'}))+'</p><p>'+esc(e.location)+'</p><p class="muted">Ekstern kalenderaftale. Redigér den i den oprindelige kalender.</p>');return}
+  function openEvent(e){var editing=!!e;if(e&&e.external){openModal('Kalenderaftale','<p><strong>'+esc(e.title)+'</strong></p><p>'+esc(formatDate(new Date(e.start_at),{weekday:'long',day:'numeric',month:'long',hour:'2-digit',minute:'2-digit'}))+'</p><p>'+esc(e.location)+'</p><p class="muted">Kilde: '+esc(window.FamilyHubPlanningTools.sourceLabel(e))+'. Ekstern kalenderaftale. Redigér den i den oprindelige kalender.</p>');return}
     var start=e?new Date(e.start_at):new Date(S.focus.getFullYear(),S.focus.getMonth(),S.focus.getDate(),15,0),end=e?new Date(e.end_at):new Date(start.getTime()+60*60*1000);
     var html='<form id="entryForm" class="form-grid">'+field('Titel','<input name="title" maxlength="150" required value="'+esc(e?e.title:'')+'">')+
       field('Start','<input name="start" type="datetime-local" required value="'+esc(dateTimeInput(start))+'">')+
@@ -147,6 +148,10 @@
   function templateOptions(){return '<option value="">Vælg en skabelon fra arkivet…</option>'+S.templates.map(function(t){return '<option value="'+esc(t.id)+'">'+esc(t.title)+' · '+esc(repeatLabel(t.repeat_rule)||'En gang')+'</option>'}).join('')}
   async function openTask(t){
     var editing=!!t;
+    if(t&&t.rotation_members&&t.rotation_members.length>1){
+      openModal('Opgaven indgår i en turnus','<p>'+esc(t.title)+'</p><p>Deltagere: '+esc(t.rotation_members.map(nameOf).join(' / '))+'. Startperson: '+esc(nameOf(t.base_assigned_to||t.assigned_to))+'.</p><p>Brug Quickstart til at ændre deltagere eller startperson fra en ny dato. Vælg hvilke gamle serier der skal stoppes; historikken bevares.</p><button type="button" id="editTurnusBtn" class="primary">Åbn Quickstart</button>');
+      $('editTurnusBtn').addEventListener('click',function(){closeModal();location.hash='#indstillinger';if(planningTools)planningTools.openQuickstart()});return;
+    }
     try{S.templates=await api('/api/templates')}catch(err){S.templates=[]}
     var html='<form id="entryForm" class="form-grid">'+
       (!editing?'<label class="field field-wide">Fra opgavearkivet<select id="templatePicker" name="template_id">'+templateOptions()+'</select></label>':'')+
@@ -212,7 +217,7 @@
       if(active)link.setAttribute('aria-current','page');else link.removeAttribute('aria-current');
     });
     if(page==='opgaver')loadTasksPage().catch(function(err){$('tasksPageList').replaceChildren(el('p',{'class':'error'},'Kunne ikke hente opgaver: '+err.message))});
-    if(page==='indstillinger'){refreshSettingsData().catch(function(err){$('settingsList').replaceChildren(el('p',{'class':'error'},'Kunne ikke hente arkivet: '+err.message))});loadCalendarOwners();renderAccountSettings();loadAISettings();loadDirectCalendars();loadEmailSettings();loadPushSettings()}
+    if(page==='indstillinger'){if(planningTools)planningTools.refresh();refreshSettingsData().catch(function(err){$('settingsList').replaceChildren(el('p',{'class':'error'},'Kunne ikke hente arkivet: '+err.message))});loadCalendarOwners();renderAccountSettings();loadAISettings();loadDirectCalendars();loadEmailSettings();loadPushSettings()}
   }
   // Open the complete checklist for the day shown on the home page, not every task series.
   function openDayTasks(){
@@ -266,10 +271,11 @@
       entries=entries.filter(function(t){
         var span=['once_week','weekly_window','biweekly_window'].indexOf(t.repeat_rule)!==-1;
         if(!span)return true;
-        if(seen[t.id])return false;
-        seen[t.id]=true;return true;
+        var key=t.id+':'+(t.occurrence_key||'');if(seen[key])return false;
+        seen[key]=true;return true;
       });
     }
+    if(all)entries=entries.filter(function(t){return !t.inactive_from||t.inactive_from>window.FamilyHubPlannerDates.today()});
     if(S.taskFilter)entries=entries.filter(function(t){return t.assigned_to===S.taskFilter});
     if(!all&&S.taskStatus!=='all')entries=entries.filter(function(t){return S.taskStatus==='done'?t.done:!t.done});
     entries.sort(function(a,b){
@@ -278,7 +284,7 @@
     });
     var title=all?'Alle opgaver':period==='today'?
       (dayString(S.taskFocus)===window.FamilyHubPlannerDates.today()?'Dagens opgaver · ':'Opgaver ')+formatDate(S.taskFocus,{day:'numeric',month:'long'}):
-      'Uge '+weekNumber(startWeek(S.taskFocus))+' · '+formatDate(startWeek(S.taskFocus),{month:'long',year:'numeric'});
+      'Ugeoverblik · '+formatDate(startWeek(S.taskFocus),{day:'numeric',month:'short'})+' – '+formatDate(addDays(startWeek(S.taskFocus),6),{day:'numeric',month:'short'});
     $('tasksPeriodTitle').textContent=title;
     $('tasksCount').textContent=entries.length+' '+(entries.length===1?'opgave':'opgaver');
     var root=$('tasksPageList');root.replaceChildren();
@@ -308,10 +314,12 @@
       person.style.backgroundColor=tint(ownerColor,0.13);person.style.color=ownerColor;
       meta.appendChild(person);
       if(t.repeat_rule!=='none')meta.appendChild(el('span',{'class':'task-repetition'},repeatLabel(t.repeat_rule)));
+      if(t.rotation_members&&t.rotation_members.length>1)meta.appendChild(el('span',{'class':'task-repetition'},'Fælles turnus: '+t.rotation_members.map(nameOf).join(' / ')));
+      if(t.inactive_from)meta.appendChild(el('span',{'class':'task-date'},'Stopper fra '+t.inactive_from));
       if(all)meta.appendChild(el('span',{'class':'task-date'},'Fra '+t.due_date.split('-').reverse().join('.')));
       else if(period==='week'){
         var isWhole=['once_week','weekly_window','biweekly_window'].indexOf(t.repeat_rule)!==-1;
-        meta.appendChild(el('span',{'class':'task-date'},isWhole?'Hele ugen':taskDisplayDate(t.day)));
+        meta.appendChild(el('span',{'class':'task-date'},isWhole?('Ugeopgave'+(t.occurrence_key?' · fra '+taskDisplayDate(t.occurrence_key):'')):taskDisplayDate(t.day)));
       }
       content.appendChild(meta);card.appendChild(content);
       var edit=el('button',{'class':'text-button task-edit','type':'button'},'Redigér');
@@ -333,7 +341,7 @@
   function showSavedPlannerPlan(saved,draft){
     var startDate=saved.start_date||draft.start_date;
     closeModal();
-    $('plannerStatus').textContent='Opgaveplan gemt: '+saved.created+' opgaver fra '+startDate+'.';
+    $('plannerStatus').textContent=(saved.reused?'Planen var allerede gemt; ingen nye kopier: ':'Opgaveplan gemt: ')+saved.created+' opgaver fra '+startDate+'.';
     var link=$('plannerViewPlanLink');
     link.onclick=function(){
       S.taskFocus=new Date(startDate+'T12:00:00');
@@ -343,6 +351,7 @@
       if(location.hash==='#opgaver')syncPage();
     };
     show('plannerViewPlanLink');
+    if(window.FamilyHubSettings)window.FamilyHubSettings.reveal($('plannerStatus'));
     $('plannerStatus').scrollIntoView({block:'nearest'});
   }
   async function openPlanner(){
@@ -363,7 +372,7 @@
     function updateStartHint(){
       var value=startField.value;
       if(!value){$('plannerStartHint').textContent='Vælg en startdato.';return}
-      $('plannerStartHint').textContent='Opgaver starter tidligst '+formatDate(new Date(value+'T12:00:00'),{weekday:'long',day:'numeric',month:'long',year:'numeric'})+'. Den første uge kan være kortere. Opgavebytte sker om mandagen.'+(value<dates.today()?' Datoen ligger før i dag; opgaver kan blive forfaldne.':'');
+      $('plannerStartHint').textContent='Opgaver starter tidligst '+formatDate(new Date(value+'T12:00:00'),{weekday:'long',day:'numeric',month:'long',year:'numeric'})+'. Den første uge kan være kortere. Opgavebytte følger den valgte ugestart.'+(value<dates.today()?' Datoen ligger før i dag; opgaver kan blive forfaldne.':'');
     }
     document.querySelectorAll('[data-planner-start]').forEach(function(button){button.addEventListener('click',function(){
       startField.value=dates.shortcut(button.getAttribute('data-planner-start'),dates.today());
@@ -393,11 +402,14 @@
       var choices=Array.from(document.querySelectorAll('[data-template]:checked')).map(function(e){var id=e.getAttribute('data-template');return {template_id:id,times_per_week:Number(document.querySelector('[data-times="'+id+'"]').value)}});
       var preferences={},avoid={};
       people.forEach(function(id){var p=document.querySelector('[data-prefer="'+id+'"]').value,a=document.querySelector('[data-avoid="'+id+'"]').value;preferences[id]=p?[p]:[];avoid[id]=a?[a]:[]});
-      plannerDraft={people:people,choices:choices,start_date:$('plannerForm').elements.start_date.value,rotate_weeks:Number($('plannerForm').elements.rotate_weeks.value),preferences:preferences,avoid:avoid};
+      plannerDraft={people:people,choices:choices,start_date:$('plannerForm').elements.start_date.value,rotate_weeks:Number($('plannerForm').elements.rotate_weeks.value),preferences:preferences,avoid:avoid,week_start:S.weekStart,request_id:planningTools.requestID()};
       try{
         var draft=plannerDraft;
         var preview=await api('/api/planner/preview','POST',draft),root=$('plannerPreview');
         if(plannerDraft!==draft||!root)return;
+        draft.preview_hash=preview.preview_hash;
+        draft.week_start=preview.week_start;
+        var approval=planningTools.approvalControls(root,preview,draft.start_date);
         root.appendChild(el('h3',null,'Forslag til opgaveplan'));
         root.appendChild(el('p',{'class':'planner-start-summary'},'Planen starter '+formatDate(new Date(preview.start_date+'T12:00:00'),{weekday:'long',day:'numeric',month:'long',year:'numeric'})+'. Ingen opgaver er aktive før denne dato.'));
         if(preview.first_rotation_date)root.appendChild(el('p',{'class':'muted'},'Første opgavebytte: '+formatDate(new Date(preview.first_rotation_date+'T12:00:00'),{weekday:'long',day:'numeric',month:'long',year:'numeric'})+'.'));
@@ -424,6 +436,7 @@
           saveStatus.textContent='Gemmer opgaverne i FamilieHub…';
           var saved;
           try{
+            Object.assign(draft,approval());
             saved=await api('/api/planner/apply','POST',draft);
             if(!saved||saved.ok!==true||!(saved.created>0))throw new Error('FamilieHub bekræftede ikke, at opgaverne blev oprettet.');
           }catch(e){
@@ -979,6 +992,7 @@
     }catch(e){$('pushStatus').textContent='Push kunne ikke fjernes: '+e.message}
   });
   function loadBuild(){fetch('/api/version',{cache:'no-store',credentials:'same-origin'}).then(function(r){return r.json()}).then(function(v){var commit=(v.commit||'dev').substring(0,8);$('buildVersion').textContent=' · Build '+commit}).catch(function(){})}
+  planningTools=window.FamilyHubPlanningTools.setup({S:S,$:$,el:el,esc:esc,api:api,nameOf:nameOf,repeatLabel:repeatLabel,isAdmin:accountIsAdmin,openModal:openModal,closeModal:closeModal,receipt:showSavedPlannerPlan,load:load});
   restoreDisplaySettings();
   loadBuild();
   init();

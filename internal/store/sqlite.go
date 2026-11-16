@@ -138,6 +138,8 @@ func (d *DB) Init() error {
 		`CREATE TABLE IF NOT EXISTS tasks(id TEXT PRIMARY KEY,title TEXT NOT NULL,assigned_to TEXT NOT NULL DEFAULT '',due_date TEXT NOT NULL,repeat_rule TEXT NOT NULL DEFAULT 'none')`,
 		`CREATE TABLE IF NOT EXISTS task_templates(id TEXT PRIMARY KEY,title TEXT NOT NULL,assigned_to TEXT NOT NULL DEFAULT '',repeat_rule TEXT NOT NULL DEFAULT 'none')`,
 		`CREATE TABLE IF NOT EXISTS planner_meta(key TEXT PRIMARY KEY,value TEXT NOT NULL)`,
+        `CREATE TABLE IF NOT EXISTS plan_receipts(request_key TEXT PRIMARY KEY,definition_hash TEXT NOT NULL,plan_id TEXT NOT NULL,created INTEGER NOT NULL,start_date TEXT NOT NULL,response TEXT NOT NULL)`,
+        `CREATE INDEX IF NOT EXISTS plan_receipts_definition ON plan_receipts(definition_hash)`,
 		`CREATE TABLE IF NOT EXISTS calendar_owners(entity_id TEXT PRIMARY KEY,person_id TEXT NOT NULL DEFAULT '')`,
 		`CREATE TABLE IF NOT EXISTS direct_calendars(id TEXT PRIMARY KEY,provider TEXT NOT NULL,name TEXT NOT NULL,person_id TEXT NOT NULL DEFAULT '',endpoint TEXT NOT NULL DEFAULT '',username TEXT NOT NULL DEFAULT '',client_id TEXT NOT NULL DEFAULT '',secret_cipher TEXT NOT NULL DEFAULT '',access_cipher TEXT NOT NULL DEFAULT '',refresh_cipher TEXT NOT NULL DEFAULT '')`,
 		`CREATE TABLE IF NOT EXISTS direct_oauth_states(state_hash TEXT PRIMARY KEY,calendar_id TEXT NOT NULL,session_hash TEXT NOT NULL,expires_at TEXT NOT NULL)`,
@@ -178,6 +180,9 @@ func (d *DB) Init() error {
 		{"tasks","rotation_start","TEXT NOT NULL DEFAULT ''"},
 		{"tasks","rotation_weeks","INTEGER NOT NULL DEFAULT 0"},
 		{"tasks","plan_id","TEXT NOT NULL DEFAULT ''"},
+        {"tasks","week_start","INTEGER NOT NULL DEFAULT 1"},
+        {"tasks","inactive_from","TEXT NOT NULL DEFAULT ''"},
+        {"tasks","template_id","TEXT NOT NULL DEFAULT ''"},
 	} {
 		columns,err:=d.Query("PRAGMA table_info("+col.table+")")
 		if err!=nil{return fmt.Errorf("migration columns %s: %w",col.table,err)}

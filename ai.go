@@ -223,10 +223,10 @@ func (a *App) pendingTasks(now time.Time,daysBack int,includeToday bool)([]aiPen
   if date==today&&!includeToday{continue}
   tasks,err:=a.tasks(date);if err!=nil{return nil,err}
   for _,t:=range tasks {
-   if t.Done||t.AssignedTo==""{continue}
+   if t.Done||t.AssignedTo==""||(t.InactiveFrom!=""&&today>=t.InactiveFrom){continue}
    whole:=t.RepeatRule=="once_week"||t.RepeatRule=="weekly_window"||t.RepeatRule=="biweekly_window"
-   if whole&&day.Weekday()!=time.Sunday {continue}
-   key:=t.ID
+   if whole&&int(day.Weekday())!=(t.WeekStart+6)%7 {continue}
+   key:=t.ID+":"+t.AssignedTo
    entry:=out[key]
    if entry==nil {entry=&aiPending{TaskID:t.ID,Title:t.Title,PersonID:t.AssignedTo,Due:date};out[key]=entry}
    entry.Missed++

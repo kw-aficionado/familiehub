@@ -35,6 +35,9 @@ Home Assistant er eksplicit deaktiveret, og der oprettes ingen AI-, SMTP-, push-
 | `skaermindstillinger.webp` | Pauseskærmens tidsrum og inaktivitet, separat fra temaet. |
 | `nattilstand.webp` | Manuel afprøvning af pauseskærmen. |
 | `iphone.webp` | Dagsoverblik i en 390-pixel bred mobilviewport. |
+| `quickstart.webp` | Deltagere, startperson og gentagelse for fælles turnus. |
+| `turnusforslag.webp` | Fire ugers preview og eksisterende opgaveserier. |
+| `settings-folded.webp` | Indstillinger foldet sammen. |
 | `iphone-sondag.webp` | Ugekalender på mobil rullet til søndag. |
 
 ## Verifikation og begrænsninger
@@ -53,3 +56,15 @@ Screenshots er ikke en fuld ende-til-ende-test af alle funktioner. Særligt kræ
 Footeren viser `Build demo` for ikke at forveksle demoen med familiens produktionsserver.
 Se også de officielle [Playwright-screenshot-](https://playwright.dev/python/docs/screenshots)
 og [browserinstallationsvejledninger](https://playwright.dev/python/docs/browsers).
+
+## Regression af Quickstart i rigtig browser
+
+Med samme Playwright-miljø kan du køre:
+
+```sh
+python scripts/test-planning-browser.py --artifacts /tmp/familiehub-browser-review
+```
+
+Testen starter altid sin egen loopback-server med nye fiktive data. Den tester
+gemning, genforsøg, eksplicit stop/erstatning, korrekt ansvar, ugeindstilling,
+forældet preview, collapse og mobilbredde. Den kan ikke pege på en live-server.

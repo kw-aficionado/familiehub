@@ -20,9 +20,11 @@
 - Tasks opens on today's Copenhagen date; Today, This week and All tasks remain distinct.
 - AI task planner belongs in Settings immediately below Task archive, not on the Tasks page.
 - Planner start date defaults to today in Europe/Copenhagen; any weekday is valid. No occurrences, completion or reminders before that start.
-- Display the shorter first week's effort and the first rotation date. Rotation follows calendar weeks/Mondays.
+- Display the shorter first week's effort and the first rotation date. Rotation uses the week-start saved in each plan (Monday by default). Global week-start changes apply to navigation and new plans, never silently rewrite old completions.
 - Balance effort points and time, not only the number of chore titles. Dishwashing is heavier than taking out rubbish.
 - Deterministic code owns recurrence, effort calculations and persistence. AI is optional and explains; it is not an autonomous database writer.
+- Quickstart supports one shared rotating task series with an explicit starter, or deliberately separate personal tasks for each member. Never deduplicate solely by title.
+- Existing series may be stopped from today/future only after explicit selection and review; never delete completion history as duplicate cleanup.
 - Preview and explicit approval precede plan persistence. Keep failures visible and never present a failed refresh as a failed save.
 - Default automatic screensaver window is 20:00–07:00 Copenhagen time, after inactivity. Settings are per device, independent of dark theme; preserve Never/disabled preferences.
 - Reuse the existing house icon; do not redesign branding unless requested.
