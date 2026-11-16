@@ -1,0 +1,30 @@
+name: Isolated diagnostic source snapshot
+on:
+  push:
+    branches: [fix/rotation-quickstart-calendar-settings-20261116]
+    paths: [.github/workflows/diagnostic-source-bundle.yml]
+permissions:
+  contents: read
+jobs:
+  snapshot:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: false
+      - name: Bundle tracked source and public dependencies only
+        run: |
+          mkdir -p /tmp/familiehub-source
+          git archive HEAD | tar -x -C /tmp/familiehub-source
+          cd /tmp/familiehub-source
+          go mod vendor
+          tar -czf /tmp/familiehub-source.tar.gz .
+      - uses: actions/upload-artifact@v4
+        with:
+          name: diagnostic-source
+          path: /tmp/familiehub-source.tar.gz
+          retention-days: 2
