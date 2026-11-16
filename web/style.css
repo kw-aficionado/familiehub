@@ -313,3 +313,27 @@ html[data-theme="dark"] .planner-save-status.error{color:#ffaca3}
 .tasks-panel .panel-title-actions{max-width:100%}
 #showDayTasksBtn{white-space:normal;text-align:left}
 #taskPreviewCount:not(:empty){padding-top:10px;font-size:12px}
+
+/* Shared-task Quickstart and keyboard-accessible settings sections. */
+.settings-collapse-actions{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px}
+.settings-section{margin:14px 0;border:1px solid var(--border,#dce9e4);border-radius:14px;background:var(--panel,#fff);overflow:hidden}
+.settings-section>summary{cursor:pointer;padding:16px 18px;font-weight:750;list-style:disclosure-closed}
+.settings-section[open]>summary{list-style:disclosure-open;border-bottom:1px solid #dce9e4}
+.settings-section>.settings-panel{border:0;box-shadow:none;margin:0;border-radius:0}
+.settings-section[hidden]{display:none!important}
+.quick-task{border:1px solid #dce9e4;border-radius:10px;padding:12px;margin:12px 0;min-width:0}
+.quick-task legend label,.quick-people label{display:inline-flex;align-items:center;gap:8px}
+.quick-task input[type=checkbox],.quick-people input[type=checkbox],.plan-conflict-row input{width:19px;height:19px;flex:none}
+.quick-task-controls{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.quick-task-controls>p,.quick-people{grid-column:1/-1}
+.quick-people{display:flex;flex-wrap:wrap;gap:12px}
+.quick-week{margin:12px 0;padding:12px;border:1px solid #dce9e4;border-radius:10px}
+.quick-week>summary{cursor:pointer;font-weight:700}
+.quick-week p{font-size:14px;line-height:1.5}
+.plan-conflicts{border:1px solid #d4a446;border-radius:10px;padding:12px;margin:14px 0}
+.plan-conflict-row{display:flex;align-items:flex-start;gap:10px;margin:12px 0;font-size:14px;line-height:1.5}
+.plan-conflict-row input{margin-top:3px}
+#quickPreview .planner-save-status{white-space:pre-line}
+html[data-theme="dark"] .settings-section{background:#162a2f;border-color:#365358}
+html[data-theme="dark"] .settings-section>summary,html[data-theme="dark"] .quick-task,html[data-theme="dark"] .quick-week{border-color:#365358}
+@media(max-width:600px){.quick-task-controls{grid-template-columns:1fr}.settings-section>summary{padding:14px}.quick-task{padding:8px}}

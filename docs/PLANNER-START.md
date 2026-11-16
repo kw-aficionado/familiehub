@@ -11,7 +11,7 @@ The weekly weekday pattern is retained. Occurrences in the elapsed part of the
 first week begin on their next matching weekday, not retroactively. Whole-week
 chores become visible only on the chosen start date. Their first window ends
 on Sunday. The first, possibly shorter week's effort is shown separately.
-Rotation follows calendar weeks, starting on Monday after the selected number
+Rotation follows the week start stored in each plan (Monday by default), after the selected number
 of weeks; its first date is shown explicitly. No rotation means no owner change.
 Choosing a past date intentionally is supported but displays a warning.
 
@@ -37,3 +37,14 @@ completion, first-week totals, persisted starts, Monday rotation, no-rotation
 plans, legacy whole-week behavior, reminder exclusion and static icon responses.
 Node tests cover Copenhagen's date boundary, shortcuts, DST and year changes.
 MCP regression coverage verifies moving a plan that starts midweek.
+
+## Configurable weeks and safe replacement
+
+`/api/schedule/settings` stores the family week start for navigation and new
+plans. Existing rows retain their `week_start` (Monday on upgrade). Whole-week
+completion keys and reminders use that saved boundary. Changing the family
+setting never rewrites an existing completion. Quickstart previews four actual
+weeks and permits an explicit starter for each shared task.
+
+See [Quickstart](QUICKSTART.md) for idempotency, potential overlaps and stopping
+old series without deleting historical rows or completions.

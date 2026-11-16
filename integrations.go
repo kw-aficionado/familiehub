@@ -366,8 +366,8 @@ func (a *App) taskReminders(now time.Time, people map[string]Person) {
 	}
 	grouped := map[string][]string{}
 	for _, t := range all {
-		// A whole-week chore has a single deadline per week. Remind on Sunday.
-		if (t.RepeatRule == "once_week" || t.RepeatRule == "weekly_window" || t.RepeatRule == "biweekly_window") && now.Weekday() != time.Sunday {
+		// A whole-week chore has a single deadline per week. Use the series' saved week boundary.
+		if (t.RepeatRule == "once_week" || t.RepeatRule == "weekly_window" || t.RepeatRule == "biweekly_window") && int(now.Weekday()) != (t.WeekStart+6)%7 {
 			continue
 		}
 		if !t.Done && t.AssignedTo != "" {

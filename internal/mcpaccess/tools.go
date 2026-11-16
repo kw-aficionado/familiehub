@@ -281,7 +281,7 @@ type querier interface {
 }
 
 func planRows(db querier, id string) (store.Rows, error) {
-	rows, err := db.Query(`SELECT t.id,t.title,t.assigned_to,t.due_date,t.repeat_rule,t.rotation_members,t.rotation_start,t.rotation_weeks,t.plan_id,
+	rows, err := db.Query(`SELECT t.id,t.title,t.assigned_to,t.due_date,t.repeat_rule,t.rotation_members,t.rotation_start,t.rotation_weeks,t.plan_id,t.week_start,t.inactive_from,t.template_id,
  (SELECT COUNT(*) FROM completions c WHERE c.task_id=t.id) AS completed_occurrences
  FROM tasks t WHERE t.plan_id=? ORDER BY t.id LIMIT 501`, id)
 	if err != nil {
@@ -371,6 +371,7 @@ func (s *Server) previewShift(actor string, v shiftRequest) (any, error) {
 	}
 	var anchor time.Time
 	for _, r := range rows {
+        if r["inactive_from"]!="" { return nil, errors.New("This plan contains stopped task series. Use Quickstart for a new plan; stopped history cannot be moved") }
 		if number(r["completed_occurrences"]) > 0 {
 			return nil, errors.New("This plan already has completed tasks. Moving it would change history, so no move is permitted")
 		}

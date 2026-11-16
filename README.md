@@ -7,7 +7,7 @@ Frontend er udviklet med iPadOS 15 som kompatibilitetsmål; der er ingen produkt
 [![Verificering](https://github.com/kw-aficionado/familiehub/actions/workflows/ci.yml/badge.svg)](https://github.com/kw-aficionado/familiehub/actions/workflows/ci.yml)
 [![Docker-publicering](https://github.com/kw-aficionado/familiehub/actions/workflows/release.yml/badge.svg)](https://github.com/kw-aficionado/familiehub/actions/workflows/release.yml)
 
-**Dokumentation gennemgået 4. november 2026.** Appens versionsetiket og den eksisterende Rune bruger fortsat `0.1.1`; det konkrete build identificeres af Git-committen i footeren og `/api/version`.
+**Dokumentation gennemgået 16. november 2026.** Appens versionsetiket og den eksisterende Rune bruger fortsat `0.1.1`; det konkrete build identificeres af Git-committen i footeren og `/api/version`.
 
 [Kom i gang](#kom-i-gang) · [Skærmbilleder](#skærmbilleder) · [Arbejd videre i Codex](docs/CODEX.md) · [MCP](docs/MCP.md) · [Pauseskærm](docs/SCREENSAVER.md)
 
@@ -44,12 +44,24 @@ Gentagelser omfatter én dag, dagligt, hverdage, hver uge, hver anden uge samt o
 
 Efter gemning bliver du i Indstillinger med en kvittering og linket **Se den gemte opgaveplan**, som åbner startugen.
 En start midt i ugen giver en kortere første uge; belastning og første opgavebytte vises særskilt.
-Ingen forekomster, afkrydsninger eller påmindelser gælder før planens start. Rotation følger kalenderuger med bytte om mandagen. Se [startdatoens præcise regler](docs/PLANNER-START.md).
+Ingen forekomster, afkrydsninger eller påmindelser gælder før planens start. Rotation følger den ugestart, der er gemt i planen (mandag som standard). Se [startdatoens præcise regler](docs/PLANNER-START.md).
 
 Fordelingen beregnes af almindelig kode og virker uden AI-forbindelse. AI forklarer forslaget; den har ikke fri skriveadgang til databasen. Belastningspoint er familiens justerbare skøn, ikke en objektiv måling.
 Kun administratoren importerer standardskabeloner; indloggede familiemedlemmer kan gemme planer ligesom almindelige opgaver.
 
-**Undgå dubletter:** En ny godkendelse af en nyoprettet plan kan oprette endnu et sæt tilbagevendende opgaver. Kontrollér eksisterende planer før gentagen oprettelse. Planlæggeren sletter ikke gamle opgaver automatisk.
+**Beskyttelse mod dubletter:** Gentagne eller samtidige godkendelser af den samme aktive plan genbruger den gemte kvittering. Mulige overlap med eksisterende opgaver skal gennemgås før en ny plan gemmes. Samme titel er ikke altid en dublet: personlige lektier kan tilhøre hvert barn. Intet slettes automatisk.
+
+### Quickstart, ugestart og oprydning
+
+Under **Indstillinger → Quickstart og turnus** kan du vælge hver opgave, dens deltagere, startperson, gentagelse og bytteinterval. **Én fælles opgave på skift** gemmer én serie; **Personlig opgave til hver deltager** gemmer bevidst en serie til hver. Der er ikke en træk-og-slip-tavle i denne version.
+
+Eksempel: Vælg to børn til opvasken, det ene som startperson, daglig gentagelse og ugentligt bytte. Vælg det andet barn som startperson for borddækning. Forhåndsvisningen viser de første fire uger med faktiske forekomster, point og minutter, og planen gemmes først efter godkendelse.
+
+**Familiens uge starter** styrer ugevisningen og standarden for nye planer. Quickstart kan også vælge en ugestart for den konkrete plan. Gamle planer beholder deres egne ugegrænser; deres historik flyttes ikke.
+
+**Gennemgå opgaveserier / mulige dubletter** viser startdato, ansvar, turnus, plan-/serie-id og antal afkrydsninger. Administratoren kan stoppe valgte gamle serier fra i dag eller senere. Quickstart kan alternativt stoppe valgte overlappende serier og oprette erstatningen samlet. Historikken bevares, og en afsluttet forekomst kan ikke skjules af en stopdato. Se [vejledningen til turnus og oprydning](docs/QUICKSTART.md).
+
+Alle sektioner i Indstillinger kan foldes sammen. **Fold alle sammen** og **Åbn alle sektioner** virker også med tastatur; valget huskes på enheden.
 
 ### Pauseskærm og ikon
 
@@ -96,12 +108,22 @@ Arkivet er her filtreret på **bord**, så placeringen af planlæggeren umiddelb
 | --- | --- |
 | ![FamilieHub dagsvisning i en smal mobilbrowser](docs/screenshots/iphone.webp) | ![FamilieHub ugekalender med søndag synlig på telefon](docs/screenshots/iphone-sondag.webp) |
 
+### Quickstart og sammenklappelige indstillinger
+
+![Quickstart med deltagere og startperson pr. opgave](docs/screenshots/quickstart.webp)
+
+![Fire ugers turnus og gennemgang af eksisterende serier](docs/screenshots/turnusforslag.webp)
+
+![Indstillinger med sektionerne foldet sammen](docs/screenshots/settings-folded.webp)
+
 ## Integrationer og adgang
 
 ### Kalender
 
 Home Assistant er **valgfri**, ikke et krav for alle eksterne kalendere.
 **Indstillinger → Direkte kalenderforbindelser** understøtter Google Kalender, Microsoft 365, iCloud/CalDAV og ICS-feeds. Google/Microsoft kræver egen OAuth-konfiguration; iCloud bruger en kalenderadresse og en app-specifik adgangskode. Eksterne forbindelser er skrivebeskyttede. Lokale FamilieHub-aftaler skrives ikke tilbage til Google/iCloud/Microsoft.
+
+Aftalens detaljevisning viser, om kilden er **Home Assistant** eller en **direkte kalenderforbindelse**. Brug kun én kilde til samme kalender; parallelle HA- og ICS-forbindelser bliver ikke automatisk slået sammen. Private ICS-adresser må ikke lægges i GitHub eller screenshots.
 
 Home Assistant kan bruges via `HA_URL`, `HA_TOKEN` og `HA_CALENDARS`. Forbindelsen skal virke fra **FamilieHub-serveren**, ikke kun fra brugerens telefon eller browser. Brug en privat forbindelse til HA frem for at eksponere HA direkte.
 

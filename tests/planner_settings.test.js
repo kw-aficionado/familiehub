@@ -30,6 +30,7 @@ function boot() {
   const state = {page: 'indstillinger', taskPeriod: 'today', taskFocus: new Date('2026-11-03T12:00:00'), taskFilter: 'old-person', taskStatus: 'open'};
   const context = vm.createContext({
     S: state,
+    window: {},
     location: {hash: '#indstillinger'},
     $: node,
     closeModal() { effects.push('close'); },

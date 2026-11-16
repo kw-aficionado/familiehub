@@ -31,17 +31,14 @@ func validRepeatRule(rule string) bool {
 }
 
 func (a *App) allTasks(w http.ResponseWriter, r *http.Request) {
-	rows, err := a.db.Query("SELECT id,title,assigned_to,due_date,repeat_rule FROM tasks ORDER BY title COLLATE NOCASE, due_date, id")
+	rows, err := a.db.Query("SELECT "+taskColumns+" FROM tasks ORDER BY title COLLATE NOCASE, due_date, id")
 	if err != nil {
 		apiError(w, 500, "Alle opgaver kunne ikke hentes")
 		return
 	}
 	tasks := []Task{}
 	for _, row := range rows {
-		tasks = append(tasks, Task{
-			ID: row["id"], Title: row["title"], AssignedTo: row["assigned_to"],
-			DueDate: row["due_date"], RepeatRule: row["repeat_rule"],
-		})
+		tasks = append(tasks, taskFromRow(row))
 	}
 	writeJSON(w, 200, tasks)
 }
@@ -162,8 +159,9 @@ func (a *App) tasksWeek(w http.ResponseWriter, r *http.Request) {
   return
  }
  start, _ := time.Parse("2006-01-02", startDate)
- weekday := (int(start.Weekday()) + 6) % 7
- start = start.AddDate(0, 0, -weekday)
+ settings,err:=scheduleSettings(a.db)
+ if err!=nil{apiError(w,500,"Ugestart kunne ikke hentes");return}
+ start=weekStartOn(start,settings.WeekStart)
  entries := []TaskOccurrence{}
  for dayIndex := 0; dayIndex < 7; dayIndex++ {
   day := start.AddDate(0, 0, dayIndex).Format("2006-01-02")

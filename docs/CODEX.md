@@ -45,7 +45,7 @@ Menunavne kan variere mellem appversioner. Repo-klargøring, miljøpublicering o
 | Område | Filer |
 | --- | --- |
 | HTTP, sessioner, kalender, opgaver og gentagelser | `main.go`, `accounts.go`, `chore_templates.go` |
-| Planlægning og startdato | `planner.go`, `planner_start_date.go`, `web/planner-dates.js` |
+| Planlægning og startdato | `planner.go`, `planner_start_date.go`, `quickstart.go`, `plan_persistence.go`, `schedule.go`, `web/planning-tools.js` |
 | Valgfri AI og påmindelser | `ai.go`, `integrations.go`, `email_notifications.go`, `push_notifications.go` |
 | Direkte kalenderforbindelser | `direct_calendars.go`, `direct_calendar_fetch.go`, `calendar_owners.go` |
 | SQLite og transaktioner | `internal/store/` |
@@ -62,7 +62,7 @@ Kontrollér de faktiske filer, hvis strukturen ændres; tabellen er ikke en erst
 - **Se alle dagens opgaver** åbner hele listen for den viste dag. Forsiden viser kun fire opgaver som forhåndsvisning; den fulde dagsliste må ikke begrænses til fire.
 - **AI Opgaveplanlægger** ligger under **Indstillinger**, lige efter **Opgavearkiv**. Den separate AI-familieassistent bliver på Opgaver.
 - Planen har eksplicit startdato, standard i dag i dansk tid, med genvejene I dag/I morgen/Næste mandag. Alle ugedage accepteres.
-- Opgaver må ikke være aktive eller generere afkrydsning/påmindelse før planens start. Første korte uge og første mandagsbytte vises særskilt.
+- Opgaver må ikke være aktive eller generere afkrydsning/påmindelse før planens start. Første korte uge og første bytte efter planens gemte ugestart vises særskilt.
 - Opgavebyrde er point og minutter, ikke blot antal opgaver. Den oprindelige målgruppe er to teenagere med ugentlig rotation, men planlæggeren understøtter flere medlemmer.
 - AI er valgfri. Den deterministiske motor beregner fordelingen; ekstern AI forklarer den. Undgå at beskrive dette som en autonom agent med fri skriveadgang.
 - Der vises et forslag, som godkendes før lagring. Efter lagring bliver brugeren i Indstillinger med kvittering og link til startugen.
@@ -75,7 +75,7 @@ Kildegrundlaget for denne overdragelse var `8d9af8c4` (PR #1–#7 er flettet ind
 Læs altid den aktuelle HEAD og CI-status, ikke kun dette historiske referencepunkt.
 Dokumentationsopdateringen tilføjer aktuelle browserbilleder og udviklervejledning, ikke nye ændringer i familiens data.
 
-Den nuværende planner kan oprette en ny plan, men samme plan kan oprettes igen ved en ny godkendelse. Undgå utilsigtede dubletter; generel planner-idempotens er ikke implementeret som en del af dokumentationsopdateringen. MCP-flytning har derimod idempotente kvitteringer.
+Planlægger og Quickstart har nu transaktionsbeskyttede gemmekvitteringer og dubletbeskyttelse. En mulig titelkonflikt er ikke bevis for dubletter; personlige opgaver kan have samme titel. Stop/replacement er eksplicit, administratorkrævende og bevarer afkrydsninger. Se docs/QUICKSTART.md. MCP-flytning har egne idempotente kvitteringer og afviser stoppede planer.
 Planflytning flytter hele uger og afviser planer med afkrydsninger. Det er ikke en vilkårlig historikomskrivning.
 Alder, fravær og en fuld samtalebaseret planlægningsdialog blev drøftet som idéer, men skal ikke beskrives som færdige funktioner uden kodeverifikation.
 Google/iCloud/Microsoft/HA og fysisk iPadOS-adfærd kræver separate tests med de relevante tjenester/enheder. Demobilleder beviser ikke disse forbindelser.
