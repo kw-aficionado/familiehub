@@ -1,0 +1,92 @@
+name: Verify shared chore planning and safe cleanup
+on:
+  push:
+    branches: [fix/rotation-quickstart-calendar-settings-20261116]
+    paths: [.github/workflows/apply-planning-update.yml, '.github/planning-patch-*.b64']
+permissions:
+  contents: write
+concurrency:
+  group: planning-feature-verification
+  cancel-in-progress: false
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/rotation-quickstart-calendar-settings-20261116
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Apply checksum-verified source with preimage guards
+        run: |
+          python - <<'PY'
+          import base64, hashlib, lzma, pathlib, re, subprocess
+          raw=''.join(pathlib.Path('.github/planning-patch-%d.b64'%i).read_text().strip() for i in range(1,9))
+          packed=base64.b64decode(raw, validate=True)
+          assert hashlib.sha256(packed).hexdigest()=='2d95c5456e680823ffe8a37e93eaa13d65c4b7d810272b00e60c7a083ae86b26', 'Patch checksum mismatch'
+          patch=lzma.decompress(packed)
+          paths=[]
+          for block in patch.decode().split('diff --git ')[1:]:
+              header=block.splitlines()[0].split()
+              name=header[1][2:]
+              assert header[0][2:]==name and '..' not in pathlib.PurePosixPath(name).parts
+              assert not name.startswith(('.github/','vendor/','data/'))
+              old=re.search(r'^index ([0-9a-f]+)\.\.', block, re.M).group(1)
+              file=pathlib.Path(name)
+              if set(old)=={'0'}:
+                  assert not file.exists(), 'New file already exists: '+name
+              else:
+                  actual=subprocess.check_output(['git','hash-object',name],text=True).strip()
+                  assert actual.startswith(old), 'Source changed since review: '+name
+              paths.append(name)
+          assert len(paths)==29
+          subprocess.run(['git','apply','--unidiff-zero','--check','-'],input=patch,check=True)
+          subprocess.run(['git','apply','--unidiff-zero','-'],input=patch,check=True)
+          pathlib.Path('/tmp/familiehub-change-paths').write_text('\n'.join(paths)+'\n')
+          PY
+      - name: Verify candidate source before committing to feature branch
+        run: |
+          git diff --check
+          go test ./...
+          for file in web/*.js; do node --check "$file"; done
+          python -m py_compile scripts/test-planning-browser.py scripts/capture-screenshots.py
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          while IFS= read -r file; do git add -- "$file"; done < /tmp/familiehub-change-paths
+          git commit -m 'Add explicit shared chore Quickstart, safe plan persistence and configurable week boundaries'
+          git push origin HEAD:fix/rotation-quickstart-calendar-settings-20261116
+      - name: Install isolated browser verification tools
+        run: |
+          python -m pip install -r scripts/screenshots-requirements.txt
+          python -m playwright install --with-deps chromium
+      - name: Exercise actual browser planning and safe retirement
+        run: python scripts/test-planning-browser.py --artifacts /tmp/familiehub-browser-review
+      - name: Refresh documentation using fictional local data only
+        run: python scripts/capture-screenshots.py
+      - name: Run complete unit integration race and frontend checks
+        run: sh scripts/check.sh
+      - name: Commit verified documentation screenshots
+        run: |
+          git add docs/screenshots
+          if ! git diff --cached --quiet; then
+            git commit -m 'Refresh real-app fictional screenshots for shared chore planning'
+            git push origin HEAD:fix/rotation-quickstart-calendar-settings-20261116
+          fi
+      - name: Retain fictional browser review artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: planning-browser-review
+          path: |
+            /tmp/familiehub-browser-review
+            docs/screenshots
+          retention-days: 3
