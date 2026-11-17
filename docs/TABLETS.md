@@ -26,8 +26,8 @@ Parring afslutter et eventuelt almindeligt login i **samme browser**, ikke andre
 personers sessioner. `/tablet` bruger aldrig administratorens cookie som fallback.
 Administration fra tabletten er en separat, bevidst loginhandling; log ud bagefter.
 
-En forbindelse udløber efter 30 dage uden kontakt. Ved aktivitet fornys den med
-højst fem minutters mellemrum, dog aldrig længere end 180 dage efter parring.
+En forbindelse udløber efter 30 dage uden kontakt. Ved kontakt fornyes adgangen
+højst én gang pr. fem minutter, dog aldrig længere end 180 dage efter parring.
 Tabletten viser den seneste dato for ny parring. Udløb kræver en ny engangskode.
 Det er en browsergodkendelse, ikke hardware-attestation eller iPadOS-systemlås.
 
