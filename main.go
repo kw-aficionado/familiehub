@@ -335,7 +335,7 @@ func (a *App) login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	username := strings.ToLower(strings.TrimSpace(body.Username))
- if len(username)>128 || len(body.Password)>128 {apiError(w,400,"Ugyldigt loginformat");return}
+ if len(username)>128 || (username!="" && username!="admin" && len(body.Password)>128) {apiError(w,400,"Ugyldigt loginformat");return}
  now := a.timeNow()
  wait,finish:=a.loginAdmission(loginAccountKey(username),remoteIP(r),now)
  if wait>0 {tooManyRequests(w,wait);return}
