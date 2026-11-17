@@ -1,0 +1,30 @@
+name: Tablet development source snapshot
+on:
+  push:
+    branches: [feature/tablet-access-20261117]
+    paths: [.github/workflows/tablet-source-snapshot.yml]
+permissions:
+  contents: read
+jobs:
+  snapshot:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: false
+      - name: Archive tracked source and public dependencies only
+        run: |
+          mkdir -p /tmp/fh-tablet-source
+          git archive HEAD | tar -x -C /tmp/fh-tablet-source
+          cd /tmp/fh-tablet-source
+          go mod vendor
+          tar -czf /tmp/fh-tablet-source.tar.gz .
+      - uses: actions/upload-artifact@v4
+        with:
+          name: tablet-source
+          path: /tmp/fh-tablet-source.tar.gz
+          retention-days: 2
