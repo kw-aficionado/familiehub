@@ -29,6 +29,15 @@
 - Default automatic screensaver window is 20:00–07:00 Copenhagen time, after inactivity. Settings are per device, independent of dark theme; preserve Never/disabled preferences.
 - Reuse the existing house icon; do not redesign branding unless requested.
 
+## Tablet access
+- `/tablet` is a separate, limited browser interface; `/api/tablet/*` never falls back to an ordinary administrator session.
+- Preserve admin-only management, one-use ten-minute pairing, hashed credentials, scoped cookies and atomic revocation/completion checks.
+- Pairing exits only the ordinary session on that browser. Never remove other family sessions implicitly.
+- Tablet writes are explicit today-only completion toggles; no edits, planning, account or integration writes.
+- Display filters are preferences, not an authorization/privacy boundary. Do not project connection URLs, notes or notification credentials into tablet responses.
+- Keep both 30-day idle and 180-day absolute expiry, HTTPS and CSRF protections; never replace them with permanent login URLs.
+- Auth throttling uses account failure limits plus a separate generous network limit. Blocked attempts never extend the wait; do not blindly trust proxy IP headers.
+
 ## Data and security
 - Preserve `/data`, `familiehub.sqlite` and `session.key`. Never Wipe or replace a family database as a shortcut.
 - Database migrations must be additive and preserve completion history and existing accounts.

@@ -27,7 +27,7 @@ test('all README screenshots have recorded dimensions and matching hashes', () =
   assert.equal(manifest.timezone, 'Europe/Copenhagen');
   assert.ok(Object.keys(manifest.images).length >= 9);
   const images = [...read('README.md').matchAll(/!\[[^\]]*\]\((docs\/screenshots\/[^)]+\.webp)\)/g)];
-  assert.equal(images.length, 12);
+  assert.equal(images.length, 14);
   for (const [, filename] of images) {
     const item = manifest.images[path.basename(filename)];
     assert.ok(item, filename);

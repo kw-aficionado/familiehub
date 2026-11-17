@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
-  "captured_at": "2026-11-16T21:32:09.102417+00:00",
-  "fixture_date": "2026-11-16",
+  "captured_at": "2026-11-17T17:12:14.278904+00:00",
+  "fixture_date": "2026-11-17",
   "timezone": "Europe/Copenhagen",
   "fixture_kind": "fictional family in a new temporary SQLite database",
   "backend": "real Go app, loopback only, no external integrations",
@@ -11,6 +11,8 @@
     "accounts_test.go": "ed22062b85f5460eaac0e849a4b47c91076394c6f62f55118ef8183b4d82f4cd",
     "ai.go": "bb827e5e33440ef98e50dbb2d171b6a008099e52d1ee33b194f5cbf84fe8b0f4",
     "ai_test.go": "1deb7919861e4d87f0c84a7b55fe15548881a7944016b18e2e5b33d6f17e0671",
+    "auth_guard.go": "91a4b5c33d2004138a3023f60d1fe9d8e12b6f5a2bb63546300239361d7f310d",
+    "auth_guard_test.go": "e165a7322f0284d46fc1cbc2f27494fd931dba756696dadd6a1e4d7321ebb633",
     "calendar_owners.go": "ca6035a840a6c0dc296a481dacaefd4ae49403f61fb7fe3de7b572b3a27200a2",
     "calendar_owners_test.go": "98af1fc2e64e280a9b71166884314d983eb5c8bffede589937610741912a2b65",
     "chore_templates.go": "13324e289539e202517ede2a1bd7764d0e066795b4eefea6911ce82bc033e128",
@@ -28,9 +30,9 @@
     "internal/mcpaccess/server_test.go": "34c885a9a82aa6da34162cc3473f776497aada5fd442ea339d62d31c7e4a7608",
     "internal/mcpaccess/start_date_test.go": "6088c7b5d31074b8f97909e68283c159965b423628689d5f7710814ed135b3c2",
     "internal/mcpaccess/tools.go": "a0b34bf0e332a68f29020564f6fbb16eadbbeaf4fb473d8ef1ec45a9c9483691",
-    "internal/store/sqlite.go": "3bb7c40f7e21bc8262013a458715b7243d2618f9f2f8b1f8d82bedd7daaac051",
+    "internal/store/sqlite.go": "34924ce516924d06c38a58856b3f0d2902bcb6db0f44c7aa016ed760a68500aa",
     "internal/store/transaction.go": "e56bed4c5d0754f261670b1d02caaef1f5f26191094762c221b6fe3c64dd9fef",
-    "main.go": "abfebc6a189554c629523f65dda39424078785fcf75680e71e41731f3cdb4d47",
+    "main.go": "9c1fbe46db3eac22ac589d31b4118adfa28ffcc5277539718c021fbbd108ed69",
     "main_test.go": "c354a29c5d39ee5a0797e94244c2e739ada9f0c2a287c809c00b79f94ba9b7af",
     "mcp_integration.go": "f0824409a395fb00709121b6470cfc7061578d1b181673ec98a04323aa779555",
     "mcp_integration_test.go": "fa21890321b5f3509abb091bab84e9d4b098baa980dc8374eff7c82764df19ba",
@@ -44,11 +46,15 @@
     "quickstart.go": "947d94d0aec1ec79758a18cb332b7545ccfeb43cb74e7ab2257df3ed4bc93516",
     "quickstart_test.go": "3ca1bfd128ab833d15534eb31d6c2fba6847d61d88f2ca8f599c29e969f01a83",
     "schedule.go": "d0e1e2e7d88515952bc4f2d9e721564646eba1ec45079b1bb488cbd499f27fd8",
-    "web/app.js": "2608913c46257bb6b89b9da69dc9dd30b570d9ae5b272660d9b2dfce9195a2ac",
+    "tablets.go": "e2fdf7532500ee03ebab16d08ad6a6169bfcb89031f9b6ce7752424584e92a8e",
+    "tablets_test.go": "30b2cce1369ee23883572db7c96097c02d5ed30aa93de158a5b07dd30c22fd1f",
+    "task_completion.go": "8a4c8639c9d5c0c5b3ab20ca4807d817367e22d6914b9a381aec0f8fb3db09ad",
+    "web/app.js": "8f7480ee1bb4a7f1c8d8ee907755cff8ee59ae06ca4141d61cc494702a8b8daf",
     "web/apple-touch-icon.png": "a78732e32b55886e477ccfb3c6c1e1b0f22785fb7a44830649decbf68555b5aa",
     "web/favicon.ico": "18304a300797311175ff87ce2df6b3b251a23293e22a6d16916092a6efa6ecfc",
     "web/icon.svg": "73f5d01c8a70e6cf7d28baa5eb0fbd8a96d62c23ae24abf10b38801e3e0e73a4",
-    "web/index.html": "4050691e8e44b2e136b9a83d01c99d6b895d9486ba4017e238a366d04de13d33",
+    "web/index.html": "a6a64f671d47b5f16d85c0999d6ff662f160aae1c9dbaacf1bd1119793bdb9ea",
+    "web/login-wait.js": "aa708c764dfafb3edc90bca2c5cf32c16a1c5cda8c85fac4d69cf1aa008b08c1",
     "web/manifest.webmanifest": "faf08f3ec4a1fe91ba8e01fd2fc35581aeccc2cd1d0276059531acaa14142fb4",
     "web/mcp-ui.css": "7fa0cee3701987c79cca7e67ce077584b22b071ae105de00c5216d9302e323ae",
     "web/mcp-ui.js": "52b0f32b20c86aae5b3fc15a5f5ea39c9fd71e7066bf90cc919d22bbe0c19f06",
@@ -57,68 +63,83 @@
     "web/saver-schedule.js": "917be6c32de7ee4dd8515e65420195e9f18ba2c94a6d529d7b714802ad170b8a",
     "web/settings-folders.js": "739328a2e990b1faadb7499a640e14478d6f6c9da8e83bbdf9292759e6c1f8ad",
     "web/style.css": "e371d97a91abbf2a999d823dae57eee579cdb9e8fdd6b106338a188a3c747eab",
-    "web/sw.js": "54a6e13ebeca4b9a459955059ae205e7ede64a8dcfb278dedee6a14f7f8f7938"
+    "web/sw.js": "54a6e13ebeca4b9a459955059ae205e7ede64a8dcfb278dedee6a14f7f8f7938",
+    "web/tablet-admin.js": "5942c60c219445db3d89ccf579c973cc35bb28ff15c25ac3787dc94aa535f8ba",
+    "web/tablet.css": "ebe27b7d9e467c4ca63207c0036e1758826ff70e2ad31f15814551855da30fe6",
+    "web/tablet.html": "10711182e2c785e4c209788c15eabeed05e475a8c8a8a55756c852126507cacc",
+    "web/tablet.js": "3cd1077a85e0dd1879498ac5edf7b420f173b57352cca17bc4b288fded2ef932",
+    "web/tablet.webmanifest": "5d33b7111669d2f47d41f2605aabadf8b8ed19973cd9e436613e64c262819cac"
   },
   "images": {
     "kalender.webp": {
       "width": 1280,
       "height": 1000,
-      "sha256": "022d961a471ab1c1c438389863865df96aaa3b6a97d71819d044949df9ba066b"
+      "sha256": "8b1dc395f8a10712309e60c125cb3c1781ffaabc2549933688e008106ec309b1"
     },
     "opgaver.webp": {
       "width": 1280,
       "height": 1000,
-      "sha256": "dbabcee03755067fd8084ba6b43e8165824988922601a50074d7f2155f26862a"
+      "sha256": "92627999a3a3c259ab22a784a58c3a2aed92d8bf686ffe3f7d413fbec6033edc"
     },
     "indstillinger.webp": {
       "width": 1280,
       "height": 1000,
-      "sha256": "7b50b4de5b2ff32c44b5745355b4e96ef8ead8da6b63d8fced47238d58d6a2fb"
+      "sha256": "ddfa709fa18d87f713f151a44676045931f6011f03f86f1d798b31485f4e139b"
     },
     "planlaegger.webp": {
       "width": 550,
       "height": 920,
-      "sha256": "307df0280540b9df9f06e95642ed4ca0509b8afa14e8c48ead6cf5b8829f4424"
+      "sha256": "92c695e009bf977aa9c61aea9a671fe7fa320c9ae9ebd0030545466a863978b2"
     },
     "planforslag.webp": {
       "width": 550,
       "height": 920,
-      "sha256": "9a53b9133c63e9d71ed653742897616782121d0048ea5a9772d217348876db73"
+      "sha256": "d5f5c8585f1525e94a6cf002e0692cd9451300477946130dfefa93ae216fc41b"
     },
     "skaermindstillinger.webp": {
       "width": 516,
       "height": 640,
-      "sha256": "100796c7865dfa4102809e7a8d21d3bf2d3d49c5f02ab2e9957130d7ba1da1f0"
+      "sha256": "311503bc9e65ad652d165c71306a8d90c6647f2eb609b8d9de6613c790d005f3"
     },
     "quickstart.webp": {
       "width": 550,
       "height": 920,
-      "sha256": "765427bf65d23b6212b419df7646f48f83300195f39a1a0866fc9bf7d9330e56"
+      "sha256": "7426c596ae76e4952c9ea62ca4e4f9787a7300369ed042a7f76a27d8171aab12"
     },
     "turnusforslag.webp": {
       "width": 550,
       "height": 920,
-      "sha256": "5b2198ca3700ed7d1886fe678c5b1f8cf1bb336a300578e956cf2e4f7e679633"
+      "sha256": "f0d5d4df09e8ddd0f152447e9da7d982cc6dbddee5ac60eb24e74f1a771d1700"
     },
     "settings-folded.webp": {
       "width": 1280,
       "height": 1000,
-      "sha256": "bb71ff9ea14befc5559020bf72478a9ceb3a2537b46a9eec0015e6f33ea55ccb"
+      "sha256": "1e1659fdf63c1133b8983b34015ed6df7a80507ad71c9ceb457668cda3cce287"
     },
     "nattilstand.webp": {
       "width": 1280,
       "height": 1000,
-      "sha256": "96ea39987853639bc717ef84d8666de04d4253d42592ece5a400f1fe0e1d0be0"
+      "sha256": "45c181ca16cd110dc5c97c9517792c2f668a4478dafd7bf488f45e700bd8fd3d"
     },
     "iphone.webp": {
       "width": 390,
       "height": 844,
-      "sha256": "f46c1e85889ca3f22de8da56576a33ddd4fb146c0242590a75655fd21a3c1dde"
+      "sha256": "225723ccb069390125a09ae3b523a514a23d57f54a63027a3d45fc1cee73c30f"
     },
     "iphone-sondag.webp": {
       "width": 390,
       "height": 844,
-      "sha256": "bb967158928db93f26fe0bda7a10209a56278c5bc86bd5fb399e1b78cdc5eb07"
+      "sha256": "571368b1ccd42ac7f5e360e88b052d0217fc63d65efdcd8bafa0c99888eb702f"
+    },
+    "tablet.webp": {
+      "width": 1024,
+      "height": 900,
+      "sha256": "a294d688f8e252718b3a754964c567e5422e5518c90a045a82b248ca465416ee"
+    },
+    "tablets-settings.webp": {
+      "width": 1050,
+      "height": 400,
+      "sha256": "4dedcd7c1c3f5405b36792e25e1b84dec2bde45c3a85d293764ec37404ecb494"
     }
   }
 }

@@ -68,3 +68,11 @@ python scripts/test-planning-browser.py --artifacts /tmp/familiehub-browser-revi
 Testen starter altid sin egen loopback-server med nye fiktive data. Den tester
 gemning, genforsøg, eksplicit stop/erstatning, korrekt ansvar, ugeindstilling,
 forældet preview, collapse og mobilbredde. Den kan ikke pege på en live-server.
+
+## Tablet-adgang
+
+Optagelsesscriptet forbinder en fiktiv tablet i en separat browserkontekst med
+en engangskode, men koden bliver aldrig fotograferet. `tablet.webp` viser den
+godkendte dagsvisning; `tablets-settings.webp` viser administratorens enhedsliste.
+`scripts/test-tablet-browser.py` kontrollerer desuden parring, begrænsninger,
+spærring, mobilvisning og login-nedtælling mod en ny lokal testserver.
