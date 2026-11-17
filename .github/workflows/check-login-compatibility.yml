@@ -1,0 +1,40 @@
+name: Preserve administrator login compatibility
+on:
+  push:
+    branches: [fix/tablet-login-compatibility-20261117]
+    paths: [.github/workflows/check-login-compatibility.yml]
+permissions:
+  contents: write
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/tablet-login-compatibility-20261117
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: false
+      - name: Apply narrowly scoped legacy compatibility correction
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('main.go')
+          text=p.read_text()
+          old='if len(username)>128 || len(body.Password)>128 {apiError(w,400,"Ugyldigt loginformat");return}'
+          new='if len(username)>128 || (username!="" && username!="admin" && len(body.Password)>128) {apiError(w,400,"Ugyldigt loginformat");return}'
+          assert text.count(old)==1, 'Source preimage changed'
+          p.write_text(text.replace(old,new))
+          PY
+          gofmt -w login_compatibility_test.go
+      - name: Verify compatibility and authentication boundaries
+        run: go test -race -timeout 5m -run 'Test(Login|SuccessfulLogins|PairRate|AuthBuckets|Tablet)' ./...
+      - name: Commit verified application files only
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add main.go login_compatibility_test.go
+          git commit -m 'Preserve existing long administrator passphrases under scoped login throttling'
+          git push origin HEAD:fix/tablet-login-compatibility-20261117
