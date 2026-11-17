@@ -88,7 +88,9 @@ type App struct {
 	mux       *http.ServeMux
 	mu        sync.Mutex
 	listeners map[chan string]struct{}
-	attempts  map[string][]time.Time
+	attempts map[string][]time.Time // AI request throttling remains separate.
+	auth authGate
+	now func() time.Time
 	loc       *time.Location
 }
 
@@ -173,6 +175,7 @@ func securityHeaders(h http.Handler) http.Handler {
 	})
 }
 func (a *App) routes() {
+	a.tabletRoutes()
 	a.mcpRoutes() // Scoped MCP access; disabled until an administrator enables it.
 	web, err := fs.Sub(assets, "web")
 	if err != nil {
@@ -323,13 +326,6 @@ func (a *App) session(w http.ResponseWriter, r *http.Request) {
 	id := a.sessionID(r)
 	writeJSON(w, 200, map[string]any{"authenticated": true, "csrf": mac(a.key, "csrf:"+id), "account": identityResponse(user)})
 }
-func remoteIP(r *http.Request) string {
-	p := r.RemoteAddr
-	if idx := strings.LastIndex(p, ":"); idx > 0 {
-		return p[:idx]
-	}
-	return p
-}
 func (a *App) login(w http.ResponseWriter, r *http.Request) {
 	var body struct {
 		Username string `json:"username"`
@@ -338,23 +334,11 @@ func (a *App) login(w http.ResponseWriter, r *http.Request) {
 	if !readJSON(w, r, &body) {
 		return
 	}
-	ip := remoteIP(r)
-	now := time.Now()
-	a.mu.Lock()
-	recent := a.attempts[ip][:0]
-	for _, t := range a.attempts[ip] {
-		if now.Sub(t) < 5*time.Minute {
-			recent = append(recent, t)
-		}
-	}
-	blocked := len(recent) >= 8
-	a.attempts[ip] = append(recent, now)
-	a.mu.Unlock()
-	if blocked {
-		apiError(w, 429, "For mange loginforsøg. Prøv igen senere.")
-		return
-	}
 	username := strings.ToLower(strings.TrimSpace(body.Username))
+ if len(username)>128 || len(body.Password)>128 {apiError(w,400,"Ugyldigt loginformat");return}
+ now := a.timeNow()
+ wait,finish:=a.loginAdmission(loginAccountKey(username),remoteIP(r),now)
+ if wait>0 {tooManyRequests(w,wait);return}
 	accountID := ""
 	var valid bool
 	if username == "" || username == "admin" {
@@ -368,6 +352,7 @@ func (a *App) login(w http.ResponseWriter, r *http.Request) {
 			if valid {accountID=rows[0]["id"]}
 		}
 	}
+	finish(valid)
 	if !valid {
 		apiError(w, 401, "Forkert brugernavn eller adgangskode")
 		return
@@ -746,21 +731,7 @@ func (a *App) toggle(w http.ResponseWriter, r *http.Request) {
 	}
 	// Serialize completion with plan retirement/replacement. Neither operation
 	// may commit after validating a stale active/history snapshot.
-	err := a.db.Transaction(func(tx *store.Tx) error {
-		rows, err := tx.Query("SELECT due_date,repeat_rule,rotation_start,week_start,inactive_from FROM tasks WHERE id=?", id)
-		if err != nil { return err }
-		if len(rows) == 0 { return badPlan(404, "Opgaven findes ikke") }
-		due, err := time.Parse("2006-01-02", rows[0]["due_date"])
-		if err != nil { return err }
-		selected, _ := time.Parse("2006-01-02", v.Day)
-		if !plannerTaskHasStarted(rows[0]["rotation_start"], v.Day) || taskIsStopped(rows[0], v.Day) {
-			return badPlan(400, "Opgaven er ikke aktiv på den valgte dato")
-		}
-		visible, completionKey := taskOccurrenceOn(due, selected, rows[0]["repeat_rule"], parseNumber(rows[0]["week_start"], 1))
-		if !visible { return badPlan(400, "Opgaven er ikke aktiv på den valgte dag") }
-		if v.Done { return tx.Exec("INSERT OR IGNORE INTO completions(task_id,day) VALUES(?,?)", id, completionKey) }
-		return tx.Exec("DELETE FROM completions WHERE task_id=? AND day=?", id, completionKey)
-	})
+	err := a.db.Transaction(func(tx *store.Tx) error {return writeTaskCompletion(tx,id,v.Day,v.Done)})
 	if err != nil {
 		var invalid *planError
 		if errors.As(err, &invalid) { apiError(w, invalid.code, invalid.message) } else { apiError(w, 500, "Afkrydsningen kunne ikke gemmes") }

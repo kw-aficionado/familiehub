@@ -2,7 +2,7 @@
 (function () {
   'use strict';
   var S = {csrf:'', account:null, accounts:[], view:'day', weekStart:1, focus:familyToday(), filter:'', people:[], events:[], tasks:[], templates:[], allTasks:[], settingsOpen:false, settingsTab:'templates', settingsQuery:'', page:'kalender', taskPeriod:'today', taskFocus:familyToday(), taskFilter:'', taskStatus:'all', weekEntries:[], todayEvents:[], todayDate:'', loading:0, taskLoading:0, socket:null};
-  var planningTools=null;
+  var planningTools=null,tabletTools=null;
   var $ = function(id){return document.getElementById(id)};
   function el(tag,props,text){var x=document.createElement(tag);if(props)Object.keys(props).forEach(function(k){x.setAttribute(k,props[k])});if(text!==undefined)x.textContent=text;return x}
   function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})}
@@ -49,7 +49,7 @@
         :'FamilieHub modtog et svar uden gyldig JSON ('+code+'). Kontrollér server- og proxylog.');
     }
     if(resp.status===401&&path!=='/api/login'){hide('app');show('login');throw new Error('Session udløbet. Log ind igen.')}
-    if(!resp.ok)throw new Error(errorMessage(data));return data;
+    if(!resp.ok){var error=new Error(errorMessage(data));error.status=resp.status;error.retryAfter=data.retry_after||resp.headers.get('Retry-After');throw error}return data;
   }
   async function init(){
     try{var d=await api('/api/session');if(d.authenticated){S.csrf=d.csrf;S.account=d.account||{role:'admin',username:'Administrator'};hide('login');show('app');await load();syncPage();listen();scheduleSaver()}else{show('login')}}catch(e){show('login');$('loginError').textContent=e.message}
@@ -217,7 +217,7 @@
       if(active)link.setAttribute('aria-current','page');else link.removeAttribute('aria-current');
     });
     if(page==='opgaver')loadTasksPage().catch(function(err){$('tasksPageList').replaceChildren(el('p',{'class':'error'},'Kunne ikke hente opgaver: '+err.message))});
-    if(page==='indstillinger'){if(planningTools)planningTools.refresh();refreshSettingsData().catch(function(err){$('settingsList').replaceChildren(el('p',{'class':'error'},'Kunne ikke hente arkivet: '+err.message))});loadCalendarOwners();renderAccountSettings();loadAISettings();loadDirectCalendars();loadEmailSettings();loadPushSettings()}
+    if(page==='indstillinger'){if(tabletTools)tabletTools.refresh();if(planningTools)planningTools.refresh();refreshSettingsData().catch(function(err){$('settingsList').replaceChildren(el('p',{'class':'error'},'Kunne ikke hente arkivet: '+err.message))});loadCalendarOwners();renderAccountSettings();loadAISettings();loadDirectCalendars();loadEmailSettings();loadPushSettings()}
   }
   // Open the complete checklist for the day shown on the home page, not every task series.
   function openDayTasks(){
@@ -489,7 +489,13 @@
    if(editing){$('deleteBtn').addEventListener('click',function(){if(confirm('Slet '+p.name+'? Opgaver og aftaler beholder deres historik.'))saveOrError(function(){return api('/api/people/'+p.id,'DELETE')})});if(p.notify_service)$('testBtn').addEventListener('click',async function(){try{await api('/api/notifications/test','POST',{person_id:p.id});$('formError').textContent='Testnotifikation sendt.'}catch(e){$('formError').textContent=e.message}})}
   }
   async function settings(){var status;try{status=await api('/api/integrations')}catch(e){alert(e.message);return}var calendarText=!status.calendar_entities.length?'Ingen kalendere valgt':status.calendar_ok?'Kalenderadgang OK':status.calendar_error||'Ingen kalendertest';openModal('Integrationer','<div class="integration-list"><p><strong>Home Assistant API:</strong> '+(status.ha_online?'Forbundet':status.ha_configured?'Kan ikke forbindes':'Ikke konfigureret')+'</p>'+(status.ha_error?'<p class="error">'+esc(status.ha_error)+'</p>':'')+'<p><strong>HA-kalendere:</strong> '+esc(status.calendar_entities.join(', ')||'Ingen')+'</p><p><strong>Kalendertest:</strong> '+esc(calendarText)+'</p><p class="muted">Konfigurér HA_URL, HA_TOKEN og HA_CALENDARS under Yggdrasil → FamilieHub → Settings. Genstart FamilieHub for at indlæse ændringer. Kalender-entity-id starter med calendar. Ingen tokens vises her.</p></div>')}
-  $('loginForm').addEventListener('submit',async function(ev){ev.preventDefault();$('loginError').textContent='';try{var d=await api('/api/login','POST',{username:$('username').value.trim(),password:$('password').value});S.csrf=d.csrf;S.account=d.account||{role:'admin',username:'Administrator'};$('password').value='';hide('login');show('app');await load();syncPage();listen();scheduleSaver()}catch(e){$('loginError').textContent=e.message}});
+  var loginWait=window.FamilyHubLoginWait.install($('loginForm').querySelector('button[type="submit"]'),$('loginWait'));
+  $('username').addEventListener('input',function(){loginWait.clear()});
+  $('loginForm').addEventListener('submit',async function(ev){
+    ev.preventDefault();if(loginWait.blocked())return;loginWait.busy(true);$('loginError').textContent='';
+    try{var d=await api('/api/login','POST',{username:$('username').value.trim(),password:$('password').value});S.csrf=d.csrf;S.account=d.account||{role:'admin',username:'Administrator'};$('password').value='';hide('login');show('app');await load();syncPage();listen();scheduleSaver()}
+    catch(e){$('loginError').textContent=e.message;if(e.status===429)loginWait.start(e.retryAfter)}finally{loginWait.busy(false)}
+  });
   $('logoutBtn').addEventListener('click',async function(){try{await api('/api/logout','POST',{})}catch(e){}if(S.socket)S.socket.close();S.csrf='';S.account=null;hideSaver();scheduleSaver();hide('app');show('login')});
   $('dayBtn').addEventListener('click',function(){setView('day')});$('weekBtn').addEventListener('click',function(){setView('week')});
   $('prevBtn').addEventListener('click',function(){navigate(-1)});$('nextBtn').addEventListener('click',function(){navigate(1)});$('todayBtn').addEventListener('click',function(){S.focus=familyToday();load()});
@@ -993,6 +999,7 @@
   });
   function loadBuild(){fetch('/api/version',{cache:'no-store',credentials:'same-origin'}).then(function(r){return r.json()}).then(function(v){var commit=(v.commit||'dev').substring(0,8);$('buildVersion').textContent=' · Build '+commit}).catch(function(){})}
   planningTools=window.FamilyHubPlanningTools.setup({S:S,$:$,el:el,esc:esc,api:api,nameOf:nameOf,repeatLabel:repeatLabel,isAdmin:accountIsAdmin,openModal:openModal,closeModal:closeModal,receipt:showSavedPlannerPlan,load:load});
+  tabletTools=window.FamilyHubTablets.setup({S:S,$:$,el:el,esc:esc,api:api,isAdmin:accountIsAdmin,openModal:openModal,closeModal:closeModal});
   restoreDisplaySettings();
   loadBuild();
   init();

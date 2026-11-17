@@ -12,11 +12,14 @@
 <link rel="apple-touch-icon" href="/apple-touch-icon.png?v=familyhub-1" sizes="180x180">
 <link rel="manifest" href="/manifest.webmanifest">
 <link rel="stylesheet" href="/style.css?v=day-home-1">
+<link rel="stylesheet" href="/tablet.css?v=1">
 <script src="/planner-dates.js?v=start-date-1" defer></script>
 <script src="/saver-schedule.js?v=1" defer></script>
 <script src="/planning-tools.js?v=shared-turnus-1" defer></script>
 <script src="/settings-folders.js?v=1" defer></script>
-<script src="/app.js?v=shared-turnus-1" defer></script>
+<script src="/login-wait.js?v=1" defer></script>
+<script src="/tablet-admin.js?v=1" defer></script>
+<script src="/app.js?v=tablet-access-1" defer></script>
 </head>
 <body>
 <section id="login" class="login-screen hidden">
@@ -24,7 +27,7 @@
   <div class="logo">⌂</div>
   <h1>FamilieHub</h1><p>Familiens fælles overblik</p>
   <form id="loginForm"><label for="username">Brugernavn</label><input id="username" type="text" autocomplete="username" autocapitalize="none" autocorrect="off" spellcheck="false" maxlength="32" placeholder="Fx anton (valgfri for administrator)"><label for="password">Adgangskode</label><input id="password" type="password" autocomplete="current-password" required minlength="12"><button type="submit" class="primary wide">Log ind</button></form><p class="login-hint">Administrator: Log ind med den eksisterende adgangskode og lad brugernavnet stå tomt.</p>
-  <p id="loginError" class="error" aria-live="polite"></p>
+  <p id="loginError" class="error" aria-live="polite"></p><p id="loginWait" class="muted" role="status"></p><a class="text-button" href="/tablet">Forbind eller åbn husets tablet</a>
  </div>
 </section>
 <main id="app" class="app hidden">
@@ -85,6 +88,11 @@
      <button type="button" id="weekStartSave" class="minor">Gem ugestart</button>
      <p class="muted">Gælder kalenderens ugevisning og som standard for nye planer. Eksisterende turnusser beholder deres ugestart og afkrydsningshistorik. Quickstart kan stoppe udvalgte gamle serier fra den nye startdato uden at slette historikken.</p>
      <p id="quickstartStatus" class="muted" role="status"></p>
+   </section>
+   <section class="settings-panel hidden" id="tabletsPanel" aria-label="Tablets og skærme">
+    <div class="settings-panel-head"><div><h2>Tablets og skærme</h2><p class="muted">Godkend hver tablet med en engangskode. Ingen adgangskode eller permanent nøgle i adressen.</p></div><button id="tabletAddBtn" class="primary" type="button">+ Tilføj tablet</button></div>
+    <p>Alle tablets bruger samme adresse: <a href="/tablet" class="text-button">/tablet</a>. Hver har egen adgang, som kan spærres herfra.</p>
+    <button id="tabletRefreshBtn" class="minor" type="button">Opdatér enhedslisten</button><p id="tabletAdminStatus" class="muted" role="status"></p><div id="tabletDevices"></div>
    </section>
    <section class="settings-panel accounts-panel" aria-label="Brugerkonti">
      <div class="settings-panel-head"><div><h2>Brugere og login</h2><p class="muted">Hvert familiemedlem kan logge ind fra sin egen telefon eller tablet.</p></div><button type="button" id="accountsAddBtn" class="primary">+ Opret bruger</button></div>

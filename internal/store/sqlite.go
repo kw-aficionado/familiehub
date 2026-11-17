@@ -132,6 +132,10 @@ func (d *DB) ExecBatch(statements []Statement) error {
 
 func (d *DB) Init() error {
 	statements := []string{
+        `CREATE TABLE IF NOT EXISTS tablet_devices(id TEXT PRIMARY KEY,name TEXT NOT NULL,can_complete INTEGER NOT NULL DEFAULT 0,person_filter TEXT NOT NULL DEFAULT '',display_json TEXT NOT NULL,created_at TEXT NOT NULL,revoked_at TEXT NOT NULL DEFAULT '',pair_hash TEXT NOT NULL DEFAULT '',pair_expires TEXT NOT NULL DEFAULT '')`,
+        `CREATE UNIQUE INDEX IF NOT EXISTS tablet_pair_hash ON tablet_devices(pair_hash) WHERE pair_hash<>''`,
+        `CREATE TABLE IF NOT EXISTS tablet_sessions(device_id TEXT PRIMARY KEY,token_hash TEXT NOT NULL UNIQUE,paired_at TEXT NOT NULL,last_seen TEXT NOT NULL,idle_expires TEXT NOT NULL,absolute_expires TEXT NOT NULL,FOREIGN KEY(device_id) REFERENCES tablet_devices(id) ON DELETE CASCADE)`,
+
 		`CREATE TABLE IF NOT EXISTS people(id TEXT PRIMARY KEY,name TEXT NOT NULL,color TEXT NOT NULL,notify_service TEXT NOT NULL DEFAULT '',position INTEGER NOT NULL DEFAULT 0)`,
 		`CREATE TABLE IF NOT EXISTS events(id TEXT PRIMARY KEY,title TEXT NOT NULL,start_at TEXT NOT NULL,end_at TEXT NOT NULL,kind TEXT NOT NULL DEFAULT 'aftale',person_id TEXT NOT NULL DEFAULT '',pickup_by TEXT NOT NULL DEFAULT '',location TEXT NOT NULL DEFAULT '',notes TEXT NOT NULL DEFAULT '',created_at TEXT NOT NULL DEFAULT '')`,
 		`CREATE INDEX IF NOT EXISTS events_dates ON events(start_at,end_at)`,

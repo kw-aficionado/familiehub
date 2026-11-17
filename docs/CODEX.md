@@ -44,6 +44,7 @@ Menunavne kan variere mellem appversioner. Repo-klargøring, miljøpublicering o
 
 | Område | Filer |
 | --- | --- |
+| Tablet-adgang og loginbegrænsning | `tablets.go`, `auth_guard.go`, `task_completion.go`, `web/tablet*`, `web/login-wait.js`; se [tabletvejledningen](TABLETS.md) |
 | HTTP, sessioner, kalender, opgaver og gentagelser | `main.go`, `accounts.go`, `chore_templates.go` |
 | Planlægning og startdato | `planner.go`, `planner_start_date.go`, `quickstart.go`, `plan_persistence.go`, `schedule.go`, `web/planning-tools.js` |
 | Valgfri AI og påmindelser | `ai.go`, `integrations.go`, `email_notifications.go`, `push_notifications.go` |

@@ -7,7 +7,7 @@ Frontend er udviklet med iPadOS 15 som kompatibilitetsmål; der er ingen produkt
 [![Verificering](https://github.com/kw-aficionado/familiehub/actions/workflows/ci.yml/badge.svg)](https://github.com/kw-aficionado/familiehub/actions/workflows/ci.yml)
 [![Docker-publicering](https://github.com/kw-aficionado/familiehub/actions/workflows/release.yml/badge.svg)](https://github.com/kw-aficionado/familiehub/actions/workflows/release.yml)
 
-**Dokumentation gennemgået 16. november 2026.** Appens versionsetiket og den eksisterende Rune bruger fortsat `0.1.1`; det konkrete build identificeres af Git-committen i footeren og `/api/version`.
+**Dokumentation gennemgået 17. november 2026.** Appens versionsetiket og den eksisterende Rune bruger fortsat `0.1.1`; det konkrete build identificeres af Git-committen i footeren og `/api/version`.
 
 [Kom i gang](#kom-i-gang) · [Skærmbilleder](#skærmbilleder) · [Arbejd videre i Codex](docs/CODEX.md) · [MCP](docs/MCP.md) · [Pauseskærm](docs/SCREENSAVER.md)
 
@@ -137,9 +137,40 @@ Planlægning og gentagelser fungerer uden AI. Ved fejl i AI-påmindelser bruges 
 Personlige beskeder kan bruge Home Assistant, Web Push eller e-mail. SMTP konfigureres under Indstillinger; remote SMTP kræver kryptering. Web Push afhænger af browser/enhed og tilladelser. iPad Air 2 understøtter ikke den nyere iOS Web Push-funktion; e-mail er et alternativ.
 Påmindelser kan aktiveres med et valgt tidspunkt og deduplikeres over genstarter. Hele-uge-opgaver håndteres som én forekomst; daglige opgaver hver for sig. Lokale legeaftaler kan desuden have en afhentningspåmindelse.
 
+### Tablets og skærme
+
+Alle tablets bruger **`/tablet`** på FamilieHubs eksisterende HTTPS-adresse.
+Under **Indstillinger → Tablets og skærme** opretter administratoren hver tablet
+med navn, standardfilter og valgfri ret til at afkrydse dagens opgaver. Indtast
+den viste engangskode på tabletten inden ti minutter. Der er ingen permanent
+adgangsnøgle i URL'en. Parring afslutter et almindeligt login på samme browser.
+
+Tabletten viser dagens kalender og hele opgavelisten. Datoer kan bladres, men
+kun dagens opgaver kan afkrydses, og kun med den udtrykkelige rettighed. Ingen
+redigering af opgaver, aftaler, planer, konti eller integrationer er tilladt.
+Tema, personfilter og pauseskærm kan indstilles pr. tablet. Filteret er ikke en
+privatlivsgrænse: en godkendt tablet kan vise hele familiens overblik.
+
+Adgangen fornyes ved kontakt, udløber efter 30 dage uden kontakt og kræver under
+alle omstændigheder ny parring efter 180 dage. **Fjern adgang** spærrer kun den
+valgte tablet. **Ny engangskode** afbryder den gamle forbindelse. En slettet cookie,
+privat browserfane eller separat hjemmeskærmsapp kan kræve ny parring; åbn derfor
+helst hjemmeskærmsgenvejen før parring. Se [tabletvejledningen](docs/TABLETS.md).
+
+![Godkendt tablet med dagens aftaler og fuld opgaveliste](docs/screenshots/tablet.webp)
+
+![Administratorens oversigt over godkendte tablets](docs/screenshots/tablets-settings.webp)
+
 ### Logins og MCP
 
 Administrator bruger `APP_PASSWORD` og tomt brugernavn eller `admin`. Under **Brugere og login** kan administrator oprette individuelle konti, deaktivere dem og nulstille koder. Medlemmer kan skifte egen kode. Alle indloggede familiemedlemmer har adgang til den fælles familievisning; det er ikke en flerlejerløsning med privat kalender pr. konto.
+
+Loginbeskyttelsen tillader otte fejlslagne forsøg pr. normaliseret kontonavn i et
+fast femminuttersvindue. En vellykket login nulstiller kontoens fejltæller.
+Et separat loft på 120 kontrollerede loginforsøg pr. server-synlig IP og fem
+minutter begrænser misbrug. Parring har sit eget loft på 20 forsøg pr. IP og fem
+minutter. Afviste forespørgsler forlænger ikke vinduet. `Retry-After` og nedtælling
+viser ventetiden. Proxyheaders bruges ikke ukritisk til at identificere en IP.
 
 [MCP-adgang](docs/MCP.md) er slået fra som standard. Administrator kan oprette OAuth-klienter med PKCE og begrænsede scopes, godkende og tilbagekalde adgang. Værktøjerne læser familie-/opgaveoplysninger og kan med skriverettighed forhåndsvise og anvende en godkendt planflytning. De giver ikke vilkårlig SQL- eller hemmelighedsadgang.
 Planflytning bevarer opgave-id'er og rotation, afviser afkrydset historik og beskytter mod gentagne kald. Den kan også udføres direkte i appens administrative side uden ekstern MCP-klient.
