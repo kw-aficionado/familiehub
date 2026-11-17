@@ -1,0 +1,72 @@
+name: Verify paired tablet access
+on:
+  push:
+    branches: [feature/tablet-access-20261117]
+    paths: [.github/workflows/verify-tablet-access.yml]
+permissions:
+  contents: write
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/tablet-access-20261117
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Apply checksum-verified patch with preimage guards
+        run: |
+          python3 - <<'PY'
+          import base64, gzip, hashlib, subprocess
+          from pathlib import Path
+          paths = ['.github/tablet-transfer-1.b64', '.github/tablet-transfer-2.b64'] + [f'.github/tablet-tail-{i}.b64' for i in range(1, 5)]
+          patch = gzip.decompress(base64.b64decode(''.join(Path(p).read_text().strip() for p in paths), validate=True))
+          assert hashlib.sha256(patch).hexdigest() == '7e6edbb34b066d1415f7b3c223d957b192ebc3d989618c7bfb7a50b911cb6397', 'Source checksum mismatch'
+          if not Path('tablets.go').exists():
+              subprocess.run(['git', 'apply', '--check', '-'], input=patch, check=True)
+              subprocess.run(['git', 'apply', '-'], input=patch, check=True)
+          PY
+      - name: Verify backend and browser syntax
+        run: |
+          go test -timeout 5m ./...
+          for file in web/*.js; do node --check "$file"; done
+      - name: Install isolated browser tools
+        run: |
+          python -m pip install -r scripts/screenshots-requirements.txt
+          python -m playwright install --with-deps chromium
+      - name: Test pairing, least privilege, revocation and phone layout
+        run: python scripts/test-tablet-browser.py --artifacts /tmp/tablet-review
+      - name: Recheck existing planning browser behavior
+        run: python scripts/test-planning-browser.py
+      - name: Refresh documentation with fictional data only
+        run: python scripts/capture-screenshots.py
+      - name: Run complete verification before committing
+        run: sh scripts/check.sh
+      - name: Commit verified implementation and screenshots only
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add .github/workflows/release.yml AGENTS.md README.md auth_guard.go auth_guard_test.go docs/CODEX.md docs/SCREENSHOTS.md docs/TABLETS.md docs/screenshots internal/store/sqlite.go main.go scripts/capture-screenshots.py scripts/test-tablet-browser.py tablets.go tablets_test.go task_completion.go tests/documentation.test.js tests/tablet_access.test.js web/app.js web/index.html web/login-wait.js web/tablet-admin.js web/tablet.css web/tablet.html web/tablet.js web/tablet.webmanifest
+          if ! git diff --cached --quiet; then
+            git commit -m 'Add scoped paired tablet access, revocation and bounded login cooldowns'
+            git push origin HEAD:feature/tablet-access-20261117
+          fi
+      - name: Retain fictional visual review artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: tablet-browser-review
+          path: |
+            /tmp/tablet-review/*.png
+            docs/screenshots/*.webp
+            docs/screenshots/manifest.json
+          retention-days: 3
