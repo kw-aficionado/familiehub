@@ -51,11 +51,11 @@ jobs:
         run: python scripts/capture-screenshots.py
       - name: Run complete verification before committing
         run: sh scripts/check.sh
-      - name: Commit verified implementation and screenshots only
+      - name: Commit verified application and screenshots without changing workflow permissions
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add .github/workflows/release.yml AGENTS.md README.md auth_guard.go auth_guard_test.go docs/CODEX.md docs/SCREENSHOTS.md docs/TABLETS.md docs/screenshots internal/store/sqlite.go main.go scripts/capture-screenshots.py scripts/test-tablet-browser.py tablets.go tablets_test.go task_completion.go tests/documentation.test.js tests/tablet_access.test.js web/app.js web/index.html web/login-wait.js web/tablet-admin.js web/tablet.css web/tablet.html web/tablet.js web/tablet.webmanifest
+          git add AGENTS.md README.md auth_guard.go auth_guard_test.go docs/CODEX.md docs/SCREENSHOTS.md docs/TABLETS.md docs/screenshots internal/store/sqlite.go main.go scripts/capture-screenshots.py scripts/test-tablet-browser.py tablets.go tablets_test.go task_completion.go tests/documentation.test.js tests/tablet_access.test.js web/app.js web/index.html web/login-wait.js web/tablet-admin.js web/tablet.css web/tablet.html web/tablet.js web/tablet.webmanifest
           if ! git diff --cached --quiet; then
             git commit -m 'Add scoped paired tablet access, revocation and bounded login cooldowns'
             git push origin HEAD:feature/tablet-access-20261117
