@@ -76,3 +76,8 @@ en engangskode, men koden bliver aldrig fotograferet. `tablet.webp` viser den
 godkendte dagsvisning; `tablets-settings.webp` viser administratorens enhedsliste.
 `scripts/test-tablet-browser.py` kontrollerer desuden parring, begrænsninger,
 spærring, mobilvisning og login-nedtælling mod en ny lokal testserver.
+
+## Opfølgning
+
+`restopgaver.webp` og `opfoelgning.webp` viser kun fiktive rester i den samme
+isolerede optagelse. Ingen privat historik eller begrundelse bruges.

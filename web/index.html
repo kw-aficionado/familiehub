@@ -19,6 +19,7 @@
 <script src="/settings-folders.js?v=1" defer></script>
 <script src="/login-wait.js?v=1" defer></script>
 <script src="/tablet-admin.js?v=1" defer></script>
+<script src="/followup-ui.js?v=1" defer></script>
 <script src="/app.js?v=tablet-access-1" defer></script>
 </head>
 <body>
@@ -44,6 +45,7 @@
  </nav>
  <section id="peopleFilters" class="filters" aria-label="Filtrer efter familiemedlem"></section>
  <section id="calendar" class="calendar" aria-label="Kalender"></section>
+ <section id="homeFollowup" class="followup-panel hidden" aria-label="Restopgaver"></section>
  <section class="below">
   <article class="panel tasks-panel"><div class="panel-title"><div><h2>Opgaver</h2><p id="taskDate"></p></div><div class="panel-title-actions"><button type="button" class="text-button" id="showDayTasksBtn">Se alle dagens opgaver</button><button id="addTaskBtn" class="minor">+ Opgave</button></div></div><div id="taskList"></div><p id="taskPreviewCount" class="muted" aria-live="polite"></p></article>
   <article class="panel status-panel"><div class="panel-title"><h2>Familien i dag <small id="todayDateLabel" class="today-date-label"></small></h2><button id="settingsBtn" class="minor">Kalendere</button></div><div id="todayList"></div><p class="muted footnote">Personlige påmindelser sendes via Home Assistant, når det er konfigureret.</p></article>
@@ -55,6 +57,7 @@
    <div class="task-toolbar"><div class="task-periods" role="group" aria-label="Tidsperiode"><button type="button" class="task-period active" data-period="today">Dagens opgaver</button><button type="button" class="task-period" data-period="week">Denne uge</button><button type="button" class="task-period" data-period="all">Alle opgaver</button></div>
    <div id="tasksDateNavigation" class="date-navigation"><button type="button" id="tasksPrevBtn" class="icon-button" aria-label="Forrige periode">‹</button><button type="button" id="tasksCurrentBtn" class="minor">I dag</button><button type="button" id="tasksNextBtn" class="icon-button" aria-label="Næste periode">›</button></div></div>
    <div class="tasks-filters"><div id="taskPeopleFilters" class="filters" aria-label="Filtrer efter ansvarlig"></div><div id="taskStatusFilters" class="task-status-filters" role="group" aria-label="Opgavestatus"><button type="button" data-status="open">Udestående</button><button type="button" data-status="all">Alle</button><button type="button" data-status="done">Udførte</button></div></div>
+   <section id="tasksFollowup" class="followup-panel hidden" aria-label="Restopgaver"></section>
    <div class="tasks-summary"><h2 id="tasksPeriodTitle">Dagens opgaver</h2><span class="muted" id="tasksCount"></span></div>
    <section id="tasksPageList" class="tasks-page-list" aria-live="polite"></section>
 <section class="settings-panel ai-assist-panel" aria-label="AI-hjælp til opgaver">
@@ -79,6 +82,14 @@
    <div class="ai-actions"><button type="button" id="plannerOpenBtn" class="primary">Lav en opgaveplan</button><button type="button" id="plannerSeedBtn" class="minor">Tilføj 15 forslag til opgavearkiv</button></div>
    <p id="plannerStatus" class="muted" role="status"></p>
    <a id="plannerViewPlanLink" class="text-button hidden" href="#opgaver">Se den gemte opgaveplan →</a>
+   </section>
+   <section class="settings-panel hidden" id="followupPanel" aria-label="Restopgaver og opfølgning">
+     <h2>Restopgaver og opfølgning</h2>
+     <p id="followupEnabledText" class="muted"></p>
+     <form id="followupSettings" class="form-grid"><label class="field">Opfølgning fra<input type="date" name="from" required></label><label class="field">Rød markering efter antal dage<input type="number" name="red_after" min="1" max="30" value="2" required></label><div class="form-actions"><button class="primary" type="submit">Gem opfølgning</button><button class="minor" type="button" id="followupRefreshBtn">Opdatér overblik og regler</button></div></form>
+     <p id="followupSettingsStatus" role="status" class="muted"></p>
+     <details><summary>Regler pr. aktiv opgaveserie</summary><p class="muted">Kun historik: fx borddækning. Rutine: fx opvaskemaskine, uden ekstra kopier. Restopgave: fx rengøring. Automatik bruger rutine for daglige opgaver og restopgave for andre. Regler gælder nye forekomster; eksisterende registreringer bevares.</p><div id="followupPolicies"></div></details>
+     <div id="followupReport"></div>
    </section>
    <section class="settings-panel" id="quickstartPanel" aria-label="Quickstart og turnus">
      <h2>Quickstart og turnus</h2>

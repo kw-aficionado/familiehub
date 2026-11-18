@@ -44,36 +44,39 @@ type Person struct {
 	Position      int    `json:"position"`
 }
 type Event struct {
-	ID        string   `json:"id"`
-	Title     string   `json:"title"`
-	Start     string   `json:"start_at"`
-	End       string   `json:"end_at"`
-	Kind      string   `json:"kind"`
-	PersonID  string   `json:"person_id"`
-	PickupBy  string   `json:"pickup_by"`
-	Location  string   `json:"location"`
-	Notes     string   `json:"notes"`
-	External  bool     `json:"external"`
-	PersonIDs []string `json:"person_ids,omitempty"`
-	Category  string   `json:"category,omitempty"`
-	SourceCalendar string `json:"source_calendar,omitempty"`
+	ID             string   `json:"id"`
+	Title          string   `json:"title"`
+	Start          string   `json:"start_at"`
+	End            string   `json:"end_at"`
+	Kind           string   `json:"kind"`
+	PersonID       string   `json:"person_id"`
+	PickupBy       string   `json:"pickup_by"`
+	Location       string   `json:"location"`
+	Notes          string   `json:"notes"`
+	External       bool     `json:"external"`
+	PersonIDs      []string `json:"person_ids,omitempty"`
+	Category       string   `json:"category,omitempty"`
+	SourceCalendar string   `json:"source_calendar,omitempty"`
 }
 type Task struct {
-	ID         string `json:"id"`
-	Title      string `json:"title"`
-	AssignedTo string `json:"assigned_to"`
-	DueDate    string `json:"due_date"`
-	RepeatRule string `json:"repeat_rule"`
-	Done       bool   `json:"done"`
- BaseAssignedTo string `json:"base_assigned_to,omitempty"`
- RotationMembers []string `json:"rotation_members,omitempty"`
- RotationStart string `json:"rotation_start,omitempty"`
- RotationWeeks int `json:"rotation_weeks,omitempty"`
- WeekStart int `json:"week_start"`
- PlanID string `json:"plan_id,omitempty"`
- TemplateID string `json:"template_id,omitempty"`
- InactiveFrom string `json:"inactive_from,omitempty"`
- OccurrenceKey string `json:"occurrence_key,omitempty"`
+	FollowupPolicy string `json:"followup_policy,omitempty"`
+	FollowupStatus string `json:"followup_status,omitempty"`
+
+	ID              string   `json:"id"`
+	Title           string   `json:"title"`
+	AssignedTo      string   `json:"assigned_to"`
+	DueDate         string   `json:"due_date"`
+	RepeatRule      string   `json:"repeat_rule"`
+	Done            bool     `json:"done"`
+	BaseAssignedTo  string   `json:"base_assigned_to,omitempty"`
+	RotationMembers []string `json:"rotation_members,omitempty"`
+	RotationStart   string   `json:"rotation_start,omitempty"`
+	RotationWeeks   int      `json:"rotation_weeks,omitempty"`
+	WeekStart       int      `json:"week_start"`
+	PlanID          string   `json:"plan_id,omitempty"`
+	TemplateID      string   `json:"template_id,omitempty"`
+	InactiveFrom    string   `json:"inactive_from,omitempty"`
+	OccurrenceKey   string   `json:"occurrence_key,omitempty"`
 }
 type Config struct {
 	AppURL, Password, HAURL, HAToken string
@@ -88,9 +91,9 @@ type App struct {
 	mux       *http.ServeMux
 	mu        sync.Mutex
 	listeners map[chan string]struct{}
-	attempts map[string][]time.Time // AI request throttling remains separate.
-	auth authGate
-	now func() time.Time
+	attempts  map[string][]time.Time // AI request throttling remains separate.
+	auth      authGate
+	now       func() time.Time
 	loc       *time.Location
 }
 
@@ -175,6 +178,7 @@ func securityHeaders(h http.Handler) http.Handler {
 	})
 }
 func (a *App) routes() {
+	a.followupRoutes()
 	a.tabletRoutes()
 	a.mcpRoutes() // Scoped MCP access; disabled until an administrator enables it.
 	web, err := fs.Sub(assets, "web")
@@ -227,12 +231,12 @@ func (a *App) routes() {
 	a.mux.HandleFunc("GET /api/tasks/all", a.withAuth(a.allTasks))
 	a.mux.HandleFunc("GET /api/tasks/week", a.withAuth(a.tasksWeek))
 	a.mux.HandleFunc("GET /api/schedule/settings", a.withAuth(a.scheduleSettingsGet))
- a.mux.HandleFunc("PUT /api/schedule/settings", a.withAdmin(a.scheduleSettingsPut))
- a.mux.HandleFunc("POST /api/quickstart/preview", a.withAuth(a.quickstartPreview))
- a.mux.HandleFunc("POST /api/quickstart/apply", a.withAuth(a.quickstartApply))
- a.mux.HandleFunc("GET /api/planner/diagnostics", a.withAuth(a.plannerDiagnostics))
- a.mux.HandleFunc("POST /api/tasks/retire", a.withAdmin(a.retireTasks))
- a.mux.HandleFunc("POST /api/planner/seed", a.withAdmin(a.plannerSeed))
+	a.mux.HandleFunc("PUT /api/schedule/settings", a.withAdmin(a.scheduleSettingsPut))
+	a.mux.HandleFunc("POST /api/quickstart/preview", a.withAuth(a.quickstartPreview))
+	a.mux.HandleFunc("POST /api/quickstart/apply", a.withAuth(a.quickstartApply))
+	a.mux.HandleFunc("GET /api/planner/diagnostics", a.withAuth(a.plannerDiagnostics))
+	a.mux.HandleFunc("POST /api/tasks/retire", a.withAdmin(a.retireTasks))
+	a.mux.HandleFunc("POST /api/planner/seed", a.withAdmin(a.plannerSeed))
 	a.mux.HandleFunc("POST /api/planner/preview", a.withAuth(a.plannerPreview))
 	a.mux.HandleFunc("POST /api/planner/advice", a.withAuth(a.plannerAdvice))
 	a.mux.HandleFunc("POST /api/planner/apply", a.withAuth(a.plannerApply))
@@ -335,10 +339,16 @@ func (a *App) login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	username := strings.ToLower(strings.TrimSpace(body.Username))
- if len(username)>128 || (username!="" && username!="admin" && len(body.Password)>128) {apiError(w,400,"Ugyldigt loginformat");return}
- now := a.timeNow()
- wait,finish:=a.loginAdmission(loginAccountKey(username),remoteIP(r),now)
- if wait>0 {tooManyRequests(w,wait);return}
+	if len(username) > 128 || (username != "" && username != "admin" && len(body.Password) > 128) {
+		apiError(w, 400, "Ugyldigt loginformat")
+		return
+	}
+	now := a.timeNow()
+	wait, finish := a.loginAdmission(loginAccountKey(username), remoteIP(r), now)
+	if wait > 0 {
+		tooManyRequests(w, wait)
+		return
+	}
 	accountID := ""
 	var valid bool
 	if username == "" || username == "admin" {
@@ -347,9 +357,11 @@ func (a *App) login(w http.ResponseWriter, r *http.Request) {
 		valid = hmac.Equal([]byte(aHash), []byte(sha(body.Password)))
 	} else if accountUsernamePattern.MatchString(username) {
 		rows, err := a.db.Query("SELECT id,password_hash,enabled FROM accounts WHERE username=? COLLATE NOCASE", username)
-		if err == nil && len(rows)>0 && rows[0]["enabled"] == "1" {
+		if err == nil && len(rows) > 0 && rows[0]["enabled"] == "1" {
 			valid = checkAccountPassword(body.Password, rows[0]["password_hash"])
-			if valid {accountID=rows[0]["id"]}
+			if valid {
+				accountID = rows[0]["id"]
+			}
 		}
 	}
 	finish(valid)
@@ -369,13 +381,16 @@ func (a *App) login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	a.cookie(w, id+"."+mac(a.key, id), expire)
-	user := identity{Username:"Administrator",Admin:true}
-	if accountID!="" {
-		rows, err := a.db.Query("SELECT username,person_id FROM accounts WHERE id=?",accountID)
-		if err!=nil || len(rows)==0 {apiError(w,500,"Brugeren blev ikke fundet");return}
-		user=identity{AccountID:accountID,Username:rows[0]["username"],PersonID:rows[0]["person_id"]}
+	user := identity{Username: "Administrator", Admin: true}
+	if accountID != "" {
+		rows, err := a.db.Query("SELECT username,person_id FROM accounts WHERE id=?", accountID)
+		if err != nil || len(rows) == 0 {
+			apiError(w, 500, "Brugeren blev ikke fundet")
+			return
+		}
+		user = identity{AccountID: accountID, Username: rows[0]["username"], PersonID: rows[0]["person_id"]}
 	}
-	writeJSON(w, 200, map[string]any{"authenticated": true, "csrf": mac(a.key, "csrf:"+id), "account":identityResponse(user)})
+	writeJSON(w, 200, map[string]any{"authenticated": true, "csrf": mac(a.key, "csrf:"+id), "account": identityResponse(user)})
 }
 func (a *App) logout(w http.ResponseWriter, r *http.Request) {
 	if c, e := r.Cookie("fh_session"); e == nil {
@@ -407,64 +422,98 @@ func (a *App) withAuth(h http.HandlerFunc) http.HandlerFunc {
 	}
 }
 func (a *App) state(w http.ResponseWriter, r *http.Request) {
- start, end, day := r.URL.Query().Get("start"), r.URL.Query().Get("end"), r.URL.Query().Get("day")
- if !validTime(start) || !validTime(end) || !validDay(day) {
-  apiError(w, 400, "Ugyldigt dato-interval")
-  return
- }
- st, en := mustTime(start), mustTime(end)
- if !en.After(st) || en.Sub(st) > 45*24*time.Hour {
-  apiError(w, 400, "Maksimalt 45 dage pr. forespørgsel")
-  return
- }
- people, err := a.people()
- if err != nil { apiError(w, 500, "Kunne ikke læse personer"); return }
- owners, err := a.calendarOwnerMap()
- if err != nil { apiError(w, 500, "Kalenderindstillinger kunne ikke læses"); return }
- ev, err := a.events(st,en)
- if err != nil { apiError(w, 500, "Kunne ikke læse kalenderen"); return }
- tasks,err := a.tasks(day)
- if err != nil { apiError(w, 500, "Kunne ikke læse opgaver"); return }
- warning := ""
- withHA := a.cfg.HAURL != "" && a.cfg.HAToken != "" && len(a.cfg.HACalendars)>0
- if withHA {
-  external,e := a.haEvents(r.Context(),st,en)
-  if e!=nil {warning="Home Assistant-kalendere: "+haFriendlyError(e);log.Printf("calendar integration error: %v",e)} else {
-   ev=append(ev,applyCalendarOwners(external,people,owners)...)
-  }
- }
- direct,issues:=a.directEvents(r.Context(),st,en,people)
- ev=append(ev,direct...)
- if len(issues)>0 {if warning!=""{warning+=" · "};warning+=strings.Join(issues," · ")}
- // Today's family panel must always use the actual Copenhagen calendar day,
- // independently of the date currently selected on the dashboard.
- now:=time.Now().In(a.loc)
- today:=now.Format("2006-01-02")
- todayStart:=time.Date(now.Year(),now.Month(),now.Day(),0,0,0,0,a.loc)
- todayEnd:=todayStart.AddDate(0,0,1)
- var todayEvents []Event
- if !st.After(todayStart) && !en.Before(todayEnd) {
-  for _,e:=range ev {
-   startAt,e1:=time.Parse(time.RFC3339,e.Start)
-   endAt,e2:=time.Parse(time.RFC3339,e.End)
-   if e1==nil && e2==nil && startAt.Before(todayEnd) && endAt.After(todayStart) {todayEvents=append(todayEvents,e)}
-  }
- } else {
-  todayEvents,err=a.events(todayStart,todayEnd)
-  if err!=nil {apiError(w,500,"Kunne ikke læse dagens aftaler");return}
-  if withHA {
-   external,e:=a.haEvents(r.Context(),todayStart,todayEnd)
-   if e!=nil {
-    if warning=="" {warning="Home Assistant-kalendere: "+haFriendlyError(e)}
-   } else {todayEvents=append(todayEvents,applyCalendarOwners(external,people,owners)...)}
-  }
-  directToday,_:=a.directEvents(r.Context(),todayStart,todayEnd,people)
-  todayEvents=append(todayEvents,directToday...)
- }
- if todayEvents==nil {todayEvents=[]Event{}}
- settings,se:=scheduleSettings(a.db)
- if se!=nil{apiError(w,500,"Ugestart kunne ikke hentes");return}
- writeJSON(w,200,map[string]any{"week_start":settings.WeekStart,"people":people,"events":ev,"today_events":todayEvents,"today_date":today,"tasks":tasks,"warning":warning})
+	start, end, day := r.URL.Query().Get("start"), r.URL.Query().Get("end"), r.URL.Query().Get("day")
+	if !validTime(start) || !validTime(end) || !validDay(day) {
+		apiError(w, 400, "Ugyldigt dato-interval")
+		return
+	}
+	st, en := mustTime(start), mustTime(end)
+	if !en.After(st) || en.Sub(st) > 45*24*time.Hour {
+		apiError(w, 400, "Maksimalt 45 dage pr. forespørgsel")
+		return
+	}
+	people, err := a.people()
+	if err != nil {
+		apiError(w, 500, "Kunne ikke læse personer")
+		return
+	}
+	owners, err := a.calendarOwnerMap()
+	if err != nil {
+		apiError(w, 500, "Kalenderindstillinger kunne ikke læses")
+		return
+	}
+	ev, err := a.events(st, en)
+	if err != nil {
+		apiError(w, 500, "Kunne ikke læse kalenderen")
+		return
+	}
+	tasks, err := a.tasks(day)
+	if err != nil {
+		apiError(w, 500, "Kunne ikke læse opgaver")
+		return
+	}
+	warning := ""
+	withHA := a.cfg.HAURL != "" && a.cfg.HAToken != "" && len(a.cfg.HACalendars) > 0
+	if withHA {
+		external, e := a.haEvents(r.Context(), st, en)
+		if e != nil {
+			warning = "Home Assistant-kalendere: " + haFriendlyError(e)
+			log.Printf("calendar integration error: %v", e)
+		} else {
+			ev = append(ev, applyCalendarOwners(external, people, owners)...)
+		}
+	}
+	direct, issues := a.directEvents(r.Context(), st, en, people)
+	ev = append(ev, direct...)
+	if len(issues) > 0 {
+		if warning != "" {
+			warning += " · "
+		}
+		warning += strings.Join(issues, " · ")
+	}
+	// Today's family panel must always use the actual Copenhagen calendar day,
+	// independently of the date currently selected on the dashboard.
+	now := time.Now().In(a.loc)
+	today := now.Format("2006-01-02")
+	todayStart := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, a.loc)
+	todayEnd := todayStart.AddDate(0, 0, 1)
+	var todayEvents []Event
+	if !st.After(todayStart) && !en.Before(todayEnd) {
+		for _, e := range ev {
+			startAt, e1 := time.Parse(time.RFC3339, e.Start)
+			endAt, e2 := time.Parse(time.RFC3339, e.End)
+			if e1 == nil && e2 == nil && startAt.Before(todayEnd) && endAt.After(todayStart) {
+				todayEvents = append(todayEvents, e)
+			}
+		}
+	} else {
+		todayEvents, err = a.events(todayStart, todayEnd)
+		if err != nil {
+			apiError(w, 500, "Kunne ikke læse dagens aftaler")
+			return
+		}
+		if withHA {
+			external, e := a.haEvents(r.Context(), todayStart, todayEnd)
+			if e != nil {
+				if warning == "" {
+					warning = "Home Assistant-kalendere: " + haFriendlyError(e)
+				}
+			} else {
+				todayEvents = append(todayEvents, applyCalendarOwners(external, people, owners)...)
+			}
+		}
+		directToday, _ := a.directEvents(r.Context(), todayStart, todayEnd, people)
+		todayEvents = append(todayEvents, directToday...)
+	}
+	if todayEvents == nil {
+		todayEvents = []Event{}
+	}
+	settings, se := scheduleSettings(a.db)
+	if se != nil {
+		apiError(w, 500, "Ugestart kunne ikke hentes")
+		return
+	}
+	writeJSON(w, 200, map[string]any{"week_start": settings.WeekStart, "people": people, "events": ev, "today_events": todayEvents, "today_date": today, "tasks": tasks, "warning": warning})
 }
 func mustTime(s string) time.Time { t, _ := time.Parse(time.RFC3339, s); return t }
 func (a *App) people() ([]Person, error) {
@@ -532,7 +581,7 @@ func taskOccurrence(due, target time.Time, rule string) (bool, string) {
 }
 
 func (a *App) tasks(day string) ([]Task, error) {
-	rows, err := a.db.Query("SELECT "+taskColumns+" FROM tasks ORDER BY title,id")
+	rows, err := a.db.Query("SELECT " + taskColumns + " FROM tasks ORDER BY title,id")
 	if err != nil {
 		return nil, err
 	}
@@ -546,8 +595,10 @@ func (a *App) tasks(day string) ([]Task, error) {
 		if err != nil {
 			continue
 		}
-		if !plannerTaskHasStarted(r["rotation_start"],day)||taskIsStopped(r,day) {continue}
-		visible, completionKey := taskOccurrenceOn(due, target, r["repeat_rule"],parseNumber(r["week_start"],1))
+		if !plannerTaskHasStarted(r["rotation_start"], day) || taskIsStopped(r, day) {
+			continue
+		}
+		visible, completionKey := taskOccurrenceOn(due, target, r["repeat_rule"], parseNumber(r["week_start"], 1))
 		if !visible {
 			continue
 		}
@@ -555,10 +606,21 @@ func (a *App) tasks(day string) ([]Task, error) {
 		if err != nil {
 			return nil, err
 		}
-		weeks,_:=strconv.Atoi(r["rotation_weeks"])
-		owner:=rotatedOwnerOn(r["assigned_to"],r["rotation_members"],r["rotation_start"],weeks,day,parseNumber(r["week_start"],1))
-        task:=taskFromRow(r);task.AssignedTo=owner;task.Done=len(completed)>0;task.OccurrenceKey=completionKey
-        out=append(out,task)
+		weeks, _ := strconv.Atoi(r["rotation_weeks"])
+		owner := rotatedOwnerOn(r["assigned_to"], r["rotation_members"], r["rotation_start"], weeks, day, parseNumber(r["week_start"], 1))
+		task := taskFromRow(r)
+		task.AssignedTo = owner
+		task.Done = len(completed) > 0
+		task.OccurrenceKey = completionKey
+		follow, fe := a.db.Query("SELECT status,assigned_to FROM followup_occurrences WHERE task_id=? AND occurrence_key=?", r["id"], completionKey)
+		if fe != nil {
+			return nil, fe
+		}
+		if len(follow) > 0 {
+			task.FollowupStatus = follow[0]["status"]
+			task.AssignedTo = follow[0]["assigned_to"]
+		}
+		out = append(out, task)
 	}
 	return out, nil
 }
@@ -672,28 +734,67 @@ func (a *App) taskSave(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	t.Title = strings.TrimSpace(t.Title)
-	if !bounded(t.Title, 150) || !validDay(t.DueDate) || !validRepeatRule(t.RepeatRule) {
+	if !bounded(t.Title, 150) || !validDay(t.DueDate) || !validRepeatRule(t.RepeatRule) || !validFollowupPolicy(t.FollowupPolicy) {
 		apiError(w, 400, "Kontrollér titel, dato og gentagelse")
 		return
 	}
 	var e error
 	if r.Method == "POST" {
 		t.ID = newID()
-		settings,se:=scheduleSettings(a.db);if se!=nil{apiError(w,500,"Ugestart kunne ikke læses");return}
-        e = a.db.Exec("INSERT INTO tasks(id,title,assigned_to,due_date,repeat_rule,week_start) VALUES(?,?,?,?,?,?)", t.ID, t.Title, t.AssignedTo, t.DueDate, t.RepeatRule, strconv.Itoa(settings.WeekStart))
+		settings, se := scheduleSettings(a.db)
+		if se != nil {
+			apiError(w, 500, "Ugestart kunne ikke læses")
+			return
+		}
+		e = a.db.Transaction(func(tx *store.Tx) error {
+			points, minutes := "0", "0"
+			if t.TemplateID != "" {
+				if !validID(t.TemplateID) {
+					return badPlan(400, "Ugyldig skabelon")
+				}
+				rows, err := tx.Query("SELECT points,minutes FROM task_templates WHERE id=?", t.TemplateID)
+				if err != nil {
+					return err
+				}
+				if len(rows) != 1 {
+					return badPlan(404, "Skabelonen findes ikke")
+				}
+				points, minutes = rows[0]["points"], rows[0]["minutes"]
+			}
+			return tx.Exec("INSERT INTO tasks(id,title,assigned_to,due_date,repeat_rule,week_start,followup_policy,template_id,effort_points,effort_minutes) VALUES(?,?,?,?,?,?,?,?,?,?)", t.ID, t.Title, t.AssignedTo, t.DueDate, t.RepeatRule, strconv.Itoa(settings.WeekStart), t.FollowupPolicy, t.TemplateID, points, minutes)
+		})
 	} else {
 		t.ID = r.PathValue("id")
 		if !validID(t.ID) {
 			apiError(w, 400, "Ugyldigt ID")
 			return
 		}
-		rows,err:=a.db.Query("SELECT rotation_members FROM tasks WHERE id=?",t.ID)
-        if err!=nil{apiError(w,500,"Opgaven kunne ikke læses");return}
-        if len(rows)>0&&rows[0]["rotation_members"]!=""{apiError(w,409,"Brug Quickstart til at ændre en turnus fra en ny dato");return}
-        e = a.db.Exec("UPDATE tasks SET title=?,assigned_to=?,due_date=?,repeat_rule=? WHERE id=?", t.Title, t.AssignedTo, t.DueDate, t.RepeatRule, t.ID)
+		e = a.db.Transaction(func(tx *store.Tx) error {
+			if _, err := syncFollowup(tx, a.timeNow()); err != nil {
+				return err
+			}
+			tracked, err := tx.Query("SELECT task_id FROM followup_occurrences WHERE task_id=? LIMIT 1", t.ID)
+			if err != nil {
+				return err
+			}
+			if len(tracked) > 0 {
+				return badPlan(409, "Opgaven har opf\u00f8lgning. Brug Quickstart til at erstatte serien fra en ny dato.")
+			}
+			rows, err := tx.Query("SELECT rotation_members FROM tasks WHERE id=?", t.ID)
+			if err != nil {
+				return err
+			}
+			if len(rows) != 1 {
+				return badPlan(404, "Opgaven findes ikke")
+			}
+			if rows[0]["rotation_members"] != "" {
+				return badPlan(409, "Brug Quickstart til at \u00e6ndre en turnus fra en ny dato")
+			}
+			return tx.Exec("UPDATE tasks SET title=?,assigned_to=?,due_date=?,repeat_rule=?,followup_policy=? WHERE id=?", t.Title, t.AssignedTo, t.DueDate, t.RepeatRule, t.FollowupPolicy, t.ID)
+		})
 	}
 	if e != nil {
-		apiError(w, 500, "Kunne ikke gemme opgaven")
+		planResponseError(w, e)
 		return
 	}
 	a.broadcast()
@@ -705,8 +806,21 @@ func (a *App) taskDelete(w http.ResponseWriter, r *http.Request) {
 		apiError(w, 400, "Ugyldigt ID")
 		return
 	}
-	if e := a.db.Exec("DELETE FROM tasks WHERE id=?", id); e != nil {
-		apiError(w, 500, "Kunne ikke slette opgaven")
+	e := a.db.Transaction(func(tx *store.Tx) error {
+		if _, e := syncFollowup(tx, a.timeNow()); e != nil {
+			return e
+		}
+		rows, e := tx.Query("SELECT task_id FROM followup_occurrences WHERE task_id=? LIMIT 1", id)
+		if e != nil {
+			return e
+		}
+		if len(rows) > 0 {
+			return badPlan(409, "Opgaven har opf\u00f8lgningshistorik. Stop serien under Quickstart i stedet for at slette den.")
+		}
+		return tx.Exec("DELETE FROM tasks WHERE id=?", id)
+	})
+	if e != nil {
+		planResponseError(w, e)
 		return
 	}
 	a.broadcast()
@@ -731,10 +845,15 @@ func (a *App) toggle(w http.ResponseWriter, r *http.Request) {
 	}
 	// Serialize completion with plan retirement/replacement. Neither operation
 	// may commit after validating a stale active/history snapshot.
-	err := a.db.Transaction(func(tx *store.Tx) error {return writeTaskCompletion(tx,id,v.Day,v.Done)})
+	actor := "account:" + a.followupActor(r)
+	err := a.db.Transaction(func(tx *store.Tx) error { return writeTaskCompletionAt(tx, id, v.Day, v.Done, a.timeNow(), actor) })
 	if err != nil {
 		var invalid *planError
-		if errors.As(err, &invalid) { apiError(w, invalid.code, invalid.message) } else { apiError(w, 500, "Afkrydsningen kunne ikke gemmes") }
+		if errors.As(err, &invalid) {
+			apiError(w, invalid.code, invalid.message)
+		} else {
+			apiError(w, 500, "Afkrydsningen kunne ikke gemmes")
+		}
 		return
 	}
 	a.broadcast()

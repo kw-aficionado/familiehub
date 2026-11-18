@@ -108,23 +108,29 @@ func (d *DB) Exec(sql string, args ...string) error {
 	_, err := d.query(sql, args...)
 	return err
 }
+
 // Statement is an SQL statement with bound text parameters for atomic batches.
-type Statement struct { SQL string; Args []string }
+type Statement struct {
+	SQL  string
+	Args []string
+}
 
 // ExecBatch commits all writes or rolls back every change on the first error.
 // The database lock prevents unrelated requests from interleaving statements.
 func (d *DB) ExecBatch(statements []Statement) error {
 	d.mu.Lock()
 	defer d.mu.Unlock()
-	if _,err:=d.query("BEGIN IMMEDIATE");err!=nil{return err}
-	for _,statement:=range statements{
-		if _,err:=d.query(statement.SQL,statement.Args...);err!=nil{
-			_,_=d.query("ROLLBACK")
+	if _, err := d.query("BEGIN IMMEDIATE"); err != nil {
+		return err
+	}
+	for _, statement := range statements {
+		if _, err := d.query(statement.SQL, statement.Args...); err != nil {
+			_, _ = d.query("ROLLBACK")
 			return err
 		}
 	}
-	if _,err:=d.query("COMMIT");err!=nil{
-		_,_=d.query("ROLLBACK")
+	if _, err := d.query("COMMIT"); err != nil {
+		_, _ = d.query("ROLLBACK")
 		return err
 	}
 	return nil
@@ -132,9 +138,9 @@ func (d *DB) ExecBatch(statements []Statement) error {
 
 func (d *DB) Init() error {
 	statements := []string{
-        `CREATE TABLE IF NOT EXISTS tablet_devices(id TEXT PRIMARY KEY,name TEXT NOT NULL,can_complete INTEGER NOT NULL DEFAULT 0,person_filter TEXT NOT NULL DEFAULT '',display_json TEXT NOT NULL,created_at TEXT NOT NULL,revoked_at TEXT NOT NULL DEFAULT '',pair_hash TEXT NOT NULL DEFAULT '',pair_expires TEXT NOT NULL DEFAULT '')`,
-        `CREATE UNIQUE INDEX IF NOT EXISTS tablet_pair_hash ON tablet_devices(pair_hash) WHERE pair_hash<>''`,
-        `CREATE TABLE IF NOT EXISTS tablet_sessions(device_id TEXT PRIMARY KEY,token_hash TEXT NOT NULL UNIQUE,paired_at TEXT NOT NULL,last_seen TEXT NOT NULL,idle_expires TEXT NOT NULL,absolute_expires TEXT NOT NULL,FOREIGN KEY(device_id) REFERENCES tablet_devices(id) ON DELETE CASCADE)`,
+		`CREATE TABLE IF NOT EXISTS tablet_devices(id TEXT PRIMARY KEY,name TEXT NOT NULL,can_complete INTEGER NOT NULL DEFAULT 0,person_filter TEXT NOT NULL DEFAULT '',display_json TEXT NOT NULL,created_at TEXT NOT NULL,revoked_at TEXT NOT NULL DEFAULT '',pair_hash TEXT NOT NULL DEFAULT '',pair_expires TEXT NOT NULL DEFAULT '')`,
+		`CREATE UNIQUE INDEX IF NOT EXISTS tablet_pair_hash ON tablet_devices(pair_hash) WHERE pair_hash<>''`,
+		`CREATE TABLE IF NOT EXISTS tablet_sessions(device_id TEXT PRIMARY KEY,token_hash TEXT NOT NULL UNIQUE,paired_at TEXT NOT NULL,last_seen TEXT NOT NULL,idle_expires TEXT NOT NULL,absolute_expires TEXT NOT NULL,FOREIGN KEY(device_id) REFERENCES tablet_devices(id) ON DELETE CASCADE)`,
 
 		`CREATE TABLE IF NOT EXISTS people(id TEXT PRIMARY KEY,name TEXT NOT NULL,color TEXT NOT NULL,notify_service TEXT NOT NULL DEFAULT '',position INTEGER NOT NULL DEFAULT 0)`,
 		`CREATE TABLE IF NOT EXISTS events(id TEXT PRIMARY KEY,title TEXT NOT NULL,start_at TEXT NOT NULL,end_at TEXT NOT NULL,kind TEXT NOT NULL DEFAULT 'aftale',person_id TEXT NOT NULL DEFAULT '',pickup_by TEXT NOT NULL DEFAULT '',location TEXT NOT NULL DEFAULT '',notes TEXT NOT NULL DEFAULT '',created_at TEXT NOT NULL DEFAULT '')`,
@@ -142,8 +148,8 @@ func (d *DB) Init() error {
 		`CREATE TABLE IF NOT EXISTS tasks(id TEXT PRIMARY KEY,title TEXT NOT NULL,assigned_to TEXT NOT NULL DEFAULT '',due_date TEXT NOT NULL,repeat_rule TEXT NOT NULL DEFAULT 'none')`,
 		`CREATE TABLE IF NOT EXISTS task_templates(id TEXT PRIMARY KEY,title TEXT NOT NULL,assigned_to TEXT NOT NULL DEFAULT '',repeat_rule TEXT NOT NULL DEFAULT 'none')`,
 		`CREATE TABLE IF NOT EXISTS planner_meta(key TEXT PRIMARY KEY,value TEXT NOT NULL)`,
-        `CREATE TABLE IF NOT EXISTS plan_receipts(request_key TEXT PRIMARY KEY,definition_hash TEXT NOT NULL,plan_id TEXT NOT NULL,created INTEGER NOT NULL,start_date TEXT NOT NULL,response TEXT NOT NULL)`,
-        `CREATE INDEX IF NOT EXISTS plan_receipts_definition ON plan_receipts(definition_hash)`,
+		`CREATE TABLE IF NOT EXISTS plan_receipts(request_key TEXT PRIMARY KEY,definition_hash TEXT NOT NULL,plan_id TEXT NOT NULL,created INTEGER NOT NULL,start_date TEXT NOT NULL,response TEXT NOT NULL)`,
+		`CREATE INDEX IF NOT EXISTS plan_receipts_definition ON plan_receipts(definition_hash)`,
 		`CREATE TABLE IF NOT EXISTS calendar_owners(entity_id TEXT PRIMARY KEY,person_id TEXT NOT NULL DEFAULT '')`,
 		`CREATE TABLE IF NOT EXISTS direct_calendars(id TEXT PRIMARY KEY,provider TEXT NOT NULL,name TEXT NOT NULL,person_id TEXT NOT NULL DEFAULT '',endpoint TEXT NOT NULL DEFAULT '',username TEXT NOT NULL DEFAULT '',client_id TEXT NOT NULL DEFAULT '',secret_cipher TEXT NOT NULL DEFAULT '',access_cipher TEXT NOT NULL DEFAULT '',refresh_cipher TEXT NOT NULL DEFAULT '')`,
 		`CREATE TABLE IF NOT EXISTS direct_oauth_states(state_hash TEXT PRIMARY KEY,calendar_id TEXT NOT NULL,session_hash TEXT NOT NULL,expires_at TEXT NOT NULL)`,
@@ -151,6 +157,11 @@ func (d *DB) Init() error {
 		`CREATE TABLE IF NOT EXISTS smtp_recipients(person_id TEXT PRIMARY KEY,email TEXT NOT NULL)`,
 		`CREATE TABLE IF NOT EXISTS push_settings(id INTEGER PRIMARY KEY CHECK(id=1),public_key TEXT NOT NULL,private_cipher TEXT NOT NULL)`,
 		`CREATE TABLE IF NOT EXISTS push_subscriptions(id TEXT PRIMARY KEY,account_id TEXT NOT NULL,person_id TEXT NOT NULL,endpoint_hash TEXT NOT NULL UNIQUE,endpoint_cipher TEXT NOT NULL,p256dh TEXT NOT NULL,auth TEXT NOT NULL,created_at TEXT NOT NULL)`,
+		`CREATE TABLE IF NOT EXISTS followup_occurrences(task_id TEXT NOT NULL,occurrence_key TEXT NOT NULL,title TEXT NOT NULL,original_owner TEXT NOT NULL,assigned_to TEXT NOT NULL,starts_on TEXT NOT NULL,due_on TEXT NOT NULL,policy TEXT NOT NULL,points INTEGER NOT NULL,minutes INTEGER NOT NULL,status TEXT NOT NULL DEFAULT 'open',performed_on TEXT NOT NULL DEFAULT '',performed_by TEXT NOT NULL DEFAULT '',deferred_until TEXT NOT NULL DEFAULT '',help_requested INTEGER NOT NULL DEFAULT 0,version INTEGER NOT NULL DEFAULT 1,updated_at TEXT NOT NULL,PRIMARY KEY(task_id,occurrence_key),FOREIGN KEY(task_id) REFERENCES tasks(id))`,
+		`CREATE INDEX IF NOT EXISTS followup_open ON followup_occurrences(status,policy,due_on)`,
+		`CREATE TABLE IF NOT EXISTS followup_cursors(task_id TEXT PRIMARY KEY,through_day TEXT NOT NULL,FOREIGN KEY(task_id) REFERENCES tasks(id) ON DELETE CASCADE)`,
+		`CREATE TABLE IF NOT EXISTS followup_audit(id INTEGER PRIMARY KEY AUTOINCREMENT,task_id TEXT NOT NULL,occurrence_key TEXT NOT NULL,action TEXT NOT NULL,actor TEXT NOT NULL,recorded_at TEXT NOT NULL,detail TEXT NOT NULL)`,
+		`CREATE TABLE IF NOT EXISTS followup_receipts(request_id TEXT PRIMARY KEY,request_hash TEXT NOT NULL,response TEXT NOT NULL)`,
 		`CREATE TABLE IF NOT EXISTS completions(task_id TEXT NOT NULL,day TEXT NOT NULL,PRIMARY KEY(task_id,day),FOREIGN KEY(task_id) REFERENCES tasks(id) ON DELETE CASCADE)`,
 		`CREATE TABLE IF NOT EXISTS sessions(id TEXT PRIMARY KEY,expires_at TEXT NOT NULL)`,
 		`CREATE TABLE IF NOT EXISTS accounts(id TEXT PRIMARY KEY,username TEXT NOT NULL UNIQUE COLLATE NOCASE,password_hash TEXT NOT NULL,person_id TEXT NOT NULL DEFAULT '',enabled TEXT NOT NULL DEFAULT '1')`,
@@ -165,9 +176,16 @@ func (d *DB) Init() error {
 	// Existing deployments already have sessions: add account linkage without
 	// replacing the database or ending legacy administrator sessions.
 	cols, err := d.Query("PRAGMA table_info(sessions)")
-	if err != nil { return fmt.Errorf("migration sessions columns: %w", err) }
+	if err != nil {
+		return fmt.Errorf("migration sessions columns: %w", err)
+	}
 	hasAccountID := false
-	for _, col := range cols { if col["name"] == "account_id" { hasAccountID = true; break } }
+	for _, col := range cols {
+		if col["name"] == "account_id" {
+			hasAccountID = true
+			break
+		}
+	}
 	if !hasAccountID {
 		if err := d.Exec("ALTER TABLE sessions ADD COLUMN account_id TEXT NOT NULL DEFAULT ''"); err != nil {
 			return fmt.Errorf("migration sessions account_id: %w", err)
@@ -175,29 +193,45 @@ func (d *DB) Init() error {
 	}
 
 	// Additive migrations: keep all existing templates, chores and completions.
-	for _, col := range []struct{table, name, definition string}{
-		{"task_templates","category","TEXT NOT NULL DEFAULT 'Diverse'"},
-		{"task_templates","minutes","INTEGER NOT NULL DEFAULT 15"},
-		{"task_templates","points","INTEGER NOT NULL DEFAULT 3"},
-		{"task_templates","times_per_week","INTEGER NOT NULL DEFAULT 1"},
-		{"tasks","rotation_members","TEXT NOT NULL DEFAULT ''"},
-		{"tasks","rotation_start","TEXT NOT NULL DEFAULT ''"},
-		{"tasks","rotation_weeks","INTEGER NOT NULL DEFAULT 0"},
-		{"tasks","plan_id","TEXT NOT NULL DEFAULT ''"},
-        {"tasks","week_start","INTEGER NOT NULL DEFAULT 1"},
-        {"tasks","inactive_from","TEXT NOT NULL DEFAULT ''"},
-        {"tasks","template_id","TEXT NOT NULL DEFAULT ''"},
+	for _, col := range []struct{ table, name, definition string }{
+		{"tasks", "followup_policy", "TEXT NOT NULL DEFAULT ''"},
+		{"tasks", "effort_points", "INTEGER NOT NULL DEFAULT 0"},
+		{"tasks", "effort_minutes", "INTEGER NOT NULL DEFAULT 0"},
+		{"task_templates", "followup_policy", "TEXT NOT NULL DEFAULT ''"},
+		{"tablet_devices", "can_followup", "INTEGER NOT NULL DEFAULT 0"},
+		{"task_templates", "category", "TEXT NOT NULL DEFAULT 'Diverse'"},
+		{"task_templates", "minutes", "INTEGER NOT NULL DEFAULT 15"},
+		{"task_templates", "points", "INTEGER NOT NULL DEFAULT 3"},
+		{"task_templates", "times_per_week", "INTEGER NOT NULL DEFAULT 1"},
+		{"tasks", "rotation_members", "TEXT NOT NULL DEFAULT ''"},
+		{"tasks", "rotation_start", "TEXT NOT NULL DEFAULT ''"},
+		{"tasks", "rotation_weeks", "INTEGER NOT NULL DEFAULT 0"},
+		{"tasks", "plan_id", "TEXT NOT NULL DEFAULT ''"},
+		{"tasks", "week_start", "INTEGER NOT NULL DEFAULT 1"},
+		{"tasks", "inactive_from", "TEXT NOT NULL DEFAULT ''"},
+		{"tasks", "template_id", "TEXT NOT NULL DEFAULT ''"},
 	} {
-		columns,err:=d.Query("PRAGMA table_info("+col.table+")")
-		if err!=nil{return fmt.Errorf("migration columns %s: %w",col.table,err)}
-		found:=false
-		for _,existing:=range columns{if existing["name"]==col.name{found=true;break}}
-		if found{continue}
-		if err:=d.Exec("ALTER TABLE "+col.table+" ADD COLUMN "+col.name+" "+col.definition);err!=nil{
-			return fmt.Errorf("migration %s.%s: %w",col.table,col.name,err)
+		columns, err := d.Query("PRAGMA table_info(" + col.table + ")")
+		if err != nil {
+			return fmt.Errorf("migration columns %s: %w", col.table, err)
 		}
-		if col.table=="task_templates" && col.name=="times_per_week"{
-			if err:=d.Exec("UPDATE task_templates SET times_per_week=CASE WHEN repeat_rule='daily' THEN 7 WHEN repeat_rule='weekdays' THEN 5 ELSE 1 END");err!=nil{return err}
+		found := false
+		for _, existing := range columns {
+			if existing["name"] == col.name {
+				found = true
+				break
+			}
+		}
+		if found {
+			continue
+		}
+		if err := d.Exec("ALTER TABLE " + col.table + " ADD COLUMN " + col.name + " " + col.definition); err != nil {
+			return fmt.Errorf("migration %s.%s: %w", col.table, col.name, err)
+		}
+		if col.table == "task_templates" && col.name == "times_per_week" {
+			if err := d.Exec("UPDATE task_templates SET times_per_week=CASE WHEN repeat_rule='daily' THEN 7 WHEN repeat_rule='weekdays' THEN 5 ELSE 1 END"); err != nil {
+				return err
+			}
 		}
 	}
 	return nil

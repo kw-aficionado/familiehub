@@ -7,7 +7,10 @@ import (
 
 // Called only inside a database transaction. Shared by accounts and tablets.
 func writeTaskCompletion(tx *store.Tx, id, day string, done bool) error {
-	rows, err := tx.Query("SELECT due_date,repeat_rule,rotation_start,week_start,inactive_from FROM tasks WHERE id=?", id)
+	return writeTaskCompletionAt(tx, id, day, done, time.Now(), "ordinary")
+}
+func writeTaskCompletionAt(tx *store.Tx, id, day string, done bool, now time.Time, actor string) error {
+	rows, err := tx.Query("SELECT "+taskColumns+" FROM tasks WHERE id=?", id)
 	if err != nil {
 		return err
 	}
@@ -25,6 +28,9 @@ func writeTaskCompletion(tx *store.Tx, id, day string, done bool) error {
 	visible, completionKey := taskOccurrenceOn(due, selected, rows[0]["repeat_rule"], parseNumber(rows[0]["week_start"], 1))
 	if !visible {
 		return badPlan(400, "Opgaven er ikke aktiv på den valgte dag")
+	}
+	if err := recordFollowupCompletion(tx, rows[0], day, completionKey, done, now, actor); err != nil {
+		return err
 	}
 	if done {
 		return tx.Exec("INSERT OR IGNORE INTO completions(task_id,day) VALUES(?,?)", id, completionKey)

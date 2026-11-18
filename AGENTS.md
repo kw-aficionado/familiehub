@@ -33,7 +33,7 @@
 - `/tablet` is a separate, limited browser interface; `/api/tablet/*` never falls back to an ordinary administrator session.
 - Preserve admin-only management, one-use ten-minute pairing, hashed credentials, scoped cookies and atomic revocation/completion checks.
 - Pairing exits only the ordinary session on that browser. Never remove other family sessions implicitly.
-- Tablet writes are explicit today-only completion toggles; no edits, planning, account or integration writes.
+- Tablet today ticks and visible overdue followup actions are separate opt-in scopes. Followup never grants arbitrary historical edits, adult decisions, planning or administration.
 - Display filters are preferences, not an authorization/privacy boundary. Do not project connection URLs, notes or notification credentials into tablet responses.
 - Keep both 30-day idle and 180-day absolute expiry, HTTPS and CSRF protections; never replace them with permanent login URLs.
 - Auth throttling uses account failure limits plus a separate generous network limit. Blocked attempts never extend the wait; do not blindly trust proxy IP headers.
@@ -57,3 +57,11 @@
 - A merge to `main` triggers Docker publication. A successful CI test is not proof of image publication or live deployment.
 - Report separately: code committed, tests run, PR/merge state, Docker publication, and whether the live server was actually updated.
 - Never claim live MCP access, a Codex project registration, deployment, or device verification that has not been performed.
+
+## Missed chores
+- Followup is opt-in from an explicit date, stored as occurrences, never copied task series.
+- Preserve original deadline/owner/effort and all audit records. Rotation does not transfer yesterday's residual work.
+- Policies date/routine/carry apply per series; do not deduplicate by title. New policies do not rewrite prior snapshots.
+- Excused and superseded are not completed. Legacy ticks without time are completed_unknown, not invented on-time performance.
+- Synchronize ledger writes, ticks, policies and retirement in the same transaction domain. Require version and idempotency checks for followup actions.
+- Do not silently enable notification delivery, tablet followup scope, or backfill before the chosen activation date.
