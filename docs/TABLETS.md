@@ -81,3 +81,9 @@ spærring, narrow viewport og nedtælling. Fysisk Safari/iPadOS er en separat ko
 
 Designreferencer: [OWASP Session Management](https://cheatsheetseries.owasp.org/cheatsheets/Session_Management_Cheat_Sheet.html)
 og [OWASP Authentication](https://cheatsheetseries.owasp.org/cheatsheets/Authentication_Cheat_Sheet.html).
+
+## Restopgaver
+
+Administrator kan desuden tilvælge **Tillad afslutning af synlige restopgaver**.
+Det er adskilt fra dagens afkrydsninger og fra administratoradgang.
+Se [Restopgaver og opfølgning](FOLLOWUP.md) for regler og historik.

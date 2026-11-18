@@ -7,7 +7,7 @@ Frontend er udviklet med iPadOS 15 som kompatibilitetsmål; der er ingen produkt
 [![Verificering](https://github.com/kw-aficionado/familiehub/actions/workflows/ci.yml/badge.svg)](https://github.com/kw-aficionado/familiehub/actions/workflows/ci.yml)
 [![Docker-publicering](https://github.com/kw-aficionado/familiehub/actions/workflows/release.yml/badge.svg)](https://github.com/kw-aficionado/familiehub/actions/workflows/release.yml)
 
-**Dokumentation gennemgået 17. november 2026.** Appens versionsetiket og den eksisterende Rune bruger fortsat `0.1.1`; det konkrete build identificeres af Git-committen i footeren og `/api/version`.
+**Dokumentation gennemgået 18. november 2026.** Appens versionsetiket og den eksisterende Rune bruger fortsat `0.1.1`; det konkrete build identificeres af Git-committen i footeren og `/api/version`.
 
 [Kom i gang](#kom-i-gang) · [Skærmbilleder](#skærmbilleder) · [Arbejd videre i Codex](docs/CODEX.md) · [MCP](docs/MCP.md) · [Pauseskærm](docs/SCREENSAVER.md)
 
@@ -62,6 +62,23 @@ Eksempel: Vælg to børn til opvasken, det ene som startperson, daglig gentagels
 **Gennemgå opgaveserier / mulige dubletter** viser startdato, ansvar, turnus, plan-/serie-id og antal afkrydsninger. Administratoren kan stoppe valgte gamle serier fra i dag eller senere. Quickstart kan alternativt stoppe valgte overlappende serier og oprette erstatningen samlet. Historikken bevares, og en afsluttet forekomst kan ikke skjules af en stopdato. Se [vejledningen til turnus og oprydning](docs/QUICKSTART.md).
 
 Alle sektioner i Indstillinger kan foldes sammen. **Fold alle sammen** og **Åbn alle sektioner** virker også med tastatur; valget huskes på enheden.
+
+### Restopgaver og voksenoverblik
+
+**Indstillinger → Restopgaver og opfølgning** aktiveres bevidst fra en valgt dato.
+Vælg pr. opgave: kun historik, rutine med samlet historikmarkering eller behold
+som restopgave. Gamle manglende afkrydsninger bliver ikke til kopier af dagens
+opgaver. Orange/rød tekstmarkering viser forsinkelse og hjælpebehov.
+
+Restopgaver beholder oprindelig frist og ansvarlig gennem ugeskift. Administrator
+kan udskyde, overdrage, fritage eller registrere en faktisk udførelsesdato uden
+at omskrive serien. Voksenoverblikket viser syv dages afsluttede frister og point;
+fritagelse tæller ikke som udført. Tablet-afslutning kræver en separat tilladelse.
+Se [regler, historik og afgrænsninger](docs/FOLLOWUP.md).
+
+![Restopgaver med oprindelig frist, ansvar og tydelig status](docs/screenshots/restopgaver.webp)
+
+![Voksenoverblik med separate udfald og arbejdsbyrde](docs/screenshots/opfoelgning.webp)
 
 ### Pauseskærm og ikon
 

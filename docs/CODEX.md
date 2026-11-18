@@ -99,3 +99,9 @@ På Linux kan browseren desuden kræve systempakker: se Playwrights officielle i
 Brug en feature-branch og PR. Push til `main` udløser en separat Docker-publicering med det eksisterende `0.1.1`-tag. Kontrollér både CI og publicering. Genstart/opdatér først den eksisterende server, når imaget er klar. **Behold `/data`; brug aldrig Wipe som opdateringsmetode.**
 
 Rapportér separat, hvad der er committet, testet, flettet, publiceret og installeret. At have GitHub-adgang er ikke det samme som at have liveadgang til FamilieHub eller at have registreret et projekt i ejerens Codex-app.
+
+## Restopgaver og historik
+
+`followup.go`, `followup_test.go`, `web/followup-ui.js` og
+`scripts/test-followup-browser.py` indeholder opfølgningen. Læs
+[docs/FOLLOWUP.md](FOLLOWUP.md), før du ændrer frister eller afkrydsninger.

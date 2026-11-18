@@ -370,7 +370,7 @@ func (a *App) taskReminders(now time.Time, people map[string]Person) {
 		if (t.RepeatRule == "once_week" || t.RepeatRule == "weekly_window" || t.RepeatRule == "biweekly_window") && int(now.Weekday()) != (t.WeekStart+6)%7 {
 			continue
 		}
-		if !t.Done && t.AssignedTo != "" {
+		if !t.Done && t.FollowupStatus!="excused" && t.FollowupStatus!="superseded" && t.AssignedTo != "" {
 			if p, ok := people[t.AssignedTo]; ok && p.NotifyService != "" {
 				grouped[p.ID] = append(grouped[p.ID], t.Title)
 			}

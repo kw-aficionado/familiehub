@@ -137,6 +137,9 @@ func (a *App) persistPlan(approval planApproval, admin bool, compile func(schedu
 		return result, badPlan(400, "Ugyldigt forespørgsels-ID")
 	}
 	err := a.db.Transaction(func(tx *store.Tx) error {
+		if _, e := syncFollowup(tx, a.timeNow()); e != nil {
+			return e
+		}
 		b, e := compile(tx)
 		if e != nil {
 			return badPlan(400, e.Error())
@@ -226,7 +229,15 @@ func (a *App) persistPlan(approval planApproval, admin bool, compile func(schedu
 				raw, _ := json.Marshal(task.Members)
 				members = string(raw)
 			}
-			if e = tx.Exec("INSERT INTO tasks(id,title,assigned_to,due_date,repeat_rule,rotation_members,rotation_start,rotation_weeks,plan_id,week_start,template_id) VALUES(?,?,?,?,?,?,?,?,?,?,?)", newID(), task.Title, task.PersonID, task.DueDate, task.RepeatRule, members, b.StartDate, fmt.Sprint(task.RotateWeeks), result.PlanID, fmt.Sprint(task.WeekStart), task.TemplateID); e != nil {
+			policy := ""
+			template, e := tx.Query("SELECT followup_policy FROM task_templates WHERE id=?", task.TemplateID)
+			if e != nil {
+				return e
+			}
+			if len(template) > 0 {
+				policy = template[0]["followup_policy"]
+			}
+			if e = tx.Exec("INSERT INTO tasks(id,title,assigned_to,due_date,repeat_rule,rotation_members,rotation_start,rotation_weeks,plan_id,week_start,template_id,effort_points,effort_minutes,followup_policy) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)", newID(), task.Title, task.PersonID, task.DueDate, task.RepeatRule, members, b.StartDate, fmt.Sprint(task.RotateWeeks), result.PlanID, fmt.Sprint(task.WeekStart), task.TemplateID, fmt.Sprint(task.Points), fmt.Sprint(task.Minutes), policy); e != nil {
 				return e
 			}
 		}

@@ -17,6 +17,7 @@
     '<form id="tabletEditor" class="form-grid">'+field('Navn','<input name="name" required maxlength="80" placeholder="Fx iPad i k\u00f8kkenet" value="'+esc(p.name||'')+'">')+
     field('Standardfilter','<select name="person_filter">'+options+'</select>')+
     '<label class="field field-wide ai-check"><input type="checkbox" name="can_complete" '+(p.can_complete?'checked':'')+'> Tillad afkrydsning af dagens opgaver</label>'+
+    '<label class="field field-wide ai-check"><input type="checkbox" name="can_followup" '+(p.can_followup?'checked':'')+'> Tillad afslutning og hj\u00e6lpeanmodning for synlige restopgaver</label>'+
     '<p class="muted field-wide">Alle med adgang til tabletten kan se familiens kalender og opgaver. Filteret er et visningsvalg, ikke en privatlivsgr\u00e6nse. Uden afkrydsning er tabletten skrivebeskyttet.</p>'+
     field('Tema','<select name="theme"><option value="auto">Automatisk</option><option value="light">Lys</option><option value="dark">M\u00f8rk</option></select>')+
     field('Pausesk\u00e6rm','<select name="saverMode"><option value="scheduled">Kun i tidsrummet</option><option value="always">Hele d\u00f8gnet</option></select>')+
@@ -29,7 +30,7 @@
     '<p id="tabletFormStatus" class="error field-wide" role="status"></p><div class="form-actions"><button type="submit" class="primary">'+(device?'Gem tablet':'Opret engangskode')+'</button></div></form>');
    var form=$('tabletEditor'),f=form.elements;f.person_filter.value=p.person_filter||'';f.theme.value=d.theme;f.saverMode.value=d.saverMode;f.saverDelay.value=String(d.saverDelay);
    form.addEventListener('submit',async function(event){event.preventDefault();var button=form.querySelector('button[type="submit"]');if(button.disabled)return;button.disabled=true;$('tabletFormStatus').textContent='';
-    try{var payload={name:f.name.value.trim(),can_complete:f.can_complete.checked,person_filter:f.person_filter.value,display:{theme:f.theme.value,nightFrom:f.nightFrom.value,nightTo:f.nightTo.value,saverMode:f.saverMode.value,saverFrom:f.saverFrom.value,saverTo:f.saverTo.value,saverDelay:Number(f.saverDelay.value)}};
+    try{var payload={name:f.name.value.trim(),can_complete:f.can_complete.checked,can_followup:f.can_followup.checked,person_filter:f.person_filter.value,display:{theme:f.theme.value,nightFrom:f.nightFrom.value,nightTo:f.nightTo.value,saverMode:f.saverMode.value,saverFrom:f.saverFrom.value,saverTo:f.saverTo.value,saverDelay:Number(f.saverDelay.value)}};
      var result=await api(device?'/api/tablets/'+device.id:'/api/tablets',device?'PUT':'POST',payload);
      if(device){c.closeModal();status('Tabletten er opdateret. Den henter \u00e6ndringen ved n\u00e6ste opdatering.')}else{revealCode(result);status('Tablet oprettet. Brug engangskoden p\u00e5 den nye tablet.')}
      await refresh();

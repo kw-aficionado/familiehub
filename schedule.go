@@ -107,14 +107,14 @@ func taskIsStopped(row map[string]string, day string) bool {
 	return row["inactive_from"] != "" && day >= row["inactive_from"]
 }
 func taskFromRow(row map[string]string) Task {
-	t := Task{ID: row["id"], Title: row["title"], AssignedTo: row["assigned_to"], BaseAssignedTo: row["assigned_to"], DueDate: row["due_date"], RepeatRule: row["repeat_rule"], PlanID: row["plan_id"], RotationStart: row["rotation_start"], RotationWeeks: parseNumber(row["rotation_weeks"], 0), WeekStart: parseNumber(row["week_start"], 1), InactiveFrom: row["inactive_from"], TemplateID: row["template_id"]}
+	t := Task{ID: row["id"], Title: row["title"], AssignedTo: row["assigned_to"], BaseAssignedTo: row["assigned_to"], DueDate: row["due_date"], RepeatRule: row["repeat_rule"], PlanID: row["plan_id"], RotationStart: row["rotation_start"], RotationWeeks: parseNumber(row["rotation_weeks"], 0), WeekStart: parseNumber(row["week_start"], 1), InactiveFrom: row["inactive_from"], TemplateID: row["template_id"], FollowupPolicy: row["followup_policy"]}
 	if row["rotation_members"] != "" {
 		_ = json.Unmarshal([]byte(row["rotation_members"]), &t.RotationMembers)
 	}
 	return t
 }
 
-const taskColumns = "id,title,assigned_to,due_date,repeat_rule,rotation_members,rotation_start,rotation_weeks,plan_id,week_start,inactive_from,template_id"
+const taskColumns = "id,title,assigned_to,due_date,repeat_rule,rotation_members,rotation_start,rotation_weeks,plan_id,week_start,inactive_from,template_id,followup_policy,effort_points,effort_minutes"
 
 func validWeekStart(v *int, q scheduleReader) (int, error) {
 	if v != nil {

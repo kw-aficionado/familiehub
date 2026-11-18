@@ -33,6 +33,7 @@ type tabletDisplay struct {
 type tabletConfig struct {
 	Name         string         `json:"name"`
 	CanComplete  bool           `json:"can_complete"`
+	CanFollowup  bool           `json:"can_followup"`
 	PersonFilter string         `json:"person_filter"`
 	Display      *tabletDisplay `json:"display"`
 }
@@ -126,6 +127,7 @@ func tabletRecord(r map[string]string, now time.Time) tabletDevice {
 	d := tabletDevice{ID: r["id"], CreatedAt: r["created_at"], LastSeen: r["last_seen"], ExpiresAt: r["idle_expires"], AbsoluteExpires: r["absolute_expires"], PairExpires: r["pair_expires"], RevokedAt: r["revoked_at"]}
 	d.Name = r["name"]
 	d.CanComplete = r["can_complete"] == "1"
+	d.CanFollowup = r["can_followup"] == "1"
 	d.PersonFilter = r["person_filter"]
 	d.Display = defaultTabletDisplay()
 	_ = json.Unmarshal([]byte(r["display_json"]), d.Display)
@@ -212,7 +214,7 @@ func (a *App) tabletsCreate(w http.ResponseWriter, r *http.Request) {
 		if parseNumber(rows[0]["n"], 0) >= 100 {
 			return badPlan(400, "Der er allerede 100 tablets. Genbrug en eksisterende enhed med en ny kode.")
 		}
-		return tx.Exec("INSERT INTO tablet_devices(id,name,can_complete,person_filter,display_json,created_at,pair_hash,pair_expires) VALUES(?,?,?,?,?,?,?,?)", id, v.Name, allowed, v.PersonFilter, string(display), now.UTC().Format(time.RFC3339), mac(a.key, "tablet-pair:"+normalizePairCode(code)), expiry)
+		return tx.Exec("INSERT INTO tablet_devices(id,name,can_complete,person_filter,display_json,created_at,pair_hash,pair_expires,can_followup) VALUES(?,?,?,?,?,?,?,?,?)", id, v.Name, allowed, v.PersonFilter, string(display), now.UTC().Format(time.RFC3339), mac(a.key, "tablet-pair:"+normalizePairCode(code)), expiry, boolText(v.CanFollowup))
 	})
 	if e != nil {
 		tabletError(w, e)
@@ -247,7 +249,7 @@ func (a *App) tabletsUpdate(w http.ResponseWriter, r *http.Request) {
 		if len(rows) != 1 {
 			return badPlan(404, "Enheden findes ikke")
 		}
-		return tx.Exec("UPDATE tablet_devices SET name=?,can_complete=?,person_filter=?,display_json=? WHERE id=?", v.Name, allowed, v.PersonFilter, string(display), id)
+		return tx.Exec("UPDATE tablet_devices SET name=?,can_complete=?,person_filter=?,display_json=?,can_followup=? WHERE id=?", v.Name, allowed, v.PersonFilter, string(display), boolText(v.CanFollowup), id)
 	})
 	if e != nil {
 		tabletError(w, e)
@@ -549,20 +551,25 @@ func (a *App) tabletState(w http.ResponseWriter, r *http.Request) {
 	}
 	safeTasks := []map[string]any{}
 	for _, t := range tasks {
-		safeTasks = append(safeTasks, map[string]any{"id": t.ID, "title": t.Title, "assigned_to": t.AssignedTo, "done": t.Done, "repeat_rule": t.RepeatRule})
+		safeTasks = append(safeTasks, map[string]any{"id": t.ID, "title": t.Title, "assigned_to": t.AssignedTo, "done": t.Done, "repeat_rule": t.RepeatRule, "followup_status": t.FollowupStatus})
 	}
+	var followup FollowupBoard
 	// Recheck after external I/O so revocation while a calendar is loading cannot
 	// release a new response after the final authorization check.
 	e = a.db.Transaction(func(tx *store.Tx) error {
 		var err error
 		s.Device, err = a.tabletInTx(tx, s.Token, a.timeNow())
+		if err != nil {
+			return err
+		}
+		followup, err = followupBoardTx(tx, a.timeNow(), false)
 		return err
 	})
 	if e != nil {
 		tabletError(w, e)
 		return
 	}
-	writeJSON(w, 200, map[string]any{"device": s.Device, "csrf": mac(a.key, "tablet-csrf:"+s.Token), "day": day, "today": a.timeNow().In(a.loc).Format("2006-01-02"), "people": safePeople, "events": safeEvents, "tasks": safeTasks, "warning": strings.Join(issues, ". ")})
+	writeJSON(w, 200, map[string]any{"device": s.Device, "csrf": mac(a.key, "tablet-csrf:"+s.Token), "day": day, "today": a.timeNow().In(a.loc).Format("2006-01-02"), "people": safePeople, "events": safeEvents, "tasks": safeTasks, "followup": followup, "warning": strings.Join(issues, ". ")})
 }
 func (a *App) tabletCSRF(r *http.Request, token string) bool {
 	return token != "" && a.tabletSameOrigin(r) && hmac.Equal([]byte(r.Header.Get("X-CSRF-Token")), []byte(mac(a.key, "tablet-csrf:"+token)))
@@ -597,7 +604,7 @@ func (a *App) tabletToggle(w http.ResponseWriter, r *http.Request) {
 		if v.Day != now.In(a.loc).Format("2006-01-02") {
 			return badPlan(400, "Tabletten kan kun afkrydse dagens opgaver")
 		}
-		return writeTaskCompletion(tx, id, v.Day, v.Done)
+		return writeTaskCompletionAt(tx, id, v.Day, v.Done, now, "tablet:"+d.ID)
 	})
 	if e != nil {
 		tabletError(w, e)

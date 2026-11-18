@@ -214,6 +214,7 @@ func minRune(a,b int)int {if a<b{return a};return b}
 // Entries reflect actual uncompleted occurrences. Weekly-window chores are
 // overdue only when the week has ended; daily chores have independent misses.
 func (a *App) pendingTasks(now time.Time,daysBack int,includeToday bool)([]aiPending,error){
+ s,e:=followupSettings(a.db);if e!=nil{return nil,e};if s.From!=""{return a.followupPending(now,daysBack,includeToday)}
  if daysBack<1||daysBack>14{daysBack=7}
  out:=map[string]*aiPending{}
  start:=now.AddDate(0,0,-daysBack)
