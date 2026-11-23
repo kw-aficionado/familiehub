@@ -2,7 +2,7 @@
 (function () {
   'use strict';
   var S = {csrf:'', account:null, accounts:[], view:'day', weekStart:1, focus:familyToday(), filter:'', people:[], events:[], tasks:[], templates:[], allTasks:[], settingsOpen:false, settingsTab:'templates', settingsQuery:'', page:'kalender', taskPeriod:'today', taskFocus:familyToday(), taskFilter:'', taskStatus:'all', weekEntries:[], todayEvents:[], todayDate:'', loading:0, taskLoading:0, socket:null};
-  var planningTools=null,tabletTools=null,followupTools=null;
+  var planningTools=null,tabletTools=null,followupTools=null,dayRollover=null;
   var $ = function(id){return document.getElementById(id)};
   function el(tag,props,text){var x=document.createElement(tag);if(props)Object.keys(props).forEach(function(k){x.setAttribute(k,props[k])});if(text!==undefined)x.textContent=text;return x}
   function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})}
@@ -54,13 +54,43 @@
   async function init(){
     try{var d=await api('/api/session');if(d.authenticated){S.csrf=d.csrf;S.account=d.account||{role:'admin',username:'Administrator'};hide('login');show('app');await load();syncPage();listen();scheduleSaver()}else{show('login')}}catch(e){show('login');$('loginError').textContent=e.message}
   }
+  // Advance only a view following today/current week; preserve deliberate browsing.
+  function rolloverDay(next,previous){
+    if(!$('modal').classList.contains('hidden'))return false;
+    var prior=new Date(previous+'T12:00:00'),current=new Date(next+'T12:00:00');
+    var home=dayString(S.focus)===previous||(S.view==='week'&&dayString(startWeek(S.focus))===dayString(startWeek(prior)));
+    var tasks=dayString(S.taskFocus)===previous||(S.taskPeriod==='week'&&dayString(startWeek(S.taskFocus))===dayString(startWeek(prior)));
+    if(home){S.focus=current;S.events=[];S.tasks=[]}
+    if(tasks){S.taskFocus=new Date(current.getTime());S.weekEntries=[]}
+    S.todayDate=next;S.todayEvents=[];
+    // Responses started yesterday must not restore yesterday's tasks or owner.
+    S.loading++;S.taskLoading++;
+    if(S.csrf&&$('login').classList.contains('hidden')){
+      render();
+      if(home){$('taskList').replaceChildren(el('p',{'class':'muted'},'Henter den nye dags opgaver...'));$('calendar').replaceChildren(el('p',{'class':'muted'},'Henter den nye dags aftaler...'))}
+      $('todayList').replaceChildren(el('p',{'class':'muted'},'Henter dagens aftaler...'));
+      if(S.page==='opgaver'){$('tasksPageList').replaceChildren(el('p',{'class':'muted'},'Opdaterer opgaver...'));refreshTaskView()}
+      load();
+      if(typeof saverVisible!=='undefined'&&saverVisible)updateSaver();
+    }
+    return true;
+  }
+  function refreshTaskView(){
+    if(S.page==='opgaver')loadTasksPage().catch(function(err){$('tasksPageList').replaceChildren(el('p',{'class':'error'},'Kunne ikke hente opgaver: '+err.message))});
+  }
+  function refreshLiveViews(){
+    if(document.hidden)return;
+    if(dayRollover&&dayRollover.check())return;
+    if(!S.csrf||!$('login').classList.contains('hidden'))return;
+    load();refreshTaskView();
+  }
   function range(){var start=S.view==='week'?startWeek(S.focus):localMidnight(S.focus),end=addDays(start,S.view==='week'?7:1);return {start:start,end:end}}
   async function load(){
     var token=++S.loading,r=range(),day=dayString(S.focus);
     try{var p=new URLSearchParams({start:r.start.toISOString(),end:r.end.toISOString(),day:day});var data=await api('/api/state?'+p.toString());if(token!==S.loading)return;
-      var priorWeekStart=S.weekStart;S.weekStart=Number.isInteger(data.week_start)?data.week_start:1;if(S.view==='week'&&priorWeekStart!==S.weekStart){load();return}S.people=data.people||[];S.events=data.events||[];S.todayEvents=data.today_events||[];S.todayDate=data.today_date||dayString(new Date());S.tasks=data.tasks||[];render();setOnline(true);if(followupTools)followupTools.refresh();
+      var priorWeekStart=S.weekStart;S.weekStart=Number.isInteger(data.week_start)?data.week_start:1;if(S.view==='week'&&priorWeekStart!==S.weekStart){load();return}S.people=data.people||[];S.events=data.events||[];S.todayEvents=data.today_events||[];S.todayDate=data.today_date||window.FamilyHubPlannerDates.today();S.tasks=data.tasks||[];render();setOnline(true);if(followupTools)followupTools.refresh();
       $('warning').textContent=data.warning||'';data.warning?show('warning'):hide('warning');$('updated').textContent='Opdateret '+formatDate(new Date(),{hour:'2-digit',minute:'2-digit'});
-    }catch(e){setOnline(false);$('warning').textContent='Kunne ikke hente data: '+e.message;show('warning')}
+    }catch(e){if(token!==S.loading)return;setOnline(false);$('warning').textContent='Kunne ikke hente data: '+e.message;show('warning')}
   }
   function listen(){if(S.socket)S.socket.close();S.socket=new EventSource('/api/stream');S.socket.addEventListener('changed',function(){load();if(S.page==='opgaver')loadTasksPage().catch(function(){});if(S.settingsOpen)refreshSettingsData().catch(function(){})});S.socket.onerror=function(){setOnline(false)};S.socket.addEventListener('connected',function(){setOnline(true)})}
   function navigate(n){S.focus=addDays(S.view==='week'?startWeek(S.focus):S.focus,(S.view==='week'?7:1)*n);load()}
@@ -99,7 +129,7 @@
     node.addEventListener('click',function(){openEvent(ev)});return node;
   }
   function renderCalendar(){var root=$('calendar');root.replaceChildren();root.className='calendar '+(S.view==='week'?'week-view':'day-view');var days=S.view==='week'?7:1;var start=range().start,events=filteredEvents();
-    for(var i=0;i<days;i++){(function(date){var column=el('div',{'class':'day-column'+(dayString(date)===dayString(new Date())?' is-today':'')});var heading=el('button',{'class':'day-heading','type':'button'});heading.appendChild(el('span',{'class':'weekday'},formatDate(date,{weekday:'short'})));heading.appendChild(el('strong',null,String(date.getDate())));heading.addEventListener('click',function(){S.focus=new Date(date);setView('day')});column.appendChild(heading);
+    for(var i=0;i<days;i++){(function(date){var column=el('div',{'class':'day-column'+(dayString(date)===window.FamilyHubPlannerDates.today()?' is-today':'')});var heading=el('button',{'class':'day-heading','type':'button'});heading.appendChild(el('span',{'class':'weekday'},formatDate(date,{weekday:'short'})));heading.appendChild(el('strong',null,String(date.getDate())));heading.addEventListener('click',function(){S.focus=new Date(date);setView('day')});column.appendChild(heading);
       var items=events.filter(function(e){return matchesDay(e,date)}).sort(function(a,b){return a.start_at.localeCompare(b.start_at)});
       if(!items.length){var empty=el('div',{'class':'day-empty'},'Ingen aftaler');column.appendChild(empty)}
       items.forEach(function(e){column.appendChild(eventCard(e))});root.appendChild(column)
@@ -107,7 +137,7 @@
   }
   function repeatLabel(rule){return ({daily:'Hver dag',weekdays:'Hverdage (mandag–fredag)',weekly:'Hver uge (én dag)',biweekly:'Hver anden uge (én dag)',once_week:'Én hel uge',weekly_window:'Hver uge (hele ugen)',biweekly_window:'Hver anden uge (hele ugen)'})[rule]||''}
   function renderTasks(){
-    var root=$('taskList');root.replaceChildren();
+    var displayedDay=dayString(S.focus),root=$('taskList');root.replaceChildren();
     var tasks=S.tasks.filter(function(t){return !S.filter||t.assigned_to===S.filter}).sort(function(a,b){return Number(a.done)-Number(b.done)});
     var today=dayString(S.focus)===window.FamilyHubPlannerDates.today();
     $('showDayTasksBtn').textContent=today?'Se alle dagens opgaver':'Se alle opgaver denne dag';
@@ -115,7 +145,7 @@
     $('taskPreviewCount').textContent=tasks.length>4?'Viser 4 af '+tasks.length+' opgaver.':'';
     tasks=tasks.slice(0,4);
     if(!tasks.length){root.appendChild(el('p',{'class':'empty-state'},S.filter?'Ingen opgaver til '+nameOf(S.filter)+' på denne dag. Vælg Alle for hele familien.':'Ingen opgaver på denne dag. Tryk “+ Opgave” for at oprette en.'));return}
-    tasks.forEach(function(t){var row=el('div',{'class':'task-row'});row.style.borderLeft='4px solid '+colorOf(t.assigned_to);row.style.paddingLeft='9px';var check=el('input',{type:'checkbox','aria-label':'Fuldfør '+t.title});check.checked=t.done;check.disabled=t.followup_status==='excused'||t.followup_status==='superseded';check.addEventListener('change',async function(){try{await api('/api/tasks/'+t.id+'/toggle','POST',{day:dayString(S.focus),done:check.checked});load()}catch(e){check.checked=!check.checked;alert(e.message)}});row.appendChild(check);
+    tasks.forEach(function(t){var row=el('div',{'class':'task-row'});row.style.borderLeft='4px solid '+colorOf(t.assigned_to);row.style.paddingLeft='9px';var check=el('input',{type:'checkbox','aria-label':'Fuldfør '+t.title});check.checked=t.done;check.disabled=t.followup_status==='excused'||t.followup_status==='superseded';check.addEventListener('change',async function(){try{await api('/api/tasks/'+t.id+'/toggle','POST',{day:displayedDay,done:check.checked});load()}catch(e){check.checked=!check.checked;alert(e.message)}});row.appendChild(check);
       var text=el('div',{'class':'task-text'});var title=el('strong',{'class':t.done?'strike':''},t.title);text.appendChild(title);var meta=el('small');var owner=el('span',{'class':'task-person-label'},t.assigned_to?nameOf(t.assigned_to):'Fælles');owner.style.backgroundColor=tint(colorOf(t.assigned_to),0.13);owner.style.color=colorOf(t.assigned_to);meta.appendChild(owner);if(repeatLabel(t.repeat_rule))meta.appendChild(document.createTextNode(' · '+repeatLabel(t.repeat_rule)));text.appendChild(meta);if(typeof followupTools!=='undefined'&&followupTools){var badge=followupTools.badge(t);if(badge)text.appendChild(badge)}row.appendChild(text);
       var edit=el('button',{'class':'text-button','type':'button'},'Redigér');edit.addEventListener('click',function(){openTask(t)});row.appendChild(edit);root.appendChild(row)
     })
@@ -125,7 +155,7 @@
     es.sort(function(a,b){return a.start_at.localeCompare(b.start_at)}).slice(0,6).forEach(function(e){var row=el('div',{'class':'activity-row'});var dot=el('span',{'class':'activity-dot'});dot.style.background=colorsOf(e)[0];row.appendChild(dot);var box=el('div');box.appendChild(el('strong',null,e.title));var extra=clock(e.start_at)+'–'+clock(e.end_at);if(e.pickup_by)extra+=' · '+nameOf(e.pickup_by)+' henter';else if(e.person_id)extra+=' · '+nameOf(e.person_id);box.appendChild(el('small',null,extra));row.appendChild(box);root.appendChild(row)})
   }
   function openModal(title,html){$('modalTitle').textContent=title;$('modalBody').innerHTML=html;$('formError').textContent='';show('modal');var first=$('modalBody').querySelector('input:not([type="hidden"])');if(first)first.focus()}
-  function closeModal(){hide('modal');$('modalBody').replaceChildren()}
+  function closeModal(){hide('modal');$('modalBody').replaceChildren();if(dayRollover)dayRollover.check()}
   function personOptions(selected,emptyText){return '<option value="">'+esc(emptyText||'Ingen')+'</option>'+S.people.map(function(p){return '<option value="'+esc(p.id)+'"'+(selected===p.id?' selected':'')+'>'+esc(p.name)+'</option>'}).join('')}
   function field(label,html){return '<label class="field">'+esc(label)+html+'</label>'}
   async function saveOrError(fn){try{await fn();closeModal();await load();if(S.page==='opgaver')await loadTasksPage()}catch(e){$('formError').textContent=e.message}}
@@ -517,7 +547,10 @@
   document.addEventListener('keydown',function(e){if(e.key==='Escape')closeModal()});
   var touchX=0,touchY=0;$('calendar').addEventListener('touchstart',function(e){if(e.touches.length===1){touchX=e.touches[0].clientX;touchY=e.touches[0].clientY}},{passive:true});
   $('calendar').addEventListener('touchend',function(e){if(e.changedTouches.length!==1||$('modal').classList.contains('hidden')===false)return;var dx=e.changedTouches[0].clientX-touchX,dy=e.changedTouches[0].clientY-touchY;if(window.innerWidth>700&&Math.abs(dx)>70&&Math.abs(dy)<55)navigate(dx<0?1:-1)},{passive:true});
-  document.addEventListener('visibilitychange',function(){if(!document.hidden&&S.csrf)load()});setInterval(function(){if(!document.hidden&&S.csrf)load()},60000);
+  document.addEventListener('visibilitychange',refreshLiveViews);
+  window.addEventListener('pageshow',refreshLiveViews);
+  window.addEventListener('online',refreshLiveViews);
+  setInterval(refreshLiveViews,60000);
 
   // The calendar owner is a fallback only: explicit person tags override it.
   async function loadCalendarOwners(){
@@ -1004,6 +1037,7 @@
   planningTools=window.FamilyHubPlanningTools.setup({S:S,$:$,el:el,esc:esc,api:api,nameOf:nameOf,repeatLabel:repeatLabel,isAdmin:accountIsAdmin,openModal:openModal,closeModal:closeModal,receipt:showSavedPlannerPlan,load:load});
   tabletTools=window.FamilyHubTablets.setup({S:S,$:$,el:el,esc:esc,api:api,isAdmin:accountIsAdmin,openModal:openModal,closeModal:closeModal});
   followupTools=window.FamilyHubFollowup.setup({onBoard:function(){renderTasks();if(S.page==='opgaver')renderTasksPage()},S:S,esc:esc,api:api,nameOf:nameOf,isAdmin:accountIsAdmin,openModal:openModal,closeModal:closeModal,afterChange:async function(){await load();if(S.page==='opgaver')await loadTasksPage()}});
+  dayRollover=window.FamilyHubDayRollover.watch({onChange:rolloverDay});
   restoreDisplaySettings();
   loadBuild();
   init();

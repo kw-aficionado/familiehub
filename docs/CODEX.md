@@ -105,3 +105,10 @@ Rapportér separat, hvad der er committet, testet, flettet, publiceret og instal
 `followup.go`, `followup_test.go`, `web/followup-ui.js` og
 `scripts/test-followup-browser.py` indeholder opfølgningen. Læs
 [docs/FOLLOWUP.md](FOLLOWUP.md), før du ændrer frister eller afkrydsninger.
+
+## Automatisk datoskift
+
+`web/day-rollover.js` deles af app og tablet. Se [midnatsreglerne](MIDNIGHT.md).
+Kør `node --test tests/day_rollover.test.js tests/day_navigation.test.js` og
+`python3 scripts/test-midnight-browser.py`. Det sidste bruger en ny lokal database
+og et simuleret browserur fra i går til serverens rigtige dagsdato.

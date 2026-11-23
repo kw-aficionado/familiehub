@@ -16,6 +16,7 @@
 
 ## Product decisions to preserve
 - Home opens in Day view. Week remains available.
+- Both entrypoints use web/day-rollover.js for Copenhagen midnight and wake recovery. Only today/current-week views follow time; retain deliberately selected other dates, filters, login and unsaved forms. Do not replace this with page reloads, 24-hour timers or synthetic task writes. Bind completion actions to the day actually rendered, and invalidate pre-rollover responses.
 - Home previews at most four chores; its explicit shortcut opens the complete checklist for the shown day, retaining the selected person and resetting stale status filters.
 - Tasks opens on today's Copenhagen date; Today, This week and All tasks remain distinct.
 - AI task planner belongs in Settings immediately below Task archive, not on the Tasks page.

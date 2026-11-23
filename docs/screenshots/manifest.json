@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
-  "captured_at": "2026-11-18T09:53:37.938876+00:00",
-  "fixture_date": "2026-11-18",
+  "captured_at": "2026-11-23T11:22:55.511077+00:00",
+  "fixture_date": "2026-11-23",
   "timezone": "Europe/Copenhagen",
   "fixture_kind": "fictional family in a new temporary SQLite database",
   "backend": "real Go app, loopback only, no external integrations",
@@ -52,12 +52,13 @@
     "tablets.go": "14c978b757e148ef27a30c2922984b1a9bff8df726e80f5f4cb3fdbaf14f6608",
     "tablets_test.go": "30b2cce1369ee23883572db7c96097c02d5ed30aa93de158a5b07dd30c22fd1f",
     "task_completion.go": "84dbe27dc52af7b923a95a29aeaf87e3e3f654ff6f6885cb4969a904424c1809",
-    "web/app.js": "4a03e5e6fb528c7779b0718be35381061e4f1ecdb2c680a7073057348b480210",
+    "web/app.js": "9a0d10d95a701254d399c4c1c6fb42bb549bcbc35af3dc6287aa2001ac68b1e2",
     "web/apple-touch-icon.png": "a78732e32b55886e477ccfb3c6c1e1b0f22785fb7a44830649decbf68555b5aa",
+    "web/day-rollover.js": "b01c5bdef52da9519e2359f96ce0faed5382e17d93fe5263e72409d5fcec7dec",
     "web/favicon.ico": "18304a300797311175ff87ce2df6b3b251a23293e22a6d16916092a6efa6ecfc",
     "web/followup-ui.js": "bdfd34ef6e7f581e02a89f387e45a70bdddb729d18e72876dd14319995443db8",
     "web/icon.svg": "73f5d01c8a70e6cf7d28baa5eb0fbd8a96d62c23ae24abf10b38801e3e0e73a4",
-    "web/index.html": "7abf6842e66d83b41d2aca4fba79f526696c33011238079a2d94465a8a61779e",
+    "web/index.html": "b39b8fc2ecbab16b167b513d2439c48b0fcd8b283ea1a462e9755c410b85d87b",
     "web/login-wait.js": "aa708c764dfafb3edc90bca2c5cf32c16a1c5cda8c85fac4d69cf1aa008b08c1",
     "web/manifest.webmanifest": "faf08f3ec4a1fe91ba8e01fd2fc35581aeccc2cd1d0276059531acaa14142fb4",
     "web/mcp-ui.css": "7fa0cee3701987c79cca7e67ce077584b22b071ae105de00c5216d9302e323ae",
@@ -70,20 +71,20 @@
     "web/sw.js": "54a6e13ebeca4b9a459955059ae205e7ede64a8dcfb278dedee6a14f7f8f7938",
     "web/tablet-admin.js": "674a8b3657f250f8990cad46f514960a2c1bde241edaf481d49e31ca115b88a4",
     "web/tablet.css": "ebe27b7d9e467c4ca63207c0036e1758826ff70e2ad31f15814551855da30fe6",
-    "web/tablet.html": "0b76783c4b77bc2501641a3ebda5dc4701d4c377fd0e370c9ecd39202abde63c",
-    "web/tablet.js": "6c1ea17a9a697d7883c3314f1a3d76f5134d6a83a80a5714bad02e02f7a7d50a",
+    "web/tablet.html": "1e40ae5dfbe1c556534c08a8f56ede78a469ff2baf7141875bd25012211fbfb7",
+    "web/tablet.js": "abfe03bda68b9f0c2da10c2dbb9bbf2e2f99b1f3d5b7597ce6d4eee4a7c552a1",
     "web/tablet.webmanifest": "5d33b7111669d2f47d41f2605aabadf8b8ed19973cd9e436613e64c262819cac"
   },
   "images": {
     "kalender.webp": {
       "width": 1280,
       "height": 1000,
-      "sha256": "a8efbd97b8dc3b476af319f1693fefd3ade0f65d8d37a14abbf7d70fe6163fc2"
+      "sha256": "54857c777650fb1020fca67cf0a4521af62bfa2419f4c88c05d82e8cccd70330"
     },
     "opgaver.webp": {
       "width": 1280,
       "height": 1000,
-      "sha256": "59b2a7556f6686aadad544b63de1772bc2aa4aa06a8ec2ea902cbe7b90d37054"
+      "sha256": "20966cdcdaa6fab6430878756e8417a5ce433bd9af30c71939b0409259a3e475"
     },
     "indstillinger.webp": {
       "width": 1280,
@@ -93,12 +94,12 @@
     "planlaegger.webp": {
       "width": 550,
       "height": 920,
-      "sha256": "db0ab4ca863b8814e9e1e2f4b99af71a792190d81123b8ab507389d538a266fa"
+      "sha256": "ce7b381f06a352eb43aa0077c4881c5b57b3c44cc46c5669301ccd42cd8a622a"
     },
     "planforslag.webp": {
       "width": 550,
       "height": 920,
-      "sha256": "c7912e68acc06b6eb401fb3dfaadef49ce184c4a8296aab92067c318c5fb25e5"
+      "sha256": "8c315508593ec837ae0373fa71222b162fc5e160f5a60cde0887c0b8100f504e"
     },
     "skaermindstillinger.webp": {
       "width": 516,
@@ -108,12 +109,12 @@
     "quickstart.webp": {
       "width": 550,
       "height": 920,
-      "sha256": "55db5b1a7eee3c44e67dfacd18f7c2339307ed241a5088102c84ee3596c9dfa7"
+      "sha256": "403a71bad6bc40661df3f7c505a97b4874c6a85650a264378071fe7563244ce5"
     },
     "turnusforslag.webp": {
       "width": 550,
       "height": 920,
-      "sha256": "0451300f9c94170233d30d25ceb38256843acc299488ec985963fa8f0e591e0a"
+      "sha256": "74367e06a6a64b2f3d9c2973c1b0358ef62e68c69f5de3e50b8995f732d5cb9b"
     },
     "settings-folded.webp": {
       "width": 1280,
@@ -123,37 +124,37 @@
     "nattilstand.webp": {
       "width": 1280,
       "height": 1000,
-      "sha256": "cc8d1dc0f480fc8c41653d93ab35c4505a2ac1bc8a8ef09ab8ddc749fd7e7fbb"
+      "sha256": "17e58fd2581191e5cb7e866f66f8aeac092d0332b39904888592efb705121a30"
     },
     "iphone.webp": {
       "width": 390,
       "height": 844,
-      "sha256": "8c7d3f6204635f082870bd6bbac1231acb2758508628e845f608fd52035896a0"
+      "sha256": "b95c809f7b761e338d386a4c28796bf9b56c6ee4309fb4b56048e3ff41625d7e"
     },
     "iphone-sondag.webp": {
       "width": 390,
       "height": 844,
-      "sha256": "e96cec766961d57205d07eb9615d48f011ff92fa8a78836209988a4cbf59ef58"
+      "sha256": "32c09a1b4393f85567793be8c62ce477aca95217843a0e1522b2daba9d578e40"
     },
     "tablet.webp": {
       "width": 1024,
       "height": 900,
-      "sha256": "894374cb59e58db6898bc64ed225574947918aeb1597bf687d035789a3f37913"
+      "sha256": "74f52dbf35e1f466034deb7ef29cef1bfea1c2b0a73c6b244982c3d142497f36"
     },
     "tablets-settings.webp": {
       "width": 1050,
       "height": 399,
-      "sha256": "b3fc311268a9e1457ebd068f749bcfb37718cf078a7d59849ce1a7e85baf3dd8"
+      "sha256": "95dd2e4830aea09d7fcdef0ab1e111a9ba1ab380b6da5e50cee8f506c42d1cd0"
     },
     "restopgaver.webp": {
       "width": 1024,
       "height": 900,
-      "sha256": "3f477e90e42e61eeb4a626a89dc44b872a2c64b40b854ff42da556c91fe0849f"
+      "sha256": "c23b0a9ded19d8a84873b3c46fb810737344fc6829a514a2216c3a829ae9892d"
     },
     "opfoelgning.webp": {
       "width": 1050,
       "height": 524,
-      "sha256": "b8c15479c7fd7696651ec66d12f368792f04f2f04e16d90a620e9e0843edee56"
+      "sha256": "659b0460791f6ff618d685fa89bf9485e5fd7b77cde858bf9b1d8c0ca7cb4651"
     }
   }
 }
