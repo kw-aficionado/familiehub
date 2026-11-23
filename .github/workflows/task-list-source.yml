@@ -1,0 +1,22 @@
+name: Isolated task list source
+on:
+  push:
+    branches: [fix/task-list-version-20261123]
+    paths: [.github/workflows/task-list-source.yml]
+permissions:
+  contents: read
+jobs:
+  snapshot:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fc42a091827715bdd1ad4282adf2921a27b54874
+          persist-credentials: false
+      - run: git archive --format=tar.gz HEAD > /tmp/task-list-source.tar.gz
+      - uses: actions/upload-artifact@v4
+        with:
+          name: task-list-source
+          path: /tmp/task-list-source.tar.gz
+          retention-days: 2
