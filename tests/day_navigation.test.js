@@ -48,6 +48,7 @@ class Element {
 }
 
 function boot() {
+  let currentDay = today;
   const nodes = new Map();
   const node = id => {
     if (!nodes.has(id)) nodes.set(id, new Element());
@@ -66,7 +67,7 @@ function boot() {
   const requests = [];
   const data = {entries: [], tasks: []};
   const context = vm.createContext({
-    window: {FamilyHubPlannerDates: {today: () => today}},
+    window: {FamilyHubPlannerDates: {today: () => currentDay}},
     location: {hash: '#kalender'},
     document: {
       getElementById: node,
@@ -84,8 +85,8 @@ function boot() {
   });
   const end = source.indexOf('  var plannerDraft=null;');
   assert.ok(end > 0, 'frontend navigation section exists');
-  vm.runInContext(source.slice(0, end) + '\nglobalThis.app={S,range,renderTasks,renderTasksPage,updateCalendarViewButtons,openDayTasks,selectTaskPeriod,loadTasksPage,syncPage,dayString};\n})();', context);
-  return {app: context.app, context, node, data, requests, selectors};
+  vm.runInContext(source.slice(0, end) + '\nglobalThis.app={S,range,renderTasks,renderTasksPage,updateCalendarViewButtons,openDayTasks,selectTaskPeriod,loadTasksPage,syncPage,dayString,rolloverDay,refreshLiveViews,load,closeModal};\n})();', context);
+  return {app: context.app, context, node, data, requests, selectors, setToday: value => {currentDay=value;}};
 }
 
 function task(id, day, options = {}) {
@@ -259,4 +260,48 @@ test('stopped series are not presented as active catalogue duplicates', () => {
   app.renderTasksPage();
   assert.equal(cards(node('tasksPageList')).length, 1);
   assert.ok(!node('tasksPageList').textContent.includes('stopped'));
+});
+
+function prepareMidnight(t) {
+  t.node('modal').classList.add('hidden');
+  t.setToday(tomorrow);
+  t.app.S.filter='person-a';t.app.S.taskFilter='person-b';t.app.S.taskStatus='open';
+}
+test('midnight advances both day views without changing filters or manufacturing tasks',()=>{
+  const t=boot();prepareMidnight(t);assert.equal(t.app.rolloverDay(tomorrow,today),true);
+  assert.equal(t.app.dayString(t.app.S.focus),tomorrow);
+  assert.equal(t.app.dayString(t.app.S.taskFocus),tomorrow);
+  assert.equal(t.app.S.todayDate,tomorrow);assert.equal(t.app.S.filter,'person-a');assert.equal(t.app.S.taskFilter,'person-b');
+  assert.equal(t.app.S.taskStatus,'open');assert.equal(t.app.S.view,'day');assert.equal(t.requests.length,0);
+});
+test('a manually browsed past/future day remains selected at midnight',()=>{
+  const t=boot();prepareMidnight(t);t.app.S.focus=new Date('2026-10-25T12:00:00');t.app.S.taskFocus=new Date('2026-12-24T12:00:00');
+  t.app.rolloverDay(tomorrow,today);assert.equal(t.app.dayString(t.app.S.focus),'2026-10-25');
+  assert.equal(t.app.dayString(t.app.S.taskFocus),'2026-12-24');assert.equal(t.app.S.todayDate,tomorrow);
+});
+test('current week follows the saved family week boundary, preserving week mode',()=>{
+  const t=boot();prepareMidnight(t);t.app.S.weekStart=0;t.app.S.view='week';t.app.S.taskPeriod='week';
+  t.app.S.focus=new Date('2026-11-01T12:00:00');t.app.S.taskFocus=new Date('2026-11-01T12:00:00');
+  t.app.rolloverDay('2026-11-08','2026-11-07');assert.equal(t.app.dayString(t.app.S.focus),'2026-11-08');
+  assert.equal(t.app.dayString(t.app.S.taskFocus),'2026-11-08');assert.equal(t.app.S.view,'week');assert.equal(t.app.S.taskPeriod,'week');
+});
+test('open editor defers all date changes and preserves form content',()=>{
+  const t=boot();t.node('modalBody').textContent='Unsaved draft';t.setToday(tomorrow);
+  assert.equal(t.app.rolloverDay(tomorrow,today),false);assert.equal(t.app.dayString(t.app.S.focus),today);
+  assert.equal(t.node('modalBody').textContent,'Unsaved draft');assert.equal(t.requests.length,0);
+  t.node('modal').classList.add('hidden');assert.equal(t.app.rolloverDay(tomorrow,today),true);
+});
+test('yesterday responses are invalidated when the day advances',async()=>{
+  const t=boot();prepareMidnight(t);t.app.S.page='opgaver';
+  let finish;t.context.fetch=()=>new Promise(resolve=>{finish=resolve});
+  const request=t.app.loadTasksPage();t.app.rolloverDay(tomorrow,today);
+  finish({ok:true,status:200,json:async()=>({entries:[task('old-response',today)]})});await request;
+  assert.equal(t.app.S.weekEntries.length,0);assert.ok(!t.node('tasksPageList').textContent.includes('old-response'));
+});
+test('a displayed home checkbox stays bound to its original day during navigation',async()=>{
+  const t=boot();t.app.S.tasks=[task('same-series',today)];t.app.renderTasks();
+  const checkbox=t.node('taskList').children[0].children.find(child=>child.tagName==='input');
+  let posted;t.context.fetch=async(url,options)=>{if(options.body)posted=JSON.parse(options.body);return {ok:true,status:200,json:async()=>({})}};
+  t.app.S.focus=new Date(tomorrow+'T12:00:00');checkbox.checked=true;await checkbox.listeners.change();
+  assert.equal(posted.day,today);assert.equal(posted.done,true);
 });

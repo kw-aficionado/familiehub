@@ -7,7 +7,7 @@ Frontend er udviklet med iPadOS 15 som kompatibilitetsmål; der er ingen produkt
 [![Verificering](https://github.com/kw-aficionado/familiehub/actions/workflows/ci.yml/badge.svg)](https://github.com/kw-aficionado/familiehub/actions/workflows/ci.yml)
 [![Docker-publicering](https://github.com/kw-aficionado/familiehub/actions/workflows/release.yml/badge.svg)](https://github.com/kw-aficionado/familiehub/actions/workflows/release.yml)
 
-**Dokumentation gennemgået 18. november 2026.** Appens versionsetiket og den eksisterende Rune bruger fortsat `0.1.1`; det konkrete build identificeres af Git-committen i footeren og `/api/version`.
+**Dokumentation gennemgået 23. november 2026.** Appens versionsetiket og den eksisterende Rune bruger fortsat `0.1.1`; det konkrete build identificeres af Git-committen i footeren og `/api/version`.
 
 [Kom i gang](#kom-i-gang) · [Skærmbilleder](#skærmbilleder) · [Arbejd videre i Codex](docs/CODEX.md) · [MCP](docs/MCP.md) · [Pauseskærm](docs/SCREENSAVER.md)
 
@@ -29,6 +29,8 @@ Frontend er udviklet med iPadOS 15 som kompatibilitetsmål; der er ingen produkt
 **Familien i dag** bruger den faktiske dato i `Europe/Copenhagen`, også når en anden kalenderdag vises.
 Hvis en anden dag er valgt på forsiden, hedder opgavegenvejen **Se alle opgaver denne dag** og følger den valgte dag. Dagslisten har ikke forsides begrænsning på fire kort.
 **Dagens opgaver** og **I dag** vender tilbage til familiens aktuelle dato. Ugevisningen og kataloget **Alle opgaver** kan fortsat vælges særskilt.
+
+**Automatisk datoskift:** Visninger, der følger i dag eller den aktuelle uge, opdateres ved midnat i `Europe/Copenhagen`, og når skærmen vågner igen. Det gælder kalender, dagsliste og `/tablet`. En bevidst valgt anden dato bevares; **I dag** genoptager dagens visning. Åbne formularer i normalvisningen bevares, og skiftet anvendes ved lukning. Ingen genindlæsning af hele siden, nyt login eller kopiering af opgaver. Se [datoskiftets regler og tests](docs/MIDNIGHT.md).
 
 Gentagelser omfatter én dag, dagligt, hverdage, hver uge, hver anden uge samt opgaver, der kan løses i løbet af en hel uge. En hele-uge-opgave afkrydses én gang for den pågældende uge. Daglige forekomster har hver deres afkrydsning.
 
