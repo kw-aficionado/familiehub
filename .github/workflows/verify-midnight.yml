@@ -34,6 +34,8 @@ jobs:
           if not Path('web/day-rollover.js').exists():
               subprocess.run(['git', 'apply', '--check', '-'], input=patch, check=True)
               subprocess.run(['git', 'apply', '-'], input=patch, check=True)
+              subprocess.run(['git', 'apply', '--check', '.github/midnight-test-fix.patch'], check=True)
+              subprocess.run(['git', 'apply', '.github/midnight-test-fix.patch'], check=True)
           PY
       - name: Verify JavaScript and backend
         run: |
